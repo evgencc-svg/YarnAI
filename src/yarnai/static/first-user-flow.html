@@ -11,6 +11,7 @@
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/first-user-flow.css">
     <script src="/static/intent-engine.js" defer></script>
+    <script src="/static/project-readiness-engine.js" defer></script>
     <script src="/static/first-user-flow.js" defer></script>
   </head>
   <body class="first-flow-page">
@@ -169,6 +170,16 @@
             </button>
           </div>
 
+          <section
+            id="readiness-status"
+            class="readiness-status"
+            aria-labelledby="readiness-status-title"
+          >
+            <p id="readiness-status-label" class="readiness-status-label"></p>
+            <h2 id="readiness-status-title"></h2>
+            <p id="readiness-status-description"></p>
+          </section>
+
           <p class="result-introduction">Ты хочешь связать:</p>
           <ul id="result-known" class="result-list result-known"></ul>
 
@@ -190,10 +201,45 @@
             <ul id="result-missing" class="result-list"></ul>
           </section>
 
+          <section
+            id="result-optional-block"
+            class="result-section result-optional"
+            aria-labelledby="result-optional-title"
+          >
+            <h2 id="result-optional-title">Можно уточнить позже:</h2>
+            <ul id="result-optional" class="result-list"></ul>
+          </section>
+
+          <section
+            id="result-blockers-block"
+            class="result-section result-blockers"
+            aria-labelledby="result-blockers-title"
+            hidden
+          >
+            <h2 id="result-blockers-title">Что мешает продолжить:</h2>
+            <ul id="result-blockers" class="result-list"></ul>
+          </section>
+
+          <section
+            id="calculation-plan"
+            class="calculation-plan"
+            aria-labelledby="calculation-plan-title"
+          >
+            <p class="readiness-status-label">Что будет рассчитано</p>
+            <h2 id="calculation-plan-title"></h2>
+            <p id="calculation-plan-description"></p>
+            <ul id="calculation-plan-outputs" class="result-list"></ul>
+            <p class="calculation-limit-label">В этот расчёт не входит:</p>
+            <ul id="calculation-plan-limits" class="calculation-limit-list"></ul>
+          </section>
+
           <p id="result-warning" class="result-warning" role="status"></p>
 
           <div class="result-actions">
             <button id="continue-dialog-button" type="button">Продолжить</button>
+            <a id="open-calculator-link" href="/calculator" hidden>
+              Перейти к расчёту
+            </a>
           </div>
 
           <form id="summary-correction-form" class="summary-correction-form">

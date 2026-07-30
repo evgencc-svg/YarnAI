@@ -250,10 +250,17 @@ test("assumptions are replaced when the user provides explicit information", () 
 
 test("Continue selects the first rule-applicable required question", () => {
   const engine = completeSweaterDiscovery();
-  const state = engine.continue();
+  let state = engine.continue();
 
   assert.equal(state.phase, "active");
   assert.equal(state.dialogMode, "requirements");
+  assert.equal(state.currentQuestion.id, "targetWidth");
+  assert.match(state.currentQuestion.text, /готовая ширина/i);
+
+  state = answer(engine, "50 см");
+  assert.equal(state.projectIntent.targetWidth.value, 50);
+  assert.equal(state.projectIntent.targetWidth.unit, "cm");
+  state = engine.continue();
   assert.equal(state.currentQuestion.id, "sampleKnown");
   assert.match(state.currentQuestion.text, /контрольный образец/i);
 
@@ -285,6 +292,18 @@ test("summary is a human-readable view model instead of a JSON dump", () => {
 test("gauge answers update the summary and remove calculation gaps", () => {
   const engine = completeSweaterDiscovery();
   let state = engine.continue();
+  assert.equal(state.currentQuestion.id, "targetWidth");
+
+  state = answer(engine, "Готовая ширина детали 50 см.");
+  assert.equal(state.phase, "summary");
+  assert.deepEqual(state.projectIntent.targetWidth, {
+    value: 50,
+    unit: "cm",
+    sizeKind: "finished",
+    raw: "Готовая ширина детали 50 см",
+  });
+
+  state = engine.continue();
   assert.equal(state.currentQuestion.id, "sampleKnown");
 
   state = answer(engine, "Да, контрольный образец уже связан.");

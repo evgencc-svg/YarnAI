@@ -13,6 +13,18 @@
   if (!engineApi) {
     throw new Error("Project Understanding Engine is unavailable.");
   }
+  let readinessApi = globalObject.YarnAIProjectReadiness;
+  if (
+    !readinessApi &&
+    typeof module !== "undefined" &&
+    module.exports &&
+    typeof require === "function"
+  ) {
+    readinessApi = require("./project-readiness-engine.js");
+  }
+  if (!readinessApi) {
+    throw new Error("Project Readiness Engine is unavailable.");
+  }
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -50,8 +62,37 @@
   );
   const resultMissing = document.querySelector("#result-missing");
   const resultMissingBlock = document.querySelector("#result-missing-block");
+  const resultOptional = document.querySelector("#result-optional");
+  const resultOptionalBlock = document.querySelector("#result-optional-block");
+  const resultBlockers = document.querySelector("#result-blockers");
+  const resultBlockersBlock = document.querySelector(
+    "#result-blockers-block",
+  );
+  const readinessStatus = document.querySelector("#readiness-status");
+  const readinessStatusLabel = document.querySelector(
+    "#readiness-status-label",
+  );
+  const readinessStatusTitle = document.querySelector(
+    "#readiness-status-title",
+  );
+  const readinessStatusDescription = document.querySelector(
+    "#readiness-status-description",
+  );
+  const calculationPlanTitle = document.querySelector(
+    "#calculation-plan-title",
+  );
+  const calculationPlanDescription = document.querySelector(
+    "#calculation-plan-description",
+  );
+  const calculationPlanOutputs = document.querySelector(
+    "#calculation-plan-outputs",
+  );
+  const calculationPlanLimits = document.querySelector(
+    "#calculation-plan-limits",
+  );
   const resultWarning = document.querySelector("#result-warning");
   const continueButton = document.querySelector("#continue-dialog-button");
+  const openCalculatorLink = document.querySelector("#open-calculator-link");
   const summaryCorrectionForm = document.querySelector(
     "#summary-correction-form",
   );
@@ -248,7 +289,7 @@
     const state = engine.snapshot();
     if (["summary", "completed"].includes(state.phase)) {
       showScreen("result");
-      renderSummary(state.summary);
+      renderSummary(state.summary, state.projectIntent);
     } else if (state.messages.length > 0) {
       showScreen("dialog");
     } else {
@@ -314,29 +355,101 @@
     });
   }
 
-  function renderSummary(summary) {
-    if (!summary) {
+  function renderSummary(summary, projectIntent) {
+    if (!summary || !projectIntent) {
       return;
     }
-    renderList(resultKnown, summary.knownItems, "Пока нет подтверждённых данных.");
+    const readiness = readinessApi.evaluateProjectReadiness(projectIntent);
+    const statusCopy = {
+      collecting: {
+        label: "Собираем данные",
+        title: "Проект ещё нужно уточнить",
+      },
+      ready_for_sample: {
+        label: "Следующий этап — образец",
+        title: "Проект понятен, пора проверить плотность",
+      },
+      ready_for_calculation: {
+        label: "Готов к передаче",
+        title: "Можно перейти к расчёту",
+      },
+      blocked: {
+        label: "Нужна корректировка",
+        title: "Расчёт пока заблокирован",
+      },
+    }[readiness.status];
+
+    readinessStatus.dataset.state = readiness.status;
+    readinessStatusLabel.textContent = statusCopy.label;
+    readinessStatusTitle.textContent = statusCopy.title;
+    readinessStatusDescription.textContent =
+      readiness.nextAction.description;
+
+    renderList(
+      resultKnown,
+      readiness.knownFacts.map(
+        (fact) => `${fact.label} — ${fact.value}`,
+      ),
+      "Пока нет подтверждённых данных.",
+    );
     renderList(
       resultAssumptions,
-      summary.assumptions,
+      readiness.assumptions.map((assumption) => {
+        const reason = assumption.reason ? `: ${assumption.reason}` : "";
+        return `${assumption.label} — ${assumption.value}${reason}`;
+      }),
       "Предположений нет.",
     );
-    resultAssumptionsBlock.hidden = summary.assumptions.length === 0;
+    resultAssumptionsBlock.hidden = readiness.assumptions.length === 0;
     renderList(
       resultMissing,
-      summary.missingItems.map((item) => item.label),
+      readiness.missingRequired.map(
+        (item) => `${item.label} — ${item.reason}`,
+      ),
       "Обязательные параметры собраны.",
     );
-    resultMissingBlock.hidden = summary.missingItems.length === 0;
-    resultWarning.textContent = summary.warning;
-    resultWarning.dataset.state = summary.complete ? "complete" : "missing";
-    continueButton.hidden = !summary.canContinue;
-    continueButton.textContent = summary.complete
-      ? "Готово"
-      : "Продолжить";
+    resultMissingBlock.hidden = readiness.missingRequired.length === 0;
+    renderList(
+      resultOptional,
+      readiness.missingOptional.map(
+        (item) => `${item.label} — ${item.reason}`,
+      ),
+      "Дополнительных уточнений нет.",
+    );
+    resultOptionalBlock.hidden = readiness.missingOptional.length === 0;
+    renderList(
+      resultBlockers,
+      readiness.blockers.map((blocker) => blocker.message),
+      "Блокирующих ограничений нет.",
+    );
+    resultBlockersBlock.hidden = readiness.blockers.length === 0;
+
+    calculationPlanTitle.textContent = readiness.calculationPlan.title;
+    calculationPlanDescription.textContent =
+      readiness.calculationPlan.description;
+    renderList(
+      calculationPlanOutputs,
+      readiness.calculationPlan.outputs,
+      "Результат расчёта ещё не определён.",
+    );
+    renderList(
+      calculationPlanLimits,
+      readiness.calculationPlan.notIncluded,
+      "Ограничений нет.",
+    );
+
+    resultWarning.textContent = readiness.nextAction.description;
+    resultWarning.dataset.state =
+      readiness.status === "ready_for_calculation" ? "complete" : "missing";
+    continueButton.hidden =
+      readiness.nextAction.type !== "continue_dialog" || !summary.canContinue;
+    continueButton.textContent = readiness.nextAction.label;
+    openCalculatorLink.hidden =
+      readiness.nextAction.type !== "open_calculator";
+    if (readiness.nextAction.href) {
+      openCalculatorLink.href = readiness.nextAction.href;
+      openCalculatorLink.textContent = readiness.nextAction.label;
+    }
   }
 
   function renderList(element, values, emptyText) {

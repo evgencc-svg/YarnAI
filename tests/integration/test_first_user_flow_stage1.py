@@ -112,6 +112,7 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
     assert page.stylesheets == ["/static/first-user-flow.css"]
     assert page.scripts == [
         "/static/intent-engine.js",
+        "/static/project-readiness-engine.js",
         "/static/first-user-flow.js",
     ]
     for asset in [*page.stylesheets, *page.scripts]:
@@ -122,6 +123,7 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
             (STATIC / "first-user-flow.html").read_text(encoding="utf-8"),
             (STATIC / "first-user-flow.css").read_text(encoding="utf-8"),
             (STATIC / "intent-engine.js").read_text(encoding="utf-8"),
+            (STATIC / "project-readiness-engine.js").read_text(encoding="utf-8"),
             (STATIC / "first-user-flow.js").read_text(encoding="utf-8"),
         )
     ).lower()
@@ -153,6 +155,10 @@ def test_result_screen_is_human_readable_and_supports_corrections() -> None:
     assert 'id="result-known"' in html
     assert 'id="result-assumptions"' in html
     assert 'id="result-missing"' in html
+    assert 'id="result-optional"' in html
+    assert 'id="result-blockers"' in html
+    assert 'id="calculation-plan"' in html
+    assert 'id="open-calculator-link"' in html
     assert 'id="continue-dialog-button"' in html
     assert 'id="summary-correction-form"' in html
     assert "Ты хочешь связать:" in html
@@ -163,6 +169,9 @@ def test_result_screen_is_human_readable_and_supports_corrections() -> None:
 def test_intent_decisions_live_outside_the_ui_layer() -> None:
     ui_script = (STATIC / "first-user-flow.js").read_text(encoding="utf-8")
     engine_script = (STATIC / "intent-engine.js").read_text(encoding="utf-8")
+    readiness_script = (
+        STATIC / "project-readiness-engine.js"
+    ).read_text(encoding="utf-8")
 
     assert "collectMissingInformation" in engine_script
     assert "selectNextQuestion" in engine_script
@@ -170,6 +179,10 @@ def test_intent_decisions_live_outside_the_ui_layer() -> None:
     assert "ProjectIntent" in engine_script
     assert "collectMissingInformation" not in ui_script
     assert "selectNextQuestion" not in ui_script
+    assert "class ProjectReadinessEngine" in readiness_script
+    assert 'status = "ready_for_calculation"' in readiness_script
+    assert "buildCalculationInput" in readiness_script
+    assert "buildCalculationInput" not in ui_script
 
 
 def test_root_security_policy_allows_local_file_previews(

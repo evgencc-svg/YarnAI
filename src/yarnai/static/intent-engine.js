@@ -55,6 +55,7 @@
     yarn: "пряжа",
     yarnAmount: "количество пряжи",
     construction: "конструкция изделия",
+    targetWidth: "готовая ширина детали",
     sampleKnown: "контрольный образец",
     gauge: "плотность вязания",
     backDetails: "изменения спинки",
@@ -141,6 +142,14 @@
       stage: "technology",
       priority: 80,
       text: () => "Как должна быть устроена линия плеча или рукав?",
+    },
+    {
+      id: "targetWidth",
+      field: "targetWidth",
+      stage: "technology",
+      priority: 85,
+      text: () =>
+        "Какая готовая ширина детали нужна для первого расчёта в сантиметрах?",
     },
     {
       id: "sampleKnown",
@@ -270,6 +279,27 @@
       /(\d{2,5})\s*(?:грамм(?:а|ов)?|метр(?:а|ов)?|гр|г|м)(?=\s|[.,!?]|$)/i,
     );
     return amount ? cleanText(amount[0], 80) : null;
+  }
+
+  function detectTargetWidth(text, allowBareMeasurement = false) {
+    const explicit = text.match(
+      /(?:готов(?:ая|ой|ую)?\s+)?ширин(?:а|ы|е|у|ой)?(?:\s+(?:изделия|детали|полотна))?\s*(?:—|-|:|будет|нужна|около)?\s*(\d+(?:[.,]\d+)?)\s*(см|сантиметр(?:а|ов)?|inch|in|дюйм(?:а|ов)?)/i,
+    );
+    const bare = allowBareMeasurement
+      ? text.match(
+          /^\s*(\d+(?:[.,]\d+)?)\s*(см|сантиметр(?:а|ов)?|inch|in|дюйм(?:а|ов)?)\s*[.!]?\s*$/i,
+        )
+      : null;
+    const match = explicit || bare;
+    if (!match) {
+      return null;
+    }
+    return {
+      value: parseNumber(match[1]),
+      unit: /^(?:inch|in|дюйм)/i.test(match[2]) ? "inch" : "cm",
+      sizeKind: "finished",
+      raw: cleanText(match[0], 120),
+    };
   }
 
   function parseNumber(value) {
@@ -405,6 +435,10 @@
     const size = detectSize(text);
     if (size) {
       mark("size", size, { confidence: 0.99 });
+    }
+    const targetWidth = detectTargetWidth(text);
+    if (targetWidth) {
+      mark("targetWidth", targetWidth, { confidence: 0.99 });
     }
 
     const styles = [
@@ -591,6 +625,11 @@
       !interpretation.rejectsRaglan
     ) {
       setFact(facts, "construction", answer, { confidence: 0.86 });
+    } else if (questionId === "targetWidth" && !facts.targetWidth) {
+      const targetWidth = detectTargetWidth(answer, true);
+      if (targetWidth) {
+        setFact(facts, "targetWidth", targetWidth, { confidence: 0.99 });
+      }
     } else if (questionId === "sampleKnown" && !facts.sampleStatus) {
       if (/^(?:нет|пока нет|ещ[её] нет)/i.test(answer)) {
         setFact(facts, "sampleStatus", "no", { confidence: 0.98 });
@@ -738,6 +777,12 @@
         ),
       );
     }
+    add(
+      "targetWidth",
+      "technology",
+      "калькулятору нужна готовая ширина первой рассчитываемой детали",
+      "calculation",
+    );
     if (intent.sampleKnown === null) {
       missing.push(
         missingEntry(
@@ -845,6 +890,13 @@
         intent.yarnKnown === false ? "known" : intent.fieldStatus.yarn,
       ],
       ["Количество пряжи", intent.yarnAmount, intent.fieldStatus.yarnAmount],
+      [
+        "Готовая ширина",
+        intent.targetWidth
+          ? `${intent.targetWidth.value} ${intent.targetWidth.unit === "inch" ? "дюйм." : "см"}`
+          : null,
+        intent.fieldStatus.targetWidth,
+      ],
       ["Плотность", gaugeLabel(intent.gauge), intent.fieldStatus.gauge],
       [
         "Важно сохранить",
@@ -920,6 +972,7 @@
               : null,
         yarn: facts.yarnDescription || null,
         yarnAmount: facts.yarnAmount || null,
+        targetWidth: facts.targetWidth || null,
         sampleKnown:
           facts.sampleStatus === "yes"
             ? true
@@ -985,6 +1038,7 @@
         ["yarnKnown", intent.yarnKnown, "yarnStatus"],
         ["yarn", intent.yarn, "yarnDescription"],
         ["yarnAmount", intent.yarnAmount],
+        ["targetWidth", intent.targetWidth],
         ["sampleKnown", intent.sampleKnown, "sampleStatus"],
         ["gaugeKnown", intent.gaugeKnown, "gaugeStatus"],
         ["gauge", intent.gauge],
@@ -1072,6 +1126,13 @@
       }
       if (intent.yarnAmount) {
         knownItems.push(`количество — ${intent.yarnAmount}`);
+      }
+      if (intent.targetWidth) {
+        knownItems.push(
+          `готовая ширина — ${intent.targetWidth.value} ${
+            intent.targetWidth.unit === "inch" ? "дюйм." : "см"
+          }`,
+        );
       }
       if (intent.gauge) {
         knownItems.push(`плотность — ${gaugeLabel(intent.gauge)}`);
