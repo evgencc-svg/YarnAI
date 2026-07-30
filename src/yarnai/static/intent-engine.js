@@ -1548,6 +1548,71 @@
       );
     }
 
+    recordGauge(gauge) {
+      if (!gauge || typeof gauge !== "object") {
+        throw new TypeError("Gauge must be an object.");
+      }
+      const stitches = Number(gauge.stitches);
+      const widthCm = Number(gauge.widthCm);
+      const rows =
+        gauge.rows === null || gauge.rows === undefined || gauge.rows === ""
+          ? null
+          : Number(gauge.rows);
+      const heightCm =
+        gauge.heightCm === null ||
+        gauge.heightCm === undefined ||
+        gauge.heightCm === ""
+          ? null
+          : Number(gauge.heightCm);
+      if (
+        !Number.isFinite(stitches) ||
+        stitches <= 0 ||
+        !Number.isFinite(widthCm) ||
+        widthCm <= 0 ||
+        (rows !== null && (!Number.isFinite(rows) || rows <= 0)) ||
+        (heightCm !== null && (!Number.isFinite(heightCm) || heightCm <= 0)) ||
+        (rows === null) !== (heightCm === null)
+      ) {
+        throw new TypeError("Gauge values must be positive and complete.");
+      }
+      if (!["summary", "completed"].includes(this.state.phase)) {
+        throw new Error("Project summary is not open.");
+      }
+
+      const normalizedGauge = {
+        ...copy(gauge),
+        stitches,
+        widthCm,
+        rows,
+        heightCm,
+        raw:
+          cleanText(gauge.raw, 160) ||
+          `${stitches} петель на ${widthCm} см`,
+      };
+      setFact(this.state.facts, "sampleStatus", "yes", {
+        confidence: 1,
+        reason: "контрольный образец подтверждён пользователем",
+      });
+      setFact(this.state.facts, "gaugeStatus", "yes", {
+        confidence: 1,
+        reason: "плотность рассчитана по измерениям контрольного образца",
+      });
+      setFact(this.state.facts, "gauge", normalizedGauge, {
+        confidence: 1,
+        reason: "структурированные измерения контрольного образца",
+      });
+      this.state.messages.push(
+        userMessage(
+          `Контрольный образец: ${normalizedGauge.raw}.`,
+        ),
+      );
+      this.state.phase = "summary";
+      this.state.dialogMode = "technology";
+      this.state.currentQuestion = null;
+      this._refreshUnderstanding();
+      return copy(this.state);
+    }
+
     addAttachment(kind, attachment) {
       if (!["photo", "pattern"].includes(kind)) {
         throw new TypeError("Unknown attachment kind.");

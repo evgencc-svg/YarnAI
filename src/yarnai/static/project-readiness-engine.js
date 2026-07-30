@@ -330,6 +330,13 @@
   function calculationAssumptions(intent) {
     const category =
       intent.ageGroup === "child" ? "детская чувствительная категория" : "обычное изделие";
+    const swatchContext = isRecord(intent.gauge?.context)
+      ? intent.gauge.context
+      : {};
+    const swatchVerified =
+      swatchContext.processed === true &&
+      swatchContext.fullyDry === true &&
+      swatchContext.relaxed === true;
     return [
       entry(
         "calculationCategory",
@@ -349,7 +356,9 @@
         "swatchDefaults",
         "Состояние образца",
         "снят со спиц, обработан, высушен и измерен 3 раза после 12 часов отдыха",
-        "использованы базовые значения действующего калькулятора; их нужно проверить перед запуском",
+        swatchVerified
+          ? "подтверждено в помощнике контрольного образца"
+          : "использованы базовые значения действующего калькулятора; их нужно проверить перед запуском",
       ),
       entry(
         "toolDefaults",
@@ -369,6 +378,7 @@
   function buildCalculationInput(intent) {
     const width = intent.targetWidth;
     const gauge = intent.gauge;
+    const swatchContext = isRecord(gauge.context) ? gauge.context : {};
     const yarn = intent.yarn.trim();
     const mode = "flat";
     const pattern = "stockinette";
@@ -403,13 +413,21 @@
           ready_count: positiveNumber(gauge.stitches),
           base_length: positiveNumber(gauge.widthCm),
           base_unit: "cm",
-          source_measurement_count: 3,
+          source_measurement_count:
+            positiveNumber(gauge.sourceMeasurementCount) || 3,
           context: {
-            off_needles: "yes",
-            processing_state: "after_intended_processing",
-            fully_dry: "yes",
-            rest_hours: 12,
-            measurement_state: "relaxed",
+            off_needles:
+              swatchContext.offNeedles === false ? "no" : "yes",
+            processing_state:
+              swatchContext.processed === false
+                ? "before_intended_processing"
+                : "after_intended_processing",
+            fully_dry:
+              swatchContext.fullyDry === false ? "no" : "yes",
+            rest_hours:
+              positiveNumber(swatchContext.restHours) || 12,
+            measurement_state:
+              swatchContext.relaxed === false ? "stretched" : "relaxed",
             fabric: copy(fabricContext),
             mode,
             heavy_or_large: "no",

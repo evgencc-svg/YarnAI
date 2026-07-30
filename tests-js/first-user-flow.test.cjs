@@ -330,6 +330,42 @@ test("gauge answers update the summary and remove calculation gaps", () => {
   assert.equal(state.summary.complete, true);
 });
 
+test("structured swatch measurements update ProjectIntent without dialogue parsing", () => {
+  const engine = completeSweaterDiscovery();
+  let state = engine.continue();
+  state = answer(engine, "Готовая ширина детали 50 см.");
+
+  state = engine.recordGauge({
+    stitches: 20,
+    widthCm: 10,
+    rows: 28,
+    heightCm: 10,
+    sourceMeasurementCount: 3,
+    measurements: [
+      { stitches: 19, widthCm: 10 },
+      { stitches: 20, widthCm: 10 },
+      { stitches: 21, widthCm: 10 },
+    ],
+    context: {
+      processed: true,
+      fullyDry: true,
+      relaxed: true,
+      offNeedles: true,
+      restHours: 12,
+    },
+  });
+
+  assert.equal(state.phase, "summary");
+  assert.equal(state.projectIntent.sampleKnown, true);
+  assert.equal(state.projectIntent.gaugeKnown, true);
+  assert.equal(state.projectIntent.gauge.sourceMeasurementCount, 3);
+  assert.deepEqual(state.projectIntent.gauge.measurements[1], {
+    stitches: 20,
+    widthCm: 10,
+  });
+  assert.equal(state.summary.complete, true);
+});
+
 test("IntentProvider defines the replaceable provider boundary", () => {
   const provider = new RuleBasedProvider();
 

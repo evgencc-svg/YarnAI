@@ -25,6 +25,18 @@
   if (!readinessApi) {
     throw new Error("Project Readiness Engine is unavailable.");
   }
+  let swatchApi = globalObject.YarnAISwatchAssistant;
+  if (
+    !swatchApi &&
+    typeof module !== "undefined" &&
+    module.exports &&
+    typeof require === "function"
+  ) {
+    swatchApi = require("./swatch-assistant.js");
+  }
+  if (!swatchApi) {
+    throw new Error("Swatch Assistant is unavailable.");
+  }
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -102,6 +114,18 @@
   const summaryNewDialogButton = document.querySelector(
     "#summary-new-dialog-button",
   );
+  const swatchAssistant = document.querySelector("#swatch-assistant");
+  const swatchAssistantTitle = document.querySelector(
+    "#swatch-assistant-title",
+  );
+  const swatchAssistantIntroduction = document.querySelector(
+    "#swatch-assistant-introduction",
+  );
+  const swatchAssistantSteps = document.querySelector(
+    "#swatch-assistant-steps",
+  );
+  const swatchForm = document.querySelector("#swatch-form");
+  const swatchFeedback = document.querySelector("#swatch-feedback");
 
   let engine = restoreEngine();
   let activeObjectUrl = null;
@@ -154,6 +178,45 @@
     summaryCorrectionInput.value = "";
     persistAndRender();
     summaryCorrectionInput.focus();
+  });
+  swatchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const formData = new FormData(swatchForm);
+    const assessment = swatchApi.assessSwatch({
+      measurementWidthCm: formData.get("measurement-width"),
+      stitchMeasurements: [
+        formData.get("stitches-1"),
+        formData.get("stitches-2"),
+        formData.get("stitches-3"),
+      ],
+      rows: formData.get("rows"),
+      rowHeightCm: formData.get("row-height"),
+      context: {
+        sameYarn: formData.has("same-yarn"),
+        sameTools: formData.has("same-tools"),
+        samePattern: formData.has("same-pattern"),
+        processed: formData.has("processed"),
+        fullyDry: formData.has("fully-dry"),
+        relaxed: formData.has("relaxed"),
+      },
+    });
+    if (!assessment.ready) {
+      swatchFeedback.replaceChildren();
+      const list = document.createElement("ul");
+      assessment.errors.forEach((error) => {
+        const item = document.createElement("li");
+        item.textContent = error.message;
+        list.append(item);
+      });
+      swatchFeedback.append(list);
+      swatchFeedback.hidden = false;
+      swatchFeedback.focus();
+      return;
+    }
+    swatchFeedback.hidden = true;
+    engine.recordGauge(assessment.gauge);
+    persistAndRender();
+    openCalculatorLink.focus();
   });
   messageInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -424,6 +487,8 @@
     );
     resultBlockersBlock.hidden = readiness.blockers.length === 0;
 
+    renderSwatchAssistant(readiness, projectIntent);
+
     calculationPlanTitle.textContent = readiness.calculationPlan.title;
     calculationPlanDescription.textContent =
       readiness.calculationPlan.description;
@@ -450,6 +515,25 @@
       openCalculatorLink.href = readiness.nextAction.href;
       openCalculatorLink.textContent = readiness.nextAction.label;
     }
+  }
+
+  function renderSwatchAssistant(readiness, projectIntent) {
+    const visible = readiness.status === "ready_for_sample";
+    swatchAssistant.hidden = !visible;
+    if (!visible) {
+      return;
+    }
+    const guide = swatchApi.instructionsFor(projectIntent);
+    swatchAssistantTitle.textContent = guide.title;
+    swatchAssistantIntroduction.textContent =
+      `Для расчёта нужна фактическая плотность полотна из пряжи «${guide.yarn}». ` +
+      "Помощник проверит подготовку и согласованность измерений.";
+    swatchAssistantSteps.replaceChildren();
+    guide.steps.forEach((step) => {
+      const item = document.createElement("li");
+      item.textContent = step;
+      swatchAssistantSteps.append(item);
+    });
   }
 
   function renderList(element, values, emptyText) {

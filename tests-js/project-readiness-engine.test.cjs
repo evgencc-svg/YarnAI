@@ -138,6 +138,44 @@ test("complete width data becomes an exact calculator input and link", () => {
   );
 });
 
+test("verified swatch metadata is preserved in calculationInput", () => {
+  const readiness = evaluateProjectReadiness(
+    projectIntent({
+      gauge: {
+        stitches: 19.5,
+        widthCm: 10,
+        rows: null,
+        heightCm: null,
+        sourceMeasurementCount: 4,
+        context: {
+          processed: true,
+          fullyDry: true,
+          relaxed: true,
+          offNeedles: true,
+          restHours: 18,
+        },
+      },
+    }),
+  );
+
+  assert.equal(readiness.status, "ready_for_calculation");
+  assert.equal(
+    readiness.calculationInput.width.gauge.source_measurement_count,
+    4,
+  );
+  assert.equal(
+    readiness.calculationInput.width.gauge.context.rest_hours,
+    18,
+  );
+  assert.ok(
+    readiness.assumptions.some(
+      (item) =>
+        item.field === "swatchDefaults" &&
+        /подтверждено в помощнике/i.test(item.reason),
+    ),
+  );
+});
+
 test("an explicitly unsupported technique blocks calculator transfer", () => {
   const readiness = evaluateProjectReadiness(
     projectIntent({ technique: "крючок" }),

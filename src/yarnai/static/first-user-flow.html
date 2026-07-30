@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="/static/first-user-flow.css">
     <script src="/static/intent-engine.js" defer></script>
     <script src="/static/project-readiness-engine.js" defer></script>
+    <script src="/static/swatch-assistant.js" defer></script>
     <script src="/static/first-user-flow.js" defer></script>
   </head>
   <body class="first-flow-page">
@@ -231,6 +232,144 @@
             <ul id="calculation-plan-outputs" class="result-list"></ul>
             <p class="calculation-limit-label">В этот расчёт не входит:</p>
             <ul id="calculation-plan-limits" class="calculation-limit-list"></ul>
+          </section>
+
+          <section
+            id="swatch-assistant"
+            class="swatch-assistant"
+            aria-labelledby="swatch-assistant-title"
+            hidden
+          >
+            <p class="readiness-status-label">Помощник плотности</p>
+            <h2 id="swatch-assistant-title">Подготовим контрольный образец</h2>
+            <p id="swatch-assistant-introduction"></p>
+            <ol id="swatch-assistant-steps" class="swatch-steps"></ol>
+
+            <form id="swatch-form" novalidate>
+              <fieldset class="swatch-fieldset">
+                <legend>Образец готов к измерению</legend>
+                <div class="swatch-checklist">
+                  <label>
+                    <input name="same-yarn" type="checkbox" required>
+                    Та же пряжа и партия, что для изделия
+                  </label>
+                  <label>
+                    <input name="same-tools" type="checkbox" required>
+                    Те же спицы, число нитей и способ вязания
+                  </label>
+                  <label>
+                    <input name="same-pattern" type="checkbox" required>
+                    Тот же основной узор
+                  </label>
+                  <label>
+                    <input name="processed" type="checkbox" required>
+                    Образец обработан как готовое изделие
+                  </label>
+                  <label>
+                    <input name="fully-dry" type="checkbox" required>
+                    Образец полностью высох
+                  </label>
+                  <label>
+                    <input name="relaxed" type="checkbox" required>
+                    Снят со спиц, отлежался и не растянут
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset class="swatch-fieldset">
+                <legend>Три измерения петель</legend>
+                <p class="swatch-hint">
+                  Выберите участок без кромок и каждый раз считайте петли на
+                  одинаковой ширине.
+                </p>
+                <label class="swatch-width-field">
+                  <span>Ширина каждого измерения</span>
+                  <span class="swatch-input-unit">
+                    <input
+                      name="measurement-width"
+                      type="number"
+                      inputmode="decimal"
+                      min="0.1"
+                      step="0.1"
+                      value="10"
+                      required
+                    >
+                    <span>см</span>
+                  </span>
+                </label>
+                <div class="swatch-measurements">
+                  <label>
+                    <span>Измерение 1</span>
+                    <input
+                      name="stitches-1"
+                      type="number"
+                      inputmode="decimal"
+                      min="0.1"
+                      step="0.1"
+                      required
+                    >
+                  </label>
+                  <label>
+                    <span>Измерение 2</span>
+                    <input
+                      name="stitches-2"
+                      type="number"
+                      inputmode="decimal"
+                      min="0.1"
+                      step="0.1"
+                      required
+                    >
+                  </label>
+                  <label>
+                    <span>Измерение 3</span>
+                    <input
+                      name="stitches-3"
+                      type="number"
+                      inputmode="decimal"
+                      min="0.1"
+                      step="0.1"
+                      required
+                    >
+                  </label>
+                </div>
+              </fieldset>
+
+              <details class="swatch-row-gauge">
+                <summary>Добавить плотность рядов (необязательно)</summary>
+                <div class="swatch-measurements">
+                  <label>
+                    <span>Количество рядов</span>
+                    <input
+                      name="rows"
+                      type="number"
+                      inputmode="decimal"
+                      min="0.1"
+                      step="0.1"
+                    >
+                  </label>
+                  <label>
+                    <span>На высоте, см</span>
+                    <input
+                      name="row-height"
+                      type="number"
+                      inputmode="decimal"
+                      min="0.1"
+                      step="0.1"
+                    >
+                  </label>
+                </div>
+              </details>
+
+              <div
+                id="swatch-feedback"
+                class="swatch-feedback"
+                role="alert"
+                hidden
+              ></div>
+              <button class="swatch-submit" type="submit">
+                Проверить и сохранить плотность
+              </button>
+            </form>
           </section>
 
           <p id="result-warning" class="result-warning" role="status"></p>
