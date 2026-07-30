@@ -5,19 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta
       name="description"
-      content="Локальный интерфейс YarnAI для расчёта ширины в петлях."
+      content="YarnAI помогает рассчитать рабочее количество петель для заданной ширины изделия."
     >
-    <title>YarnAI — расчёт ширины</title>
+    <title>YarnAI — демо расчёта ширины</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/styles.css">
     <script src="/static/app.js" defer></script>
   </head>
   <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для заполнения примера и расчёта нужен JavaScript. Включите JavaScript
+        в браузере и перезагрузите страницу.
+      </div>
+    </noscript>
     <header class="site-header">
       <a class="brand" href="/" aria-label="YarnAI, главная">
-        <span class="brand-mark" aria-hidden="true">Y</span>
+        <img class="brand-mark" src="/static/favicon.png" alt="">
         <span>YarnAI</span>
       </a>
-      <span class="header-note">Первая функция</span>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/about">О первой функции</a>
+        <a href="/example">Пример</a>
+      </nav>
+      <span class="version-badge" title="Версия приложения">Демо 0.1.0</span>
     </header>
 
     <main class="page-shell">
@@ -29,9 +41,20 @@
           рассчитает рабочее количество петель и сообщит, если данных
           недостаточно или условия несовместимы.
         </p>
+        <div class="hero-actions">
+          <a class="link-button link-button-primary" href="#calculator">
+            Начать расчёт
+          </a>
+          <a class="link-button" href="/example">Открыть готовый пример</a>
+        </div>
+        <ul class="feature-list" aria-label="Кратко о демонстрации">
+          <li>Расчёт без регистрации</li>
+          <li>Данные не сохраняются</li>
+          <li>Результат можно распечатать</li>
+        </ul>
       </section>
 
-      <div class="workspace">
+      <div id="calculator" class="workspace">
         <form id="width-form" class="card form-card" novalidate>
           <div class="card-heading">
             <div>
@@ -40,6 +63,19 @@
             </div>
             <span class="axis-badge">Ширина</span>
           </div>
+
+          <div class="form-toolbar" aria-label="Действия с формой">
+            <button id="fill-example-button" class="text-button" type="button">
+              Заполнить пример
+            </button>
+            <button id="clear-form-button" class="text-button" type="button">
+              Очистить форму
+            </button>
+            <button id="share-button" class="text-button" type="button">
+              Скопировать ссылку
+            </button>
+          </div>
+          <p id="share-feedback" class="toolbar-feedback" role="status" hidden></p>
 
           <div
             id="validation-summary"
@@ -507,7 +543,8 @@
     </main>
 
     <footer>
-      Локальный интерфейс для ручного тестирования первой функции YarnAI
+      <span>YarnAI · публичная демонстрация первой функции</span>
+      <span>Версия приложения 0.1.0</span>
     </footer>
   </body>
 </html>

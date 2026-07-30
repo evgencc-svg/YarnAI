@@ -40,7 +40,19 @@ async def health(_request: Request) -> JSONResponse:
 
 
 async def user_interface(_request: Request) -> FileResponse:
-    """Return the local first-function user interface."""
+    """Return the YarnAI demonstration start page."""
+
+    return FileResponse(STATIC_DIRECTORY / "index.html", media_type="text/html")
+
+
+async def about_first_function(_request: Request) -> FileResponse:
+    """Return the user-facing explanation of the first function."""
+
+    return FileResponse(STATIC_DIRECTORY / "about.html", media_type="text/html")
+
+
+async def canonical_example(_request: Request) -> FileResponse:
+    """Return the calculator with the canonical example loaded by JavaScript."""
 
     return FileResponse(STATIC_DIRECTORY / "index.html", media_type="text/html")
 
@@ -121,6 +133,8 @@ def create_app() -> Starlette:
         debug=False,
         routes=[
             Route("/", user_interface, methods=["GET"]),
+            Route("/about", about_first_function, methods=["GET"]),
+            Route("/example", canonical_example, methods=["GET"]),
             Route("/health", health, methods=["GET"]),
             Route(
                 "/api/v1/calculate",

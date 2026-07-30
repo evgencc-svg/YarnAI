@@ -25,8 +25,10 @@ class _PageStructureParser(HTMLParser):
         super().__init__()
         self.forms = 0
         self.calculate_buttons = 0
+        self.action_buttons: set[str] = set()
         self.stylesheets: list[str] = []
         self.scripts: list[str] = []
+        self.icons: list[str] = []
 
     def handle_starttag(
         self,
@@ -42,10 +44,16 @@ class _PageStructureParser(HTMLParser):
             and attributes.get("type") == "submit"
         ):
             self.calculate_buttons += 1
+        if tag == "button" and attributes.get("id"):
+            self.action_buttons.add(attributes["id"])
         if tag == "link" and attributes.get("rel") == "stylesheet":
             href = attributes.get("href")
             if href:
                 self.stylesheets.append(href)
+        if tag == "link" and attributes.get("rel") == "icon":
+            href = attributes.get("href")
+            if href:
+                self.icons.append(href)
         if tag == "script":
             src = attributes.get("src")
             if src:
@@ -70,6 +78,11 @@ def test_root_returns_html_page_with_calculation_form(
     assert page.calculate_buttons == 1
     assert "YarnAI" in response.text
     assert "Рассчитать" in response.text
+    assert {
+        "fill-example-button",
+        "clear-form-button",
+        "share-button",
+    } <= page.action_buttons
 
 
 def test_page_static_css_and_javascript_are_available(
@@ -80,6 +93,7 @@ def test_page_static_css_and_javascript_are_available(
 
     assert page.stylesheets == ["/static/styles.css"]
     assert page.scripts == ["/static/app.js"]
+    assert page.icons == ["/static/favicon.png"]
 
     stylesheet_response = client.get(page.stylesheets[0])
     script_response = client.get(page.scripts[0])
@@ -88,6 +102,7 @@ def test_page_static_css_and_javascript_are_available(
     assert stylesheet_response.headers["content-type"].startswith("text/css")
     assert script_response.status_code == 200
     assert "javascript" in script_response.headers["content-type"]
+    assert client.get(page.icons[0]).status_code == 200
 
 
 def test_javascript_calls_http_api_and_reads_complete_result_path() -> None:
@@ -125,12 +140,64 @@ def test_ui_has_no_external_cdn_or_javascript_dependencies() -> None:
     assert "require(" not in script
 
 
-def test_page_has_mobile_viewport_and_no_images() -> None:
+def test_page_has_mobile_viewport_and_brand_image() -> None:
     html = (STATIC / "index.html").read_text(encoding="utf-8")
 
     assert 'name="viewport"' in html
     assert "width=device-width" in html
-    assert "<img" not in html.lower()
+    assert '<img class="brand-mark"' in html
+
+
+def test_demo_pages_and_canonical_example_are_available(
+    client: TestClient,
+) -> None:
+    about = client.get("/about")
+    example = client.get("/example")
+    canonical = client.get("/static/canonical-example.json")
+
+    assert about.status_code == 200
+    assert "Что рассчитывается" in about.text
+    assert "Какие данные необходимы" in about.text
+    assert "Что означает результат" in about.text
+    assert example.status_code == 200
+    assert "Заполнить пример" in example.text
+    assert canonical.status_code == 200
+    assert canonical.headers["content-type"].startswith("application/json")
+
+
+def test_packaged_example_matches_repository_canonical_example() -> None:
+    packaged = (STATIC / "canonical-example.json").read_text(encoding="utf-8")
+    canonical = (
+        ROOT / "examples" / "first_function_width.json"
+    ).read_text(encoding="utf-8")
+
+    assert packaged == canonical
+
+
+def test_javascript_supports_example_clear_and_query_sharing() -> None:
+    script = (STATIC / "app.js").read_text(encoding="utf-8")
+
+    assert (
+        'const CANONICAL_EXAMPLE_PATH = "/static/canonical-example.json"'
+        in script
+    )
+    assert "fillCanonicalExample" in script
+    assert "clearForm" in script
+    assert "new URLSearchParams(window.location.search)" in script
+    assert "window.history.replaceState" in script
+    assert "navigator.clipboard" in script
+    assert 'window.addEventListener("beforeprint", preparePrintView)' in script
+    assert 'window.addEventListener("afterprint", restoreDetailsAfterPrint)' in script
+
+
+def test_page_has_version_noscript_and_print_styles() -> None:
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    stylesheet = (STATIC / "styles.css").read_text(encoding="utf-8")
+
+    assert "Демо 0.1.0" in html
+    assert "<noscript>" in html
+    assert "Для заполнения примера и расчёта нужен JavaScript" in html
+    assert "@media print" in stylesheet
 
 
 def test_health_contract_remains_unchanged_with_ui_routes(

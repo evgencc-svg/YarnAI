@@ -26,7 +26,7 @@ yarnai-http = "yarnai.http:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-yarnai = ["static/*.css", "static/*.html", "static/*.js"]
+yarnai = ["static/*.css", "static/*.html", "static/*.js", "static/*.json", "static/*.png"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

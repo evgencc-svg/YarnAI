@@ -1,9 +1,14 @@
 "use strict";
 
 const API_PATH = "/api/v1/calculate";
+const CANONICAL_EXAMPLE_PATH = "/static/canonical-example.json";
 
 const form = document.querySelector("#width-form");
 const calculateButton = document.querySelector("#calculate-button");
+const fillExampleButton = document.querySelector("#fill-example-button");
+const clearFormButton = document.querySelector("#clear-form-button");
+const shareButton = document.querySelector("#share-button");
+const shareFeedback = document.querySelector("#share-feedback");
 const validationSummary = document.querySelector("#validation-summary");
 const idlePanel = document.querySelector("#idle-panel");
 const loadingPanel = document.querySelector("#loading-panel");
@@ -16,6 +21,7 @@ const statusLabelElement = document.querySelector("#status-label");
 const errorTitleElement = document.querySelector("#error-title");
 const errorContentElement = document.querySelector("#error-content");
 const warningsContentElement = document.querySelector("#warnings-content");
+let detailsStateBeforePrint = [];
 
 const statusLabels = {
   READY: "Расчёт готов",
@@ -27,6 +33,11 @@ const statusLabels = {
 };
 
 form.addEventListener("submit", handleSubmit);
+fillExampleButton.addEventListener("click", fillCanonicalExample);
+clearFormButton.addEventListener("click", clearForm);
+shareButton.addEventListener("click", shareForm);
+window.addEventListener("beforeprint", preparePrintView);
+window.addEventListener("afterprint", restoreDetailsAfterPrint);
 document
   .querySelector("#recalculate-button")
   .addEventListener("click", focusForm);
@@ -39,7 +50,27 @@ form.addEventListener("input", (event) => {
     event.target.removeAttribute("aria-invalid");
   }
   validationSummary.hidden = true;
+  shareFeedback.hidden = true;
 });
+
+initializePage();
+
+async function initializePage() {
+  const hasSharedValues = applyUrlParameters();
+
+  if (window.location.pathname === "/example") {
+    document.title = "Канонический пример — YarnAI";
+    document.querySelector(".eyebrow").textContent = "Канонический пример";
+    document.querySelector("#page-title").textContent =
+      "50 см при плотности 20 петель";
+    document.querySelector(".intro-copy").textContent =
+      "Пример уже заполнен и рассчитан: при плотности 20 петель на 10 см рабочая ширина 50 см требует 100 петель.";
+
+    if (!hasSharedValues && (await fillCanonicalExample())) {
+      form.requestSubmit();
+    }
+  }
+}
 
 async function handleSubmit(event) {
   event.preventDefault();
@@ -85,6 +116,181 @@ async function handleSubmit(event) {
   } finally {
     setLoading(false);
   }
+}
+
+async function fillCanonicalExample() {
+  fillExampleButton.disabled = true;
+  shareFeedback.hidden = true;
+
+  try {
+    const response = await fetch(CANONICAL_EXAMPLE_PATH, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error("Canonical example is unavailable.");
+    }
+    const payload = await response.json();
+    applyPayloadToForm(payload);
+    resetFeedback();
+    showIdlePanel();
+    showToolbarFeedback("Канонический пример заполнен.");
+    return true;
+  } catch {
+    showSafeError(
+      "Пример не загружен",
+      "Не удалось загрузить канонический пример. Обновите страницу и попробуйте снова.",
+    );
+    return false;
+  } finally {
+    fillExampleButton.disabled = false;
+  }
+}
+
+function applyPayloadToForm(payload) {
+  const fabric = payload.fabric_context;
+  const width = payload.width;
+  const gauge = width.gauge;
+  const context = gauge.context;
+
+  const values = {
+    "functional-category": payload.functional_category,
+    "knitting-mode": payload.knitting_mode,
+    "zone-pattern": payload.zone_pattern,
+    "pattern-class": payload.pattern_class,
+    "zone-homogeneous": payload.zone_homogeneous,
+    "width-value": width.value,
+    "width-unit": width.unit,
+    "size-kind": width.size_kind,
+    direction: width.direction,
+    "gauge-count": gauge.ready_count,
+    "gauge-length": gauge.base_length,
+    "gauge-unit": gauge.base_unit ?? width.unit,
+    "measurement-count": gauge.source_measurement_count,
+    "gauge-source": gauge.source,
+    "off-needles": context.off_needles,
+    "processing-state": context.processing_state,
+    "fully-dry": context.fully_dry,
+    "rest-hours": context.rest_hours,
+    "measurement-state": context.measurement_state,
+    "swatch-mode": context.mode,
+    "heavy-or-large": context.heavy_or_large,
+    yarn: fabric.yarn,
+    "yarn-batch": fabric.yarn_batch,
+    strands: fabric.strands,
+    "strands-description": fabric.strands_description,
+    "needle-mm": fabric.needle_mm,
+    "needle-type": fabric.needle_type,
+    "fabric-pattern": fabric.pattern,
+    "fabric-mode": fabric.mode,
+    "fabric-processing": fabric.processing,
+  };
+
+  Object.entries(values).forEach(([name, value]) => {
+    const control = form.elements.namedItem(name);
+    if (
+      (control instanceof HTMLInputElement ||
+        control instanceof HTMLSelectElement) &&
+      value !== undefined &&
+      value !== null
+    ) {
+      control.value = String(value);
+    }
+  });
+}
+
+function clearForm() {
+  form.querySelectorAll("input").forEach((input) => {
+    input.value = "";
+  });
+  form.querySelectorAll("select").forEach((select) => {
+    select.selectedIndex = -1;
+  });
+  form.querySelectorAll("details").forEach((details) => {
+    details.open = false;
+  });
+  window.history.replaceState({}, "", window.location.pathname);
+  resetFeedback();
+  showIdlePanel();
+  showToolbarFeedback("Форма очищена.");
+  document.querySelector("#width-value").focus();
+}
+
+async function shareForm() {
+  const url = new URL(window.location.href);
+  url.search = "";
+
+  new FormData(form).forEach((value, name) => {
+    if (String(value).trim() !== "") {
+      url.searchParams.set(name, String(value));
+    }
+  });
+
+  window.history.replaceState({}, "", url);
+
+  try {
+    await copyText(url.toString());
+    showToolbarFeedback("Ссылка на заполненный пример скопирована.");
+  } catch {
+    showToolbarFeedback(
+      "Не удалось скопировать ссылку автоматически. Скопируйте адрес из строки браузера.",
+    );
+  }
+}
+
+function applyUrlParameters() {
+  const parameters = new URLSearchParams(window.location.search);
+  let applied = false;
+
+  parameters.forEach((value, name) => {
+    const control = form.elements.namedItem(name);
+    if (
+      control instanceof HTMLInputElement ||
+      control instanceof HTMLSelectElement
+    ) {
+      control.value = value;
+      applied = true;
+    }
+  });
+  return applied;
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.className = "clipboard-helper";
+  document.body.append(textArea);
+  textArea.select();
+  const copied = document.execCommand("copy");
+  textArea.remove();
+  if (!copied) {
+    throw new Error("Copy command failed.");
+  }
+}
+
+function showToolbarFeedback(message) {
+  shareFeedback.textContent = message;
+  shareFeedback.hidden = false;
+}
+
+function preparePrintView() {
+  const detailSections = [...form.querySelectorAll("details")];
+  detailsStateBeforePrint = detailSections.map((details) => details.open);
+  detailSections.forEach((details) => {
+    details.open = true;
+  });
+}
+
+function restoreDetailsAfterPrint() {
+  form.querySelectorAll("details").forEach((details, index) => {
+    details.open = detailsStateBeforePrint[index] ?? false;
+  });
+  detailsStateBeforePrint = [];
 }
 
 function validateForm() {
@@ -382,6 +588,12 @@ function hidePrimaryPanels() {
   loadingPanel.hidden = true;
   resultPanel.hidden = true;
   errorPanel.hidden = true;
+}
+
+function showIdlePanel() {
+  hidePrimaryPanels();
+  warningsPanel.hidden = true;
+  idlePanel.hidden = false;
 }
 
 function focusForm() {

@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Что рассчитывает первая функция YarnAI, какие данные нужны и как читать результат."
+    >
+    <title>О первой функции — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/about" aria-current="page">О первой функции</a>
+        <a href="/example">Пример</a>
+      </nav>
+      <span class="version-badge" title="Версия приложения">Демо 0.1.0</span>
+    </header>
+
+    <main class="page-shell content-page">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">Первая функция YarnAI</p>
+        <h1 id="page-title">Расчёт ширины в петлях</h1>
+        <p class="intro-copy">
+          Функция переводит желаемую ширину в рабочее количество петель с
+          учётом плотности вязания и проверяет, достаточно ли исходных данных.
+        </p>
+      </section>
+
+      <section class="info-grid" aria-label="Описание функции">
+        <article class="card info-card">
+          <span class="info-number" aria-hidden="true">01</span>
+          <h2>Что рассчитывается</h2>
+          <p>
+            Рабочее количество петель для заданной ширины изделия. Расчёт
+            учитывает направление округления и применимые ограничения.
+          </p>
+        </article>
+        <article class="card info-card">
+          <span class="info-number" aria-hidden="true">02</span>
+          <h2>Какие данные необходимы</h2>
+          <p>
+            Желаемая ширина, единица измерения, число петель на известной длине
+            образца, состояние образца и контекст пряжи, спиц и узора.
+          </p>
+        </article>
+        <article class="card info-card">
+          <span class="info-number" aria-hidden="true">03</span>
+          <h2>Что означает результат</h2>
+          <p>
+            Итог показывает, сколько рабочих петель нужно набрать. Отдельно
+            выводятся предупреждения, ошибки данных или несовместимые условия.
+          </p>
+        </article>
+      </section>
+
+      <section class="card limitation-card">
+        <div>
+          <p class="step-label">Границы первой версии</p>
+          <h2>Это демонстрация одной функции</h2>
+        </div>
+        <p>
+          Версия предназначена для пользовательского тестирования расчёта
+          ширины. Она не хранит проекты и историю, не заменяет контрольный
+          образец и не принимает решения о конструкции изделия.
+        </p>
+      </section>
+
+      <div class="content-actions">
+        <a class="link-button link-button-primary" href="/example">
+          Посмотреть канонический пример
+        </a>
+        <a class="link-button" href="/">Перейти к форме</a>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · публичная демонстрация первой функции</span>
+      <span>Версия приложения 0.1.0</span>
+    </footer>
+  </body>
+</html>

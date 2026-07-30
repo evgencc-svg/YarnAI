@@ -11,6 +11,64 @@ Modules below `yarnai_calculation` are implementation details. Applications
 should import `calculate`, request models, result models, and enums directly
 from `yarnai_calculation`.
 
+## Quick start
+
+YarnAI requires Python 3.12 or newer. From the repository root:
+
+```console
+python -m pip install -e ".[test]"
+yarnai-http
+```
+
+Open `http://127.0.0.1:8000/`. The public demonstration includes:
+
+- `/` — start page and width-calculation form;
+- `/about` — what the first function calculates and how to read its result;
+- `/example` — the canonical example, filled and calculated automatically.
+
+No frontend installation or build is required.
+
+## Public demonstration
+
+![YarnAI start page](docs/screenshots/start-page.png)
+
+![Canonical example with 100-stitch result](docs/screenshots/canonical-example.png)
+
+![Explanation of the first function](docs/screenshots/about-first-function.png)
+
+The demonstration uses packaged HTML, CSS, and vanilla JavaScript. It can fill
+or clear the canonical example, copy a shareable URL containing the current
+form values as query parameters, and print the form and result. JavaScript is
+required for filling and calculating; the page shows an explicit message when
+it is disabled.
+
+The application version is shown in the header and footer. The calculation
+core does not currently expose an independent public version value, so the UI
+does not invent or display one.
+
+## Purpose of the first function
+
+The first function converts a requested finished width or measurement into a
+working stitch count. It needs the requested width, gauge, swatch state,
+knitting context, and yarn/tool context. A successful result is the working
+number of stitches to cast on; warnings and diagnostics explain incomplete,
+incompatible, or unsupported inputs.
+
+For the canonical example, a width of 50 cm at 20 stitches per 10 cm produces
+100 working stitches.
+
+## First-version limitations
+
+- Only the first width-calculation function is demonstrated.
+- The application does not save projects, history, calculations, or user data.
+- The demonstration does not replace making and measuring a representative
+  swatch.
+- There is no authentication, database, analytics, or cloud integration.
+- Shareable URLs contain form inputs in plain query parameters and should not
+  be used for sensitive information.
+- The independent calculation-core version is not displayed because the core
+  does not currently publish one through its stable public API.
+
 ## Installation
 
 For local product integration, install the package from the repository root:
@@ -204,25 +262,25 @@ yarnai-http
 The equivalent module command is `python -m yarnai.http`. The service listens
 at `http://127.0.0.1:8000`.
 
-### Local web interface
+### Demonstration web interface
 
-The HTTP service also serves a lightweight user interface for local manual
-testing of the first width-calculation function. Start it with:
+The HTTP service also serves the public demonstration of the first
+width-calculation function. Start it with:
 
 ```console
 yarnai-http
 ```
 
-Then open `http://127.0.0.1:8000/` in a browser. The page uses only packaged
+Then open `http://127.0.0.1:8000/` in a browser. The pages use only packaged
 HTML, CSS, and vanilla JavaScript; it has no frontend build step or external
 frontend dependencies. Every calculation is sent to the existing
 `POST /api/v1/calculate` endpoint.
 
-The form starts with the values from
-`examples/first_function_width.json`. Leave those values unchanged and click
-**Рассчитать** to run the canonical calculation. The result is shown as
-**100 петель**. You can edit the width, gauge, swatch state, knitting
-parameters, and yarn/tool context, then calculate again.
+Use **Заполнить пример** to restore the values from
+`examples/first_function_width.json`, **Очистить форму** to remove all values,
+and **Скопировать ссылку** to copy the current form as a shareable URL. Open
+`http://127.0.0.1:8000/example` to load and calculate the canonical example
+automatically; the result is **100 петель**.
 
 The interface treats the main domain statuses as user-facing states:
 
@@ -288,6 +346,21 @@ key fields for the canonical example are:
 Domain errors are not HTTP failures: they are returned with HTTP `200` and
 remain available through `status`, `final`, `errors`, `warnings`, and the rest
 of the structured result.
+
+## Verification
+
+Run the UI smoke test:
+
+```console
+python -m pytest tests/integration/test_demo_smoke.py
+```
+
+Run all tests and compile every Python module:
+
+```console
+python -m pytest
+python -m compileall -q src tests
+```
 
 ## CLI exit codes
 
