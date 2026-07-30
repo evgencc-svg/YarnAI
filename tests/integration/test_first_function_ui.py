@@ -92,7 +92,10 @@ def test_page_static_css_and_javascript_are_available(
     page = _page_structure(page_response.text)
 
     assert page.stylesheets == ["/static/styles.css"]
-    assert page.scripts == ["/static/app.js"]
+    assert page.scripts == [
+        "/static/smart-start-state.js",
+        "/static/app.js",
+    ]
     assert page.icons == ["/static/favicon.png"]
 
     stylesheet_response = client.get(page.stylesheets[0])

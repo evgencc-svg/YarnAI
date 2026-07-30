@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Smart Start YarnAI — пошаговая подготовка начала проекта по выполненному расчёту."
+    >
+    <title>Smart Start — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/smart-start-state.js" defer></script>
+    <script src="/static/smart-start.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для Smart Start нужен JavaScript. Включите JavaScript в браузере и
+        перезагрузите страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/about">О первой функции</a>
+        <a href="/example">Пример</a>
+      </nav>
+      <span class="version-badge" title="Версия приложения">Демо 0.1.0</span>
+    </header>
+
+    <main class="page-shell smart-start-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Smart Start</p>
+        <h1 id="page-title">Начни проект по своему расчёту</h1>
+        <p class="intro-copy">
+          Последовательно проверь данные, подготовь материалы и набери
+          рассчитанное количество петель. Прогресс сохранится в этом браузере.
+        </p>
+      </section>
+
+      <section id="smart-start-empty" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">?</span>
+        <h2>Сначала выполни расчёт</h2>
+        <p>
+          Для Smart Start нужен успешный результат. Вернись на главную,
+          рассчитай количество петель и нажми «Начать вязание».
+        </p>
+        <a class="link-button link-button-primary" href="/">
+          Перейти к расчёту
+        </a>
+      </section>
+
+      <div id="smart-start-workflow" class="smart-workflow" hidden>
+        <section class="card project-summary" aria-labelledby="project-title">
+          <div>
+            <p class="step-label">Текущий проект</p>
+            <h2 id="project-title">
+              <span id="project-working-count">—</span>
+              <span id="project-stitch-word">петель</span>
+            </h2>
+            <p id="project-description" class="project-description"></p>
+          </div>
+          <dl class="project-facts">
+            <div id="project-width-row">
+              <dt>Ширина</dt>
+              <dd id="project-width">—</dd>
+            </div>
+            <div id="project-gauge-row">
+              <dt>Плотность</dt>
+              <dd id="project-gauge">—</dd>
+            </div>
+            <div id="project-needle-row">
+              <dt>Спицы</dt>
+              <dd id="project-needle">—</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section
+          id="step-region"
+          class="smart-step-region"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <div class="progress-heading">
+            <p id="step-position" class="step-position">Шаг 1 из 6</p>
+            <span id="progress-percent" aria-hidden="true">17%</span>
+          </div>
+          <progress
+            id="step-progress"
+            class="step-progress"
+            max="6"
+            value="1"
+            aria-label="Прогресс Smart Start"
+          ></progress>
+
+          <article id="step-card" class="card smart-step-card">
+            <span id="step-number" class="smart-step-number" aria-hidden="true">
+              01
+            </span>
+            <h2 id="step-title" tabindex="-1">Проверить исходные данные</h2>
+            <div id="step-content" class="smart-step-content"></div>
+          </article>
+
+          <div id="step-controls" class="smart-actions">
+            <button id="smart-back-button" class="secondary-button" type="button">
+              Назад
+            </button>
+            <button
+              id="smart-next-button"
+              class="primary-button smart-next-button"
+              type="button"
+            >
+              Готово, дальше
+            </button>
+          </div>
+        </section>
+
+        <section
+          id="completion-panel"
+          class="card completion-card"
+          aria-live="polite"
+          hidden
+        >
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Smart Start завершён</p>
+          <h2 id="completion-title" tabindex="-1">
+            Начало проекта подготовлено
+          </h2>
+          <p id="completion-summary"></p>
+          <p>
+            Набор подготовлен. Можно переходить к первому ряду по описанию
+            проекта.
+          </p>
+        </section>
+
+        <div class="smart-footer-actions">
+          <button
+            id="smart-reset-button"
+            class="secondary-button"
+            type="button"
+          >
+            Начать заново
+          </button>
+          <a class="link-button" href="/">Вернуться к расчёту</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · Smart Start по выполненному расчёту</span>
+      <span>Версия приложения 0.1.0</span>
+    </footer>
+  </body>
+</html>

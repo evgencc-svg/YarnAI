@@ -10,6 +10,7 @@
     <title>YarnAI — демо расчёта ширины</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/smart-start-state.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body>
@@ -507,6 +508,14 @@
             <p class="result-caption">
               Итоговое рабочее количество для заданной ширины
             </p>
+            <a
+              id="start-knitting-link"
+              class="link-button result-primary-link"
+              href="/smart-start"
+              hidden
+            >
+              Начать вязание
+            </a>
             <button
               id="recalculate-button"
               class="secondary-button"

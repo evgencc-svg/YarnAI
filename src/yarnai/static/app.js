@@ -18,6 +18,7 @@ const warningsPanel = document.querySelector("#warnings-panel");
 const workingCountElement = document.querySelector("#working-count");
 const stitchWordElement = document.querySelector("#stitch-word");
 const statusLabelElement = document.querySelector("#status-label");
+const startKnittingLink = document.querySelector("#start-knitting-link");
 const errorTitleElement = document.querySelector("#error-title");
 const errorContentElement = document.querySelector("#error-content");
 const warningsContentElement = document.querySelector("#warnings-content");
@@ -454,8 +455,29 @@ function showDomainResponse(data) {
     statusLabels[data.status] ?? statusLabels.READY;
   workingCountElement.textContent = String(workingCount);
   stitchWordElement.textContent = pluralizeStitches(workingCount);
+  prepareSmartStart(data);
   resultPanel.hidden = false;
   showWarnings(warnings);
+}
+
+function prepareSmartStart(data) {
+  startKnittingLink.hidden = true;
+  const state = window.YarnAISmartStartState;
+  const calculation = state?.createCalculation(data);
+  const storage = getLocalStorage();
+
+  if (
+    !calculation ||
+    !storage ||
+    !state.saveCurrentCalculation(storage, calculation)
+  ) {
+    return;
+  }
+
+  const url = new URL("/smart-start", window.location.origin);
+  url.searchParams.set("calculation", calculation.fingerprint);
+  startKnittingLink.href = `${url.pathname}${url.search}`;
+  startKnittingLink.hidden = false;
 }
 
 function showDomainError(title, diagnostics, fallback) {
@@ -611,6 +633,14 @@ function numberOf(id) {
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function getLocalStorage() {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 function pluralizeStitches(count) {

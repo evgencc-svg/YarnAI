@@ -62,6 +62,15 @@ async def canonical_example(_request: Request) -> FileResponse:
     return FileResponse(STATIC_DIRECTORY / "index.html", media_type="text/html")
 
 
+async def smart_start(_request: Request) -> FileResponse:
+    """Return the Smart Start workflow page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "smart-start.html",
+        media_type="text/html",
+    )
+
+
 async def calculate_first_function(request: Request) -> JSONResponse:
     """Calculate the first function through the public YarnAI boundary."""
 
@@ -140,6 +149,7 @@ def create_app() -> Starlette:
             Route("/", user_interface, methods=["GET"]),
             Route("/about", about_first_function, methods=["GET"]),
             Route("/example", canonical_example, methods=["GET"]),
+            Route("/smart-start", smart_start, methods=["GET"]),
             Route("/health", health, methods=["GET"]),
             Route(
                 "/api/v1/calculate",

@@ -24,7 +24,8 @@ Open `http://127.0.0.1:8000/`. The public demonstration includes:
 
 - `/` — start page and width-calculation form;
 - `/about` — what the first function calculates and how to read its result;
-- `/example` — the canonical example, filled and calculated automatically.
+- `/example` — the canonical example, filled and calculated automatically;
+- `/smart-start` — a step-by-step project start based on a successful result.
 
 No frontend installation or build is required.
 
@@ -38,9 +39,18 @@ No frontend installation or build is required.
 
 The demonstration uses packaged HTML, CSS, and vanilla JavaScript. It can fill
 or clear the canonical example, copy a shareable URL containing the current
-form values as query parameters, and print the form and result. JavaScript is
-required for filling and calculating; the page shows an explicit message when
-it is disabled.
+form values as query parameters, print the form and result, and continue a
+successful result in Smart Start. JavaScript is required for filling,
+calculating, and Smart Start; the pages show an explicit message when it is
+disabled.
+
+Smart Start is a deterministic six-step workflow. After a successful final
+calculation, choose **Начать вязание** to check the project inputs, prepare
+materials, confirm the supplied gauge, cast on and recount the calculated
+stitches, and record readiness to follow the project's own first-row
+instructions. The latest successful calculation and its per-calculation
+progress are stored in browser `localStorage`; no account or server database
+is used.
 
 The application version is shown in the header and footer. The calculation
 core does not currently expose an independent public version value, so the UI
@@ -66,6 +76,7 @@ Python Web Service на бесплатном плане, устанавлива�
 - `/` — форма расчёта;
 - `/about` — описание первой функции;
 - `/example` — автоматически заполненный и рассчитанный пример;
+- `/smart-start` — пошаговая подготовка начала проекта по готовому расчёту;
 - `/health` — машиночитаемый health endpoint с ответом `{"status":"ok"}`.
 
 Ожидаемая форма адреса — `https://<render-service-subdomain>.onrender.com`;
@@ -90,11 +101,17 @@ For the canonical example, a width of 50 cm at 20 stitches per 10 cm produces
 
 ## First-version limitations
 
-- Only the first width-calculation function is demonstrated.
-- The application does not save projects, history, calculations, or user data.
+- Only width calculation and its deterministic Smart Start workflow are
+  demonstrated.
+- Smart Start saves only the latest successful calculation and progress in the
+  current browser. It does not provide project accounts, cloud history, or
+  cross-device synchronization.
 - The demonstration does not replace making and measuring a representative
   swatch.
 - There is no authentication, database, analytics, or cloud integration.
+- Photo recognition, camera verification, voice assistance, and AI checking
+  are not implemented. Smart Start does not generate a full pattern or choose
+  an unknown cast-on technique.
 - Shareable URLs contain form inputs in plain query parameters and should not
   be used for sensitive information.
 - The independent calculation-core version is not displayed because the core
@@ -315,6 +332,12 @@ and **Скопировать ссылку** to copy the current form as a sharea
 `http://127.0.0.1:8000/example` to load and calculate the canonical example
 automatically; the result is **100 петель**.
 
+After any successful final calculation, **Начать вязание** opens
+`http://127.0.0.1:8000/smart-start`. The page uses the actual public result and
+normalized inputs, restores progress for that calculation after reload, and
+starts a separate sequence when the calculation changes. Opening the route
+without an available successful result shows a return link to the calculator.
+
 The interface treats the main domain statuses as user-facing states:
 
 - `READY` and `READY_WITH_WARNINGS` show the selected working stitch count;
@@ -324,8 +347,9 @@ The interface treats the main domain statuses as user-facing states:
 - HTTP `400`, `422`, and `500`, network failures, and incomplete responses
   produce safe messages without tracebacks or internal exception details.
 
-This page is intentionally limited to local manual testing of YarnAI's first
-function. It does not store calculations or user data.
+Smart Start is intentionally limited to safe start preparation. It does not
+provide photo or voice features, AI verification, a complete garment
+description, or instructions for a first row that are absent from the input.
 
 Check its health:
 
