@@ -43,10 +43,9 @@ def test_http_server_uses_port_and_host_from_environment(
     monkeypatch.setattr(
         http_api.uvicorn,
         "run",
-        lambda application, *, host, port: captured.update(
+        lambda application, **options: captured.update(
             application=application,
-            host=host,
-            port=port,
+            **options,
         ),
     )
 
@@ -56,6 +55,12 @@ def test_http_server_uses_port_and_host_from_environment(
         "application": http_api.app,
         "host": "0.0.0.0",
         "port": 8765,
+        "log_level": "info",
+        "reload": False,
+        "proxy_headers": False,
+        "access_log": False,
+        "server_header": False,
+        "workers": 1,
     }
 
 
@@ -68,10 +73,9 @@ def test_http_server_preserves_local_default_address(
     monkeypatch.setattr(
         http_api.uvicorn,
         "run",
-        lambda application, *, host, port: captured.update(
+        lambda application, **options: captured.update(
             application=application,
-            host=host,
-            port=port,
+            **options,
         ),
     )
 
@@ -81,6 +85,12 @@ def test_http_server_preserves_local_default_address(
         "application": http_api.app,
         "host": "127.0.0.1",
         "port": 8000,
+        "log_level": "info",
+        "reload": False,
+        "proxy_headers": False,
+        "access_log": False,
+        "server_header": False,
+        "workers": 1,
     }
 
 

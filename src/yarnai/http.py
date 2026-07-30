@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
-import os
+import logging
 from collections.abc import Mapping
+from contextlib import asynccontextmanager
 from pathlib import Path
+from time import perf_counter
 from typing import NoReturn
 
 import uvicorn
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
 from starlette.routing import Mount, Route
@@ -23,19 +26,97 @@ from yarnai import (
     first_function_request_from_mapping,
     run_first_function,
 )
+from yarnai.config import RuntimeSettings
 
 
 TECHNICAL_ERROR_MESSAGE = (
     "The calculation could not be completed because of an internal technical error."
 )
 STATIC_DIRECTORY = Path(__file__).with_name("static")
-DEFAULT_HTTP_HOST = "127.0.0.1"
-DEFAULT_HTTP_PORT = 8000
-HTTP_HOST_ENVIRONMENT_VARIABLE = "YARNAI_HOST"
+LOGGER = logging.getLogger("yarnai.http")
+STATIC_CACHE_CONTROL = "public, max-age=0, must-revalidate"
+DYNAMIC_CACHE_CONTROL = "no-store"
+PAGE_CACHE_CONTROL = "no-cache"
 
 
 class _InvalidJsonError(ValueError):
     """The request body is not a valid JSON document."""
+
+
+class ProductionHttpMiddleware:
+    """Log requests, contain failures, and apply explicit cache policies."""
+
+    def __init__(self, application) -> None:
+        self.application = application
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.application(scope, receive, send)
+            return
+
+        method = scope.get("method", "UNKNOWN")
+        route = scope.get("path", "")
+        started_at = perf_counter()
+        status_code = 500
+        response_started = False
+
+        async def send_with_policy(message) -> None:
+            nonlocal response_started, status_code
+            if message["type"] == "http.response.start":
+                response_started = True
+                status_code = message["status"]
+                headers = list(message.get("headers", []))
+                if not any(
+                    name.lower() == b"cache-control" for name, _value in headers
+                ):
+                    headers.append(
+                        (
+                            b"cache-control",
+                            _cache_control_for(route).encode("ascii"),
+                        )
+                    )
+                message["headers"] = headers
+            await send(message)
+
+        try:
+            await self.application(scope, receive, send_with_policy)
+        except Exception as error:
+            LOGGER.error(
+                "unhandled_exception method=%s route=%s exception_type=%s",
+                method,
+                route,
+                type(error).__name__,
+            )
+            if response_started:
+                raise
+            response = _technical_error_response("unexpected_technical_error")
+            status_code = response.status_code
+            await response(scope, receive, send_with_policy)
+        finally:
+            elapsed_ms = (perf_counter() - started_at) * 1000
+            if status_code >= 500:
+                LOGGER.error(
+                    "http_5xx method=%s route=%s status=%d duration_ms=%.2f",
+                    method,
+                    route,
+                    status_code,
+                    elapsed_ms,
+                )
+            LOGGER.info(
+                "http_request method=%s route=%s status=%d duration_ms=%.2f",
+                method,
+                route,
+                status_code,
+                elapsed_ms,
+            )
+
+
+def _cache_control_for(route: str) -> str:
+    if route.startswith("/static/"):
+        return STATIC_CACHE_CONTROL
+    if route in {"/health", "/api/v1/calculate"}:
+        return DYNAMIC_CACHE_CONTROL
+    return PAGE_CACHE_CONTROL
 
 
 async def health(_request: Request) -> JSONResponse:
@@ -169,6 +250,7 @@ def create_app() -> Starlette:
 
     return Starlette(
         debug=False,
+        lifespan=_application_lifespan,
         routes=[
             Route("/", user_interface, methods=["GET"]),
             Route("/about", about_first_function, methods=["GET"]),
@@ -189,7 +271,17 @@ def create_app() -> Starlette:
                 name="static",
             ),
         ],
+        middleware=[Middleware(ProductionHttpMiddleware)],
     )
+
+
+@asynccontextmanager
+async def _application_lifespan(_application: Starlette):
+    LOGGER.info("application_start")
+    try:
+        yield
+    finally:
+        LOGGER.info("application_stop")
 
 
 app = create_app()
@@ -200,17 +292,35 @@ def server_address(
 ) -> tuple[str, int]:
     """Return the configured HTTP host and port."""
 
-    environment = os.environ if environ is None else environ
-    host = environment.get(HTTP_HOST_ENVIRONMENT_VARIABLE, DEFAULT_HTTP_HOST)
-    port = int(environment.get("PORT", str(DEFAULT_HTTP_PORT)))
-    return host, port
+    settings = RuntimeSettings.from_environment(environ)
+    return settings.host, settings.port
+
+
+def configure_logging(log_level: str) -> None:
+    """Configure concise logs without request bodies or browser identifiers."""
+
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
 
 
 def main() -> None:
     """Run the HTTP service on its configured address."""
 
-    host, port = server_address()
-    uvicorn.run(app, host=host, port=port)
+    settings = RuntimeSettings.from_environment()
+    configure_logging(settings.log_level)
+    uvicorn.run(
+        app,
+        host=settings.host,
+        port=settings.port,
+        log_level=settings.log_level,
+        reload=False,
+        proxy_headers=False,
+        access_log=False,
+        server_header=False,
+        workers=1,
+    )
 
 
 if __name__ == "__main__":

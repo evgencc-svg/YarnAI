@@ -6,8 +6,10 @@ services:
     branch: main
     autoDeployTrigger: commit
     buildCommand: pip install -e .
-    startCommand: yarnai-http
+    startCommand: python -m yarnai.http
     healthCheckPath: /health
     envVars:
       - key: YARNAI_HOST
         value: 0.0.0.0
+      - key: YARNAI_LOG_LEVEL
+        value: info
