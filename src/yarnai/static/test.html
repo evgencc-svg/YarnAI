@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Стартовая страница пользовательского тестирования YarnAI."
+    >
+    <title>Тестирование YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/smart-start-state.js" defer></script>
+    <script src="/static/step-assistant-state.js" defer></script>
+    <script src="/static/tester-mode.js" defer></script>
+    <script src="/static/test-page.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для тестового сценария нужен JavaScript. Включи JavaScript и
+        перезагрузи страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/test" aria-label="YarnAI, начало теста">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Навигация тестовой версии">
+        <a href="/test" aria-current="page">О тестовой версии</a>
+        <a href="/feedback">Сообщить о проблеме</a>
+      </nav>
+      <span class="version-badge" title="Версия тестовой сборки">
+        <span data-test-build-version>Загрузка…</span>
+      </span>
+    </header>
+
+    <main class="page-shell tester-start-shell">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">Тестовая версия</p>
+        <h1 id="page-title">Помоги сделать YarnAI понятнее</h1>
+        <p class="intro-copy">
+          Это тестовая версия YarnAI. Пройди путь от расчёта до Smart Start и
+          Step Assistant так, как делала бы это в своём проекте. Здесь
+          проверяется удобство уже работающего сценария.
+        </p>
+        <p class="tester-version">
+          Версия тестовой сборки:
+          <strong data-test-build-version>Загрузка…</strong>
+        </p>
+      </section>
+
+      <section class="card tester-notice" aria-labelledby="storage-title">
+        <h2 id="storage-title">Что важно знать до начала</h2>
+        <ul class="plain-list">
+          <li>Данные сохраняются только в браузере этого устройства.</li>
+          <li>Прогресс не синхронизируется между устройствами.</li>
+          <li>Очистка данных браузера может удалить сохранённый прогресс.</li>
+          <li>YarnAI не отправляет содержимое теста на внешний сервер.</li>
+        </ul>
+        <p id="storage-warning" class="message message-error" role="alert" hidden>
+          Браузер не даёт доступ к локальному хранилищу. Начать расчёт можно,
+          но продолжить его после перезагрузки не получится.
+        </p>
+      </section>
+
+      <section class="tester-primary-actions" aria-label="Действия теста">
+        <a
+          id="new-test-link"
+          class="link-button link-button-primary"
+          href="/?tester=new"
+        >
+          Начать новый тест
+        </a>
+        <button
+          id="continue-test-button"
+          class="secondary-button"
+          type="button"
+          hidden
+        >
+          Продолжить
+        </button>
+      </section>
+
+      <p id="no-tests-message" class="card tester-empty-message">
+        Сохранённых тестов пока нет. Начни новый тестовый расчёт.
+      </p>
+      <p
+        id="corrupted-tests-message"
+        class="card message message-error"
+        role="alert"
+        hidden
+      >
+        Локальные данные YarnAI повреждены и не могут быть продолжены. Начни
+        новый тест или удали все локальные тесты в отдельной секции ниже.
+      </p>
+
+      <section
+        id="saved-tests"
+        class="saved-tests"
+        aria-labelledby="saved-tests-title"
+        hidden
+      >
+        <h2 id="saved-tests-title">Локальные тесты</h2>
+        <p>
+          Если тестов несколько, выбери нужный — YarnAI не открывает
+          случайный расчёт.
+        </p>
+        <ul id="saved-tests-list" class="saved-tests-list"></ul>
+      </section>
+
+      <section class="card danger-zone" aria-labelledby="danger-title">
+        <div>
+          <h2 id="danger-title">Все локальные данные YarnAI</h2>
+          <p>
+            Это отдельное действие удалит все сохранённые локальные тесты на
+            этом устройстве, а не только выбранный.
+          </p>
+        </div>
+        <button
+          id="remove-all-tests-button"
+          class="danger-button"
+          type="button"
+        >
+          Удалить все локальные тесты
+        </button>
+        <p id="test-action-status" class="toolbar-feedback" role="status" hidden>
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <span>YarnAI · пользовательское тестирование</span>
+      <span>Сборка <span data-test-build-version>Загрузка…</span></span>
+    </footer>
+  </body>
+</html>

@@ -58,6 +58,18 @@ initializePage();
 
 async function initializePage() {
   const hasSharedValues = applyUrlParameters();
+  const testerMode = window.YarnAITesterMode;
+  const isNewTest =
+    new URLSearchParams(window.location.search).get("tester") === "new";
+
+  if (isNewTest) {
+    testerMode?.clearActiveCalculation(getLocalStorage());
+    testerMode?.initializeTesterUi();
+    clearForm();
+    showToolbarFeedback(
+      "Новый тест начат. Заполни данные и выполни расчёт.",
+    );
+  }
 
   if (window.location.pathname === "/example") {
     document.title = "Канонический пример — YarnAI";
@@ -478,6 +490,7 @@ function prepareSmartStart(data) {
   url.searchParams.set("calculation", calculation.fingerprint);
   startKnittingLink.href = `${url.pathname}${url.search}`;
   startKnittingLink.hidden = false;
+  window.YarnAITesterMode?.initializeTesterUi();
 }
 
 function showDomainError(title, diagnostics, fallback) {

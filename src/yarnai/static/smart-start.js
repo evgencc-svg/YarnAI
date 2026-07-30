@@ -41,6 +41,10 @@ function initializeSmartStart() {
     showEmptyState();
     return;
   }
+  if (expectedFingerprint) {
+    state.activateCalculation(storage, calculation.fingerprint);
+    window.YarnAITesterMode?.initializeTesterUi();
+  }
 
   progress = state.readProgress(storage, calculation.fingerprint);
   renderProjectSummary();

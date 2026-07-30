@@ -2,6 +2,8 @@
 
 (function exposeSmartStartState(globalObject) {
   const CALCULATION_STORAGE_KEY = "yarnai.smartStart.calculation.v1";
+  const CALCULATION_STORAGE_PREFIX =
+    "yarnai.smartStart.calculation.v1.";
   const PROGRESS_STORAGE_PREFIX = "yarnai.smartStart.progress.v1.";
   const VERSION = 1;
   const STEP_COUNT = 6;
@@ -130,6 +132,10 @@
     }
     return safely(() => {
       storage.setItem(
+        calculationKey(calculation.fingerprint),
+        JSON.stringify(calculation),
+      );
+      storage.setItem(
         CALCULATION_STORAGE_KEY,
         JSON.stringify(calculation),
       );
@@ -139,20 +145,91 @@
 
   function readCurrentCalculation(storage, expectedFingerprint = "") {
     return safely(() => {
-      const raw = storage.getItem(CALCULATION_STORAGE_KEY);
-      if (raw === null) {
-        return null;
-      }
-      const calculation = JSON.parse(raw);
+      const current = readStoredCalculation(
+        storage,
+        CALCULATION_STORAGE_KEY,
+      );
       if (
-        !isValidCalculation(calculation) ||
-        (expectedFingerprint &&
-          calculation.fingerprint !== expectedFingerprint)
+        current &&
+        (!expectedFingerprint ||
+          current.fingerprint === expectedFingerprint)
       ) {
+        return current;
+      }
+
+      if (!expectedFingerprint) {
         return null;
       }
-      return calculation;
+      return readStoredCalculation(
+        storage,
+        calculationKey(expectedFingerprint),
+      );
     }, null);
+  }
+
+  function listCalculations(storage) {
+    return safely(() => {
+      const calculations = new Map();
+      const current = readStoredCalculation(
+        storage,
+        CALCULATION_STORAGE_KEY,
+      );
+      if (current) {
+        calculations.set(current.fingerprint, current);
+      }
+
+      if (
+        Number.isInteger(storage.length) &&
+        typeof storage.key === "function"
+      ) {
+        for (let index = 0; index < storage.length; index += 1) {
+          const key = storage.key(index);
+          if (
+            typeof key !== "string" ||
+            !key.startsWith(CALCULATION_STORAGE_PREFIX)
+          ) {
+            continue;
+          }
+          const calculation = readStoredCalculation(storage, key);
+          if (calculation) {
+            calculations.set(calculation.fingerprint, calculation);
+          }
+        }
+      }
+
+      return [...calculations.values()].sort(
+        (left, right) =>
+          Date.parse(right.createdAt) - Date.parse(left.createdAt),
+      );
+    }, []);
+  }
+
+  function activateCalculation(storage, fingerprint) {
+    const calculation = readCurrentCalculation(storage, fingerprint);
+    if (!calculation) {
+      return null;
+    }
+    return saveCurrentCalculation(storage, calculation)
+      ? calculation
+      : null;
+  }
+
+  function removeCalculation(storage, fingerprint) {
+    if (typeof fingerprint !== "string" || !fingerprint) {
+      return false;
+    }
+    return safely(() => {
+      storage.removeItem(progressKey(fingerprint));
+      storage.removeItem(calculationKey(fingerprint));
+      const current = readStoredCalculation(
+        storage,
+        CALCULATION_STORAGE_KEY,
+      );
+      if (!current || current.fingerprint === fingerprint) {
+        storage.removeItem(CALCULATION_STORAGE_KEY);
+      }
+      return true;
+    }, false);
   }
 
   function initialProgress(fingerprint) {
@@ -237,6 +314,19 @@
     return `${PROGRESS_STORAGE_PREFIX}${fingerprint}`;
   }
 
+  function calculationKey(fingerprint) {
+    return `${CALCULATION_STORAGE_PREFIX}${fingerprint}`;
+  }
+
+  function readStoredCalculation(storage, key) {
+    const raw = storage.getItem(key);
+    if (raw === null) {
+      return null;
+    }
+    const calculation = JSON.parse(raw);
+    return isValidCalculation(calculation) ? calculation : null;
+  }
+
   function compactRecord(record) {
     return Object.fromEntries(
       Object.entries(record).filter(([, value]) => value !== undefined),
@@ -284,6 +374,7 @@
 
   const api = Object.freeze({
     CALCULATION_STORAGE_KEY,
+    CALCULATION_STORAGE_PREFIX,
     PROGRESS_STORAGE_PREFIX,
     STEP_COUNT,
     createCalculation,
@@ -291,12 +382,18 @@
     isValidCalculation,
     saveCurrentCalculation,
     readCurrentCalculation,
+    listCalculations,
+    activateCalculation,
+    removeCalculation,
+    calculationKey,
+    progressKey,
     initialProgress,
     readProgress,
     saveProgress,
     advanceProgress,
     goBackProgress,
     resetProgress,
+    isValidProgress,
   });
 
   globalObject.YarnAISmartStartState = api;

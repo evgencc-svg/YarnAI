@@ -53,6 +53,7 @@ def test_step_assistant_route_assets_and_required_controls(
     assert parser.scripts == [
         "/static/smart-start-state.js",
         "/static/step-assistant-state.js",
+        "/static/tester-mode.js",
         "/static/step-assistant.js",
     ]
     for asset in parser.scripts:

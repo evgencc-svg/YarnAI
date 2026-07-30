@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Локальное формирование отчёта о проблеме в тестовой версии YarnAI."
+    >
+    <title>Сообщить о проблеме — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/smart-start-state.js" defer></script>
+    <script src="/static/step-assistant-state.js" defer></script>
+    <script src="/static/tester-mode.js" defer></script>
+    <script src="/static/feedback.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для формирования отчёта нужен JavaScript. Включи JavaScript и
+        перезагрузи страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/test" aria-label="YarnAI, начало теста">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Навигация тестовой версии">
+        <a href="/test">О тестовой версии</a>
+        <a href="/feedback" aria-current="page">Сообщить о проблеме</a>
+      </nav>
+      <span class="version-badge" title="Версия тестовой сборки">
+        <span data-test-build-version>Загрузка…</span>
+      </span>
+    </header>
+
+    <main class="page-shell feedback-shell">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">Обратная связь</p>
+        <h1 id="page-title">Сообщить о проблеме</h1>
+        <p class="intro-copy">
+          Опиши ситуацию, затем скопируй или скачай отчёт и передай его
+          владельцу продукта удобным способом. Ничего не отправляется
+          автоматически.
+        </p>
+      </section>
+
+      <form id="feedback-form" class="card feedback-form">
+        <label class="field" for="attempted">
+          <span class="field-label">Что ты пытался сделать?</span>
+          <textarea id="attempted" name="attempted" rows="4" required></textarea>
+        </label>
+        <label class="field" for="happened">
+          <span class="field-label">Что произошло?</span>
+          <textarea id="happened" name="happened" rows="4" required></textarea>
+        </label>
+        <label class="field" for="expected">
+          <span class="field-label">Что ты ожидал увидеть?</span>
+          <textarea id="expected" name="expected" rows="4" required></textarea>
+        </label>
+        <label class="field" for="comment">
+          <span class="field-label">Комментарий (необязательно)</span>
+          <textarea id="comment" name="comment" rows="3"></textarea>
+        </label>
+        <label class="consent-field" for="include-answers">
+          <input id="include-answers" name="include-answers" type="checkbox">
+          <span>
+            Я согласна включить введённые выше тексты в копируемый и
+            скачиваемый отчёт.
+          </span>
+        </label>
+      </form>
+
+      <section class="card report-card" aria-labelledby="report-title">
+        <div class="card-heading">
+          <div>
+            <p class="step-label">Локальный отчёт</p>
+            <h2 id="report-title">Предпросмотр</h2>
+          </div>
+        </div>
+        <p class="report-privacy-note">
+          Технический блок не содержит имени, email, IP, адреса, фотографий,
+          секретов или полного содержимого localStorage.
+        </p>
+        <pre id="report-preview" class="report-preview"></pre>
+        <div class="report-actions">
+          <button
+            id="copy-report-button"
+            class="primary-button"
+            type="button"
+          >
+            Скопировать отчёт
+          </button>
+          <button
+            id="download-report-button"
+            class="secondary-button"
+            type="button"
+          >
+            Скачать отчёт
+          </button>
+        </div>
+        <p id="copy-status" class="toolbar-feedback" role="status"></p>
+        <div id="manual-copy-panel" class="manual-copy-panel" hidden>
+          <label class="field" for="manual-copy-text">
+            <span class="field-label">Текст для ручного копирования</span>
+            <textarea
+              id="manual-copy-text"
+              rows="12"
+              readonly
+            ></textarea>
+          </label>
+        </div>
+      </section>
+
+      <div class="content-actions">
+        <a class="link-button link-button-primary" href="/test">
+          Вернуться к началу теста
+        </a>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · локальный диагностический отчёт</span>
+      <span>Сборка <span data-test-build-version>Загрузка…</span></span>
+    </footer>
+  </body>
+</html>

@@ -80,6 +80,21 @@ async def step_assistant(_request: Request) -> FileResponse:
     )
 
 
+async def tester_start(_request: Request) -> FileResponse:
+    """Return the entry page for local user testing."""
+
+    return FileResponse(STATIC_DIRECTORY / "test.html", media_type="text/html")
+
+
+async def feedback(_request: Request) -> FileResponse:
+    """Return the local tester feedback report page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "feedback.html",
+        media_type="text/html",
+    )
+
+
 async def calculate_first_function(request: Request) -> JSONResponse:
     """Calculate the first function through the public YarnAI boundary."""
 
@@ -160,6 +175,8 @@ def create_app() -> Starlette:
             Route("/example", canonical_example, methods=["GET"]),
             Route("/smart-start", smart_start, methods=["GET"]),
             Route("/step-assistant", step_assistant, methods=["GET"]),
+            Route("/test", tester_start, methods=["GET"]),
+            Route("/feedback", feedback, methods=["GET"]),
             Route("/health", health, methods=["GET"]),
             Route(
                 "/api/v1/calculate",

@@ -71,6 +71,8 @@ def test_smart_start_page_has_required_accessible_controls_and_assets(
 
     assert parser.scripts == [
         "/static/smart-start-state.js",
+        "/static/step-assistant-state.js",
+        "/static/tester-mode.js",
         "/static/smart-start.js",
     ]
     assert parser.stylesheets == ["/static/styles.css"]

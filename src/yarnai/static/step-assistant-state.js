@@ -107,6 +107,11 @@
     return progress;
   }
 
+  function resetProgress(storage, fingerprint) {
+    safely(() => storage.removeItem(progressKey(fingerprint)));
+    return initialProgress(fingerprint);
+  }
+
   function isValidProgress(progress, fingerprint, workingCount) {
     if (
       typeof fingerprint !== "string" ||
@@ -195,6 +200,9 @@
     advanceStitch,
     goBackStitch,
     advanceRow,
+    resetProgress,
+    isValidProgress,
+    progressKey,
   });
 
   globalObject.YarnAIStepAssistantState = api;

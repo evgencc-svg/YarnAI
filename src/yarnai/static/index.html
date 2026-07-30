@@ -11,6 +11,8 @@
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/styles.css">
     <script src="/static/smart-start-state.js" defer></script>
+    <script src="/static/step-assistant-state.js" defer></script>
+    <script src="/static/tester-mode.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body>
@@ -33,6 +35,13 @@
       <span class="version-badge" title="Версия приложения">Демо 0.1.0</span>
     </header>
 
+    <nav class="tester-panel" aria-label="Тестовый режим">
+      <span class="tester-panel-label">Тестовый режим</span>
+      <a href="/test">О тестовой версии</a>
+      <button type="button" data-reset-current-test>Начать заново</button>
+      <a href="/feedback" data-feedback-link>Сообщить о проблеме</a>
+    </nav>
+
     <main class="page-shell">
       <section class="intro" aria-labelledby="page-title">
         <p class="eyebrow">Расчёт ширины изделия</p>
@@ -50,7 +59,7 @@
         </div>
         <ul class="feature-list" aria-label="Кратко о демонстрации">
           <li>Расчёт без регистрации</li>
-          <li>Данные не сохраняются</li>
+          <li>Прогресс хранится только в этом браузере</li>
           <li>Результат можно распечатать</li>
         </ul>
       </section>

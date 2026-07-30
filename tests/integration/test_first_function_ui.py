@@ -94,6 +94,8 @@ def test_page_static_css_and_javascript_are_available(
     assert page.stylesheets == ["/static/styles.css"]
     assert page.scripts == [
         "/static/smart-start-state.js",
+        "/static/step-assistant-state.js",
+        "/static/tester-mode.js",
         "/static/app.js",
     ]
     assert page.icons == ["/static/favicon.png"]
