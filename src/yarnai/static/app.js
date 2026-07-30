@@ -20,8 +20,16 @@ const stitchWordElement = document.querySelector("#stitch-word");
 const workingWidthElement = document.querySelector("#working-width");
 const resultGaugeElement = document.querySelector("#result-gauge");
 const resultSwatchElement = document.querySelector("#result-swatch");
+const resultMeasurementsRow = document.querySelector(
+  "#result-measurements-row",
+);
+const resultMeasurementsElement = document.querySelector(
+  "#result-measurements",
+);
 const statusLabelElement = document.querySelector("#status-label");
 const startKnittingLink = document.querySelector("#start-knitting-link");
+const saveProjectButton = document.querySelector("#save-project-button");
+const saveProjectStatus = document.querySelector("#save-project-status");
 const errorTitleElement = document.querySelector("#error-title");
 const errorContentElement = document.querySelector("#error-content");
 const warningsContentElement = document.querySelector("#warnings-content");
@@ -44,6 +52,7 @@ const projectSystem = window.YarnAIProjectSystem;
 const cloudSystem = window.YarnAICloudAccounts;
 const syncSystem = window.YarnAISync;
 const calculatorResult = window.YarnAICalculatorResult;
+const calculatedProjects = window.YarnAICalculatedProjects;
 const accountGuest = document.querySelector("#account-guest");
 const accountUser = document.querySelector("#account-user");
 const accountUserEmail = document.querySelector("#account-user-email");
@@ -69,6 +78,9 @@ let projectAutosave = null;
 let currentProjectSection = "active";
 let cloudClient = null;
 let syncService = null;
+let currentProjectIntent = null;
+let currentStructuredInput = null;
+let currentSuccessfulCalculation = null;
 
 const statusLabels = {
   READY: "Расчёт готов",
@@ -91,6 +103,7 @@ document
 document
   .querySelector("#error-recalculate-button")
   .addEventListener("click", focusForm);
+saveProjectButton.addEventListener("click", saveCalculatedProject);
 
 form.addEventListener("input", (event) => {
   if (event.target instanceof HTMLElement) {
@@ -155,6 +168,13 @@ async function initializePage() {
     window.location.pathname === "/calculator" && !projectId
       ? calculatorResult?.readTransfer(window.location.search)
       : null;
+  currentProjectIntent =
+    transfer?.state === "ready"
+      ? calculatedProjects?.readCalculatorHandoff(
+          window.location.search,
+          getSessionStorage(),
+        )
+      : null;
   const hasSharedValues = applyUrlParameters(transfer?.values);
   const testerMode = window.YarnAITesterMode;
   const isNewTest = parameters.get("tester") === "new";
@@ -178,7 +198,7 @@ async function initializePage() {
   await initializeProjectWorkspace();
 
   if (transfer?.state === "ready") {
-    await calculatePayload(buildPayload(), false);
+    await calculatePayload(buildPayload());
     return;
   }
   if (transfer && !currentProjectAggregate) {
@@ -213,10 +233,10 @@ async function handleSubmit(event) {
   }
 
   const payload = buildPayload();
-  await calculatePayload(payload, true);
+  await calculatePayload(payload);
 }
 
-async function calculatePayload(payload, persist) {
+async function calculatePayload(payload) {
   setLoading(true);
 
   try {
@@ -236,7 +256,7 @@ async function calculatePayload(payload, persist) {
       return;
     }
 
-    await showDomainResponse(data, payload, persist);
+    await showDomainResponse(data, payload);
   } catch (error) {
     if (error instanceof UnexpectedResponseError) {
       showSafeError(
@@ -527,7 +547,8 @@ function buildPayload() {
   };
 }
 
-async function showDomainResponse(data, requestPayload = null, persist = false) {
+async function showDomainResponse(data, requestPayload = null) {
+  currentSuccessfulCalculation = null;
   if (!isRecord(data) || typeof data.status !== "string") {
     throw new UnexpectedResponseError();
   }
@@ -585,12 +606,108 @@ async function showDomainResponse(data, requestPayload = null, persist = false) 
   workingWidthElement.textContent = formatWorkingWidth(details.workingWidth);
   resultGaugeElement.textContent = formatResultGauge(details.gauge);
   resultSwatchElement.textContent = formatSwatch(details.swatch);
+  currentSuccessfulCalculation = {
+    request: requestPayload,
+    result: data,
+  };
+  renderSwatchMeasurements();
+  markProjectUnsaved();
   prepareSmartStart(data);
   resultPanel.hidden = false;
   showWarnings(warnings);
-  if (persist && requestPayload && currentProjectAggregate) {
-    await persistCalculationInCurrentProject(requestPayload, data);
+}
+
+async function saveCalculatedProject() {
+  const request = currentSuccessfulCalculation?.request;
+  const result = currentSuccessfulCalculation?.result;
+  if (
+    !calculatedProjects ||
+    !projectRepository ||
+    !isRecord(request) ||
+    !isRecord(result) ||
+    !["READY", "READY_WITH_WARNINGS"].includes(result.status)
+  ) {
+    saveProjectButton.disabled = true;
+    saveProjectStatus.dataset.state = "SAVE_FAILED";
+    saveProjectStatus.textContent =
+      "Сохранить можно только успешно завершённый расчёт.";
+    return;
   }
+
+  saveProjectButton.disabled = true;
+  saveProjectButton.textContent = "Сохраняем…";
+  saveProjectStatus.dataset.state = "SAVING";
+  saveProjectStatus.textContent = "Создаём структурированную запись проекта…";
+  try {
+    const structuredInput = calculatedProjects.createStructuredInput({
+      projectIntent: currentProjectIntent,
+      request,
+      result,
+    });
+    let projectId = currentProjectAggregate?.project.project_id;
+    if (!projectId) {
+      const project = await projectRepository.createProject({
+        title: calculatedProjects.projectTitle(
+          structuredInput.project_intent,
+        ),
+        draft_input: structuredInput,
+      });
+      projectId = project.project_id;
+    } else {
+      await projectAutosave?.flush();
+    }
+
+    await projectRepository.addCalculation(projectId, structuredInput, result);
+    currentStructuredInput = structuredInput;
+    currentProjectIntent = structuredInput.project_intent;
+    await openProjectInWorkspace(projectId);
+    await refreshProjectsList();
+    markProjectSaved();
+  } catch (error) {
+    saveProjectButton.disabled = false;
+    saveProjectButton.textContent = "Повторить сохранение";
+    saveProjectStatus.dataset.state = "SAVE_FAILED";
+    saveProjectStatus.textContent =
+      `Не удалось сохранить проект. ${projectErrorMessage(error)}`;
+  }
+}
+
+function markProjectUnsaved() {
+  saveProjectButton.disabled = false;
+  saveProjectButton.textContent = "Сохранить проект";
+  saveProjectStatus.dataset.state = "DIRTY";
+  saveProjectStatus.textContent = currentProjectAggregate
+    ? "Новый результат ещё не сохранён в проекте."
+    : "";
+}
+
+function markProjectSaved() {
+  saveProjectButton.disabled = true;
+  saveProjectButton.textContent = "Проект сохранён";
+  saveProjectStatus.dataset.state = "SAVED_LOCAL";
+  saveProjectStatus.textContent =
+    "Сохранено на этом устройстве. Проект доступен на главном экране.";
+}
+
+function renderSwatchMeasurements() {
+  const measurements = Array.isArray(currentStructuredInput?.swatch?.measurements)
+    ? currentStructuredInput.swatch.measurements
+    : Array.isArray(currentProjectIntent?.gauge?.measurements)
+      ? currentProjectIntent.gauge.measurements
+      : [];
+  if (measurements.length !== 3) {
+    resultMeasurementsRow.hidden = true;
+    resultMeasurementsElement.textContent = "—";
+    return;
+  }
+  resultMeasurementsElement.textContent = measurements
+    .map(
+      (measurement, index) =>
+        `${index + 1}: ${formatResultNumber(measurement.stitches)} п. на ` +
+        `${formatResultNumber(measurement.widthCm)} см`,
+    )
+    .join(" · ");
+  resultMeasurementsRow.hidden = false;
 }
 
 function prepareSmartStart(data) {
@@ -700,6 +817,8 @@ function showSafeError(title, message) {
 }
 
 function showTransferProblem(transfer) {
+  previousStageLink.href = "/";
+  previousStageLink.textContent = "Вернуться на предыдущий этап";
   if (transfer.state === "damaged") {
     showSafeError(
       "Ссылка на расчёт повреждена",
@@ -711,6 +830,20 @@ function showTransferProblem(transfer) {
       "В ссылке нет всех обязательных параметров. Расчёт не запускался — вернитесь на предыдущий этап и заполните недостающие данные.",
     );
   }
+  previousStageLink.hidden = false;
+}
+
+function showProjectRestoreProblem(message) {
+  currentSuccessfulCalculation = null;
+  currentProjectIntent = null;
+  currentStructuredInput = null;
+  showSafeError(
+    "Не удалось открыть сохранённый проект",
+    message ||
+      "Данные проекта повреждены или имеют неподдерживаемую версию. Проект не удалён.",
+  );
+  previousStageLink.href = "/";
+  previousStageLink.textContent = "Начать новый расчёт";
   previousStageLink.hidden = false;
 }
 
@@ -860,7 +993,12 @@ async function initializeProjectWorkspace() {
         await openProjectInWorkspace(projectId);
       } catch (error) {
         showProjectsError(projectErrorMessage(error));
+        showProjectRestoreProblem(projectErrorMessage(error));
       }
+    } else if (projectId) {
+      showProjectRestoreProblem(
+        "Ссылка на проект повреждена. Сохранённые проекты не удалены.",
+      );
     }
     await refreshProjectsList();
     await refreshSyncStatus();
@@ -1324,17 +1462,25 @@ async function openProjectInWorkspace(projectId) {
       onStateChange: updateProjectSaveStatus,
     },
   );
-  const activeCalculation = aggregate.calculations.find(
-    (entry) =>
-      entry.calculation_id === aggregate.project.active_calculation_id,
-  );
-  if (activeCalculation) {
-    applyPayloadToForm(activeCalculation.request);
+  const inspection = calculatedProjects?.inspectAggregate(aggregate);
+  currentProjectIntent = null;
+  currentStructuredInput = null;
+  currentSuccessfulCalculation = null;
+  if (inspection?.state === "ready" || inspection?.state === "legacy") {
+    currentProjectIntent = inspection.projectIntent ?? null;
+    currentStructuredInput = inspection.structured ?? null;
+    applyPayloadToForm(inspection.request);
     await showDomainResponse(
-      activeCalculation.result,
-      activeCalculation.request,
-      false,
+      inspection.result,
+      inspection.request,
     );
+    renderSwatchMeasurements();
+    markProjectSaved();
+  } else if (
+    inspection?.state === "invalid" ||
+    inspection?.state === "unsupported"
+  ) {
+    showProjectRestoreProblem(inspection.message);
   } else {
     showIdlePanel();
   }
@@ -1343,7 +1489,7 @@ async function openProjectInWorkspace(projectId) {
     recoveredPatch?.draft_input ?? aggregate.project.draft_input;
   if (savedDraft?.kind === "FORM_V1") {
     applyProjectFormState(savedDraft);
-  } else if (!activeCalculation && savedDraft?.axes) {
+  } else if (inspection?.state === "draft" && savedDraft?.axes) {
     applyPayloadToForm(savedDraft);
   }
   if (recoveredPatch) {
@@ -1437,34 +1583,6 @@ function scheduleProjectFormAutosave() {
   });
 }
 
-async function persistCalculationInCurrentProject(requestPayload, result) {
-  const projectId = currentProjectAggregate?.project.project_id;
-  if (!projectId) {
-    return;
-  }
-  try {
-    await projectAutosave?.flush();
-    const saved = await projectRepository.addCalculation(
-      projectId,
-      requestPayload,
-      result,
-    );
-    currentProjectAggregate.project = saved.project;
-    currentProjectAggregate.calculations.push(saved.calculation);
-    currentProjectAggregate.progress.push(...saved.progress);
-    updateProjectSaveStatus({ state: "SAVED_LOCAL" });
-    await refreshProjectsList();
-  } catch (error) {
-    updateProjectSaveStatus({
-      state: "SAVE_FAILED",
-      error,
-    });
-    showProjectsError(
-      `Расчёт показан, но не сохранён в проекте. ${projectErrorMessage(error)}`,
-    );
-  }
-}
-
 function updateProjectSaveStatus({ state, error = null }) {
   const messages = {
     CLEAN: "Сохранено на устройстве",
@@ -1555,6 +1673,14 @@ function isRecord(value) {
 function getLocalStorage() {
   try {
     return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function getSessionStorage() {
+  try {
+    return window.sessionStorage;
   } catch {
     return null;
   }

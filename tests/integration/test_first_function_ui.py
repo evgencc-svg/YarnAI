@@ -100,6 +100,7 @@ def test_page_static_css_and_javascript_are_available(
         "/static/cloud-accounts.js",
         "/static/sync-service.js",
         "/static/calculator-result.js",
+        "/static/calculated-project.js",
         "/static/app.js",
     ]
     assert page.icons == ["/static/favicon.png"]

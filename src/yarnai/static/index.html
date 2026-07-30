@@ -17,6 +17,7 @@
     <script src="/static/cloud-accounts.js" defer></script>
     <script src="/static/sync-service.js" defer></script>
     <script src="/static/calculator-result.js" defer></script>
+    <script src="/static/calculated-project.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body>
@@ -742,7 +743,23 @@
                 <dt>Контрольный образец</dt>
                 <dd id="result-swatch">—</dd>
               </div>
+              <div id="result-measurements-row" hidden>
+                <dt>Три исходных измерения</dt>
+                <dd id="result-measurements">—</dd>
+              </div>
             </dl>
+            <button
+              id="save-project-button"
+              class="primary-button result-save-button"
+              type="button"
+            >
+              Сохранить проект
+            </button>
+            <p
+              id="save-project-status"
+              class="project-save-status result-save-status"
+              role="status"
+            ></p>
             <a
               id="start-knitting-link"
               class="link-button result-primary-link"

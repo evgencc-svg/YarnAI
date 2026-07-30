@@ -13,6 +13,8 @@
     <script src="/static/intent-engine.js" defer></script>
     <script src="/static/project-readiness-engine.js" defer></script>
     <script src="/static/swatch-assistant.js" defer></script>
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/calculated-project.js" defer></script>
     <script src="/static/first-user-flow.js" defer></script>
   </head>
   <body class="first-flow-page">
@@ -32,6 +34,33 @@
     </header>
 
     <main class="flow-shell">
+      <section
+        id="saved-projects"
+        class="saved-projects"
+        aria-labelledby="saved-projects-title"
+      >
+        <div class="saved-projects-heading">
+          <div>
+            <p class="flow-eyebrow">Продолжить работу</p>
+            <h2 id="saved-projects-title">Сохранённые проекты</h2>
+          </div>
+          <p>Проекты хранятся локально на этом устройстве.</p>
+        </div>
+        <p id="saved-projects-loading" class="saved-projects-state" role="status">
+          Загружаем проекты…
+        </p>
+        <p id="saved-projects-empty" class="saved-projects-state" hidden>
+          Сохранённых проектов пока нет. Начните с идеи ниже.
+        </p>
+        <p
+          id="saved-projects-error"
+          class="saved-projects-state saved-projects-error"
+          role="alert"
+          hidden
+        ></p>
+        <div id="saved-projects-list" class="saved-projects-list" hidden></div>
+      </section>
+
       <section
         id="start-screen"
         class="start-screen"

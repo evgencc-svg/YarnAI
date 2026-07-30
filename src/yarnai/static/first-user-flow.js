@@ -37,6 +37,8 @@
   if (!swatchApi) {
     throw new Error("Swatch Assistant is unavailable.");
   }
+  const projectSystem = globalObject.YarnAIProjectSystem;
+  const calculatedProjects = globalObject.YarnAICalculatedProjects;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -126,6 +128,12 @@
   );
   const swatchForm = document.querySelector("#swatch-form");
   const swatchFeedback = document.querySelector("#swatch-feedback");
+  const savedProjectsLoading = document.querySelector(
+    "#saved-projects-loading",
+  );
+  const savedProjectsEmpty = document.querySelector("#saved-projects-empty");
+  const savedProjectsError = document.querySelector("#saved-projects-error");
+  const savedProjectsList = document.querySelector("#saved-projects-list");
 
   let engine = restoreEngine();
   let activeObjectUrl = null;
@@ -228,6 +236,7 @@
   if (engine.snapshot().messages.length > 0) {
     render();
   }
+  initializeSavedProjects();
 
   function restoreEngine() {
     try {
@@ -512,8 +521,117 @@
     openCalculatorLink.hidden =
       readiness.nextAction.type !== "open_calculator";
     if (readiness.nextAction.href) {
-      openCalculatorLink.href = readiness.nextAction.href;
+      openCalculatorLink.href = calculatedProjects?.prepareCalculatorHandoff(
+        readiness.nextAction.href,
+        projectIntent,
+        getSessionStorage(),
+      ) ?? readiness.nextAction.href;
       openCalculatorLink.textContent = readiness.nextAction.label;
+    }
+  }
+
+  async function initializeSavedProjects() {
+    if (!projectSystem || !calculatedProjects) {
+      showSavedProjectsError(
+        "Список проектов временно недоступен. Новый расчёт можно начать ниже.",
+      );
+      return;
+    }
+    try {
+      const repository = new projectSystem.ProjectRepository();
+      await repository.initialize();
+      const projects = await repository.listProjects({ section: "active" });
+      const entries = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            const aggregate = await repository.getProject(project.project_id);
+            return { project, inspection: calculatedProjects.inspectAggregate(aggregate) };
+          } catch (error) {
+            return {
+              project,
+              inspection: {
+                state: "invalid",
+                message:
+                  error?.userMessage ||
+                  "Запись проекта повреждена. Она не была удалена.",
+              },
+            };
+          }
+        }),
+      );
+      renderSavedProjects(entries);
+      savedProjectsLoading.hidden = true;
+      savedProjectsEmpty.hidden = entries.length > 0;
+      savedProjectsList.hidden = entries.length === 0;
+      await repository.close();
+    } catch {
+      showSavedProjectsError(
+        "Не удалось прочитать локальные проекты. Новый расчёт можно начать ниже.",
+      );
+    }
+  }
+
+  function renderSavedProjects(entries) {
+    const formatter = new Intl.DateTimeFormat("ru", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+    savedProjectsList.replaceChildren(
+      ...entries.map(({ project, inspection }) => {
+        const card = document.createElement("article");
+        card.className = "saved-project-card";
+        card.dataset.projectId = project.project_id;
+
+        const content = document.createElement("div");
+        const title = document.createElement("h3");
+        title.textContent = project.title;
+        const meta = document.createElement("p");
+        meta.className = "saved-project-meta";
+        const garment =
+          inspection.garmentType ||
+          inspection.structured?.garment_type ||
+          "тип изделия не указан";
+        const stage =
+          inspection.state === "ready" || inspection.state === "legacy"
+            ? calculatedProjects.stageLabel(inspection.stage)
+            : inspection.state === "draft"
+              ? "Черновик"
+              : "Требуется восстановление";
+        meta.textContent =
+          `${garment} · ${stage} · изменён ` +
+          formatter.format(new Date(project.updated_at));
+
+        const summary = document.createElement("p");
+        summary.className = "saved-project-summary";
+        summary.textContent =
+          inspection.state === "ready" || inspection.state === "legacy"
+            ? calculatedProjects.resultSummary(inspection.result)
+            : inspection.message;
+        content.append(title, meta, summary);
+
+        const link = document.createElement("a");
+        link.className = "saved-project-continue";
+        link.href = `/calculator?project=${encodeURIComponent(project.project_id)}`;
+        link.textContent = "Продолжить";
+        card.append(content, link);
+        return card;
+      }),
+    );
+  }
+
+  function showSavedProjectsError(message) {
+    savedProjectsLoading.hidden = true;
+    savedProjectsEmpty.hidden = true;
+    savedProjectsList.hidden = true;
+    savedProjectsError.textContent = message;
+    savedProjectsError.hidden = false;
+  }
+
+  function getSessionStorage() {
+    try {
+      return globalObject.sessionStorage;
+    } catch {
+      return null;
     }
   }
 

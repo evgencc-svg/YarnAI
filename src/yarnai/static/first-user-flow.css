@@ -110,10 +110,106 @@ a:focus-visible {
   min-height: calc(100vh - 166px);
 }
 
+.saved-projects {
+  margin: 18px auto 0;
+  padding: 26px;
+  border: 1px solid var(--flow-border);
+  border-radius: 24px;
+  background: rgb(255 253 248 / 84%);
+  box-shadow: 0 12px 35px rgb(45 56 50 / 5%);
+  text-align: left;
+}
+
+.saved-projects-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.saved-projects-heading h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.7rem, 4vw, 2.4rem);
+  font-weight: 600;
+}
+
+.saved-projects-heading > p,
+.saved-projects-state {
+  margin: 0;
+  color: var(--flow-muted);
+  line-height: 1.5;
+}
+
+.saved-projects-list {
+  margin-top: 22px;
+  display: grid;
+  gap: 12px;
+}
+
+.saved-project-card {
+  padding: 18px;
+  border: 1px solid var(--flow-border);
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  background: #fff;
+}
+
+.saved-project-card h3 {
+  margin: 0 0 7px;
+  font-size: 1.08rem;
+}
+
+.saved-project-meta,
+.saved-project-summary {
+  margin: 0;
+  color: var(--flow-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.saved-project-summary {
+  margin-top: 5px;
+  color: var(--flow-text);
+}
+
+.saved-project-continue {
+  min-height: 44px;
+  padding: 10px 17px;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: var(--flow-accent);
+  border: 1px solid var(--flow-accent);
+  border-radius: 12px;
+  font-weight: 780;
+  text-decoration: none;
+}
+
+.saved-project-continue:hover {
+  background: var(--flow-accent-dark);
+}
+
+.saved-projects-state {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 65%);
+}
+
+.saved-projects-error {
+  color: #6f2831;
+  background: #fff0f1;
+}
+
 .start-screen {
   max-width: 1020px;
   margin: 0 auto;
-  padding: clamp(54px, 9vh, 112px) 0 70px;
+  padding: clamp(48px, 8vh, 96px) 0 70px;
   text-align: center;
 }
 
@@ -961,6 +1057,21 @@ p {
 
   .start-screen {
     padding-top: 44px;
+  }
+
+  .saved-projects {
+    padding: 20px;
+  }
+
+  .saved-projects-heading,
+  .saved-project-card {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .saved-project-continue {
+    width: 100%;
   }
 
   .start-screen h1 {
