@@ -19,7 +19,15 @@ For local product integration, install the package from the repository root:
 python -m pip install -e .
 ```
 
-The package requires Python 3.12 or newer and has no runtime dependencies.
+This installs the calculation package and the Starlette/Uvicorn dependencies
+used by the HTTP service. To install the dependencies needed to run the test
+suite as well:
+
+```console
+python -m pip install -e ".[test]"
+```
+
+The package requires Python 3.12 or newer.
 
 ## Minimal example
 
@@ -185,7 +193,71 @@ This is a shortened view of the successful JSON: the actual response also
 contains normalized inputs, gauge assessment, neighboring candidates,
 explanations, and the full invariant trace.
 
-### Exit codes
+## First-function HTTP API
+
+After installation, start the local HTTP service with the public command:
+
+```console
+yarnai-http
+```
+
+The equivalent module command is `python -m yarnai.http`. The service listens
+at `http://127.0.0.1:8000`.
+
+Check its health:
+
+```console
+curl.exe http://127.0.0.1:8000/health
+```
+
+Send the canonical example with curl:
+
+```console
+curl.exe --request POST http://127.0.0.1:8000/api/v1/calculate --header "Content-Type: application/json" --data-binary "@examples/first_function_width.json"
+```
+
+Or send the same request from PowerShell:
+
+```powershell
+$body = Get-Content -Raw examples/first_function_width.json
+Invoke-RestMethod `
+  -Uri http://127.0.0.1:8000/api/v1/calculate `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body $body
+```
+
+The successful response is the complete structured first-function result. Its
+key fields for the canonical example are:
+
+```json
+{
+  "status": "READY",
+  "final": true,
+  "axes": {
+    "width": {
+      "selected_candidate": {
+        "working_count": 100
+      }
+    }
+  },
+  "errors": [],
+  "warnings": []
+}
+```
+
+| HTTP status | Meaning |
+| ---: | --- |
+| `200` | The calculation returned a structured domain result. This includes `READY`, `INPUT_ERROR`, `IMPOSSIBLE`, and other normal domain statuses. |
+| `400` | The request body is not valid JSON. |
+| `422` | The JSON is valid but does not match the YarnAI application input contract. |
+| `500` | A technical failure occurred in the integration layer, calculation core, or result serialization. |
+
+Domain errors are not HTTP failures: they are returned with HTTP `200` and
+remain available through `status`, `final`, `errors`, `warnings`, and the rest
+of the structured result.
+
+## CLI exit codes
 
 | Code | Meaning |
 | ---: | --- |
