@@ -22,7 +22,8 @@ python -m yarnai.http
 
 Open `http://127.0.0.1:8000/`. The public demonstration includes:
 
-- `/` — start page and width-calculation form;
+- `/` — intention-first start with photo, pattern/PDF, or plain-text dialogue;
+- `/calculator` — the existing deterministic width-calculation form;
 - `/about` — what the first function calculates and how to read its result;
 - `/example` — the canonical example, filled and calculated automatically;
 - `/smart-start` — a step-by-step project start based on a successful result.
@@ -102,7 +103,8 @@ Python Web Service на бесплатном плане, устанавлива�
 
 У созданного сервиса доступны следующие публичные пути:
 
-- `/` — форма расчёта;
+- `/` — первый диалоговый сценарий от намерения пользователя;
+- `/calculator` — форма расчёта;
 - `/about` — описание первой функции;
 - `/example` — автоматически заполненный и рассчитанный пример;
 - `/smart-start` — пошаговая подготовка начала проекта по готовому расчёту;
@@ -130,17 +132,17 @@ For the canonical example, a width of 50 cm at 20 stitches per 10 cm produces
 
 ## First-version limitations
 
-- Only width calculation and its deterministic Smart Start workflow are
-  demonstrated.
+- The intention-first dialogue and the deterministic width calculation with
+  Smart Start are demonstrated as separate prototype paths.
 - Smart Start saves its calculation progress in the current browser. Optional
   accounts provide explicit cloud project copies, but not background
   cross-device synchronization.
 - The demonstration does not replace making and measuring a representative
   swatch.
 - There is no analytics, automatic conflict merge, or background sync.
-- Photo recognition, camera verification, voice assistance, and AI checking
-  are not implemented. Smart Start does not generate a full pattern or choose
-  an unknown cast-on technique.
+- Photo/PDF files can be selected and previewed locally, but recognition,
+  camera verification, voice assistance, and AI checking are not implemented.
+  The dialogue currently uses replaceable deterministic rules.
 - Shareable URLs contain form inputs in plain query parameters and should not
   be used for sensitive information.
 - The independent calculation-core version is not displayed because the core
@@ -386,10 +388,11 @@ width-calculation function. Start it with:
 python -m yarnai.http
 ```
 
-Then open `http://127.0.0.1:8000/` in a browser. The pages use only packaged
-HTML, CSS, and vanilla JavaScript; it has no frontend build step or external
-frontend dependencies. Every calculation is sent to the existing
-`POST /api/v1/calculate` endpoint.
+Then open `http://127.0.0.1:8000/` in a browser for the intention-first
+dialogue, or `http://127.0.0.1:8000/calculator` for the width calculator. The
+pages use only packaged HTML, CSS, and vanilla JavaScript; there is no frontend
+build step or external frontend dependency. Calculations are sent to the
+existing `POST /api/v1/calculate` endpoint.
 
 Use **Заполнить пример** to restore the values from
 `examples/first_function_width.json`, **Очистить форму** to remove all values,

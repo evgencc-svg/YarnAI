@@ -53,7 +53,7 @@ def test_all_tester_routes_and_empty_states_are_safe(
 ) -> None:
     routes = {
         "/test": "Начать новый тест",
-        "/": "Начать расчёт",
+        "/calculator": "Начать расчёт",
         "/smart-start": "Вернуться к началу теста",
         "/step-assistant": "Вернуться к началу теста",
         "/feedback": "Вернуться к началу теста",

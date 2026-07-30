@@ -17,6 +17,7 @@ def test_public_demo_smoke_journey() -> None:
 
     with TestClient(http_api.create_app()) as client:
         start = client.get("/")
+        calculator = client.get("/calculator")
         about = client.get("/about")
         example_page = client.get("/example")
         script = client.get("/static/app.js")
@@ -29,7 +30,9 @@ def test_public_demo_smoke_journey() -> None:
         )
 
     assert start.status_code == 200
-    assert "Сколько петель набрать?" in start.text
+    assert "Что ты хочешь связать?" in start.text
+    assert calculator.status_code == 200
+    assert "Сколько петель набрать?" in calculator.text
     assert about.status_code == 200
     assert "Расчёт ширины в петлях" in about.text
     assert example_page.status_code == 200

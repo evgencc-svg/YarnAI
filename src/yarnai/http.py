@@ -93,7 +93,7 @@ class ProductionHttpMiddleware:
                     (
                         b"content-security-policy",
                         b"default-src 'self'; script-src 'self'; style-src 'self'; "
-                        b"img-src 'self' data:; connect-src 'self'; "
+                        b"img-src 'self' data: blob:; connect-src 'self'; "
                         b"frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
                     ),
                     (b"x-request-id", request_id.encode("ascii")),
@@ -208,7 +208,16 @@ async def health(_request: Request) -> JSONResponse:
 
 
 async def user_interface(_request: Request) -> FileResponse:
-    """Return the YarnAI demonstration start page."""
+    """Return the intention-first YarnAI start page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "first-user-flow.html",
+        media_type="text/html",
+    )
+
+
+async def width_calculator(_request: Request) -> FileResponse:
+    """Return the existing deterministic width calculator."""
 
     return FileResponse(STATIC_DIRECTORY / "index.html", media_type="text/html")
 
@@ -335,6 +344,7 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
     runtime_settings = settings or RuntimeSettings.from_environment()
     routes = [
         Route("/", user_interface, methods=["GET"]),
+        Route("/calculator", width_calculator, methods=["GET"]),
         Route("/about", about_first_function, methods=["GET"]),
         Route("/example", canonical_example, methods=["GET"]),
         Route("/smart-start", smart_start, methods=["GET"]),

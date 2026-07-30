@@ -66,10 +66,10 @@ def _page_structure(html: str) -> _PageStructureParser:
     return parser
 
 
-def test_root_returns_html_page_with_calculation_form(
+def test_calculator_returns_html_page_with_calculation_form(
     client: TestClient,
 ) -> None:
-    response = client.get("/")
+    response = client.get("/calculator")
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
@@ -88,7 +88,7 @@ def test_root_returns_html_page_with_calculation_form(
 def test_page_static_css_and_javascript_are_available(
     client: TestClient,
 ) -> None:
-    page_response = client.get("/")
+    page_response = client.get("/calculator")
     page = _page_structure(page_response.text)
 
     assert page.stylesheets == ["/static/styles.css"]
