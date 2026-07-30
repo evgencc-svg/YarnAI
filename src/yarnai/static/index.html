@@ -13,6 +13,7 @@
     <script src="/static/smart-start-state.js" defer></script>
     <script src="/static/step-assistant-state.js" defer></script>
     <script src="/static/tester-mode.js" defer></script>
+    <script src="/static/project-system.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body>
@@ -43,6 +44,107 @@
     </nav>
 
     <main class="page-shell">
+      <section
+        id="projects-panel"
+        class="projects-panel card"
+        aria-labelledby="projects-title"
+      >
+        <div class="projects-heading">
+          <div>
+            <p class="eyebrow">Локально на устройстве</p>
+            <h2 id="projects-title">Проекты</h2>
+          </div>
+          <div class="projects-create">
+            <label class="visually-hidden" for="new-project-title">
+              Название нового проекта
+            </label>
+            <input
+              id="new-project-title"
+              type="text"
+              maxlength="120"
+              placeholder="Название проекта"
+            >
+            <button id="create-project-button" class="primary-button" type="button">
+              Новый проект
+            </button>
+          </div>
+        </div>
+
+        <div class="project-tabs" role="tablist" aria-label="Разделы проектов">
+          <button
+            class="project-tab is-active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            data-project-section="active"
+          >
+            Активные
+          </button>
+          <button
+            class="project-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            data-project-section="archive"
+          >
+            Архив
+          </button>
+          <button
+            class="project-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            data-project-section="trash"
+          >
+            Корзина
+          </button>
+        </div>
+
+        <p id="projects-loading" class="project-list-state" role="status">
+          Загружаем локальные проекты…
+        </p>
+        <div
+          id="projects-error"
+          class="message message-error"
+          role="alert"
+          hidden
+        ></div>
+        <p id="projects-empty" class="project-list-state" hidden>
+          Здесь пока нет проектов.
+        </p>
+        <div id="projects-list" class="projects-list" hidden></div>
+
+        <div class="project-transfer">
+          <label class="link-button" for="import-project-input">
+            Импортировать проект
+          </label>
+          <input
+            id="import-project-input"
+            type="file"
+            accept=".json,.yarnai-project.json,application/json"
+            hidden
+          >
+          <p id="project-transfer-status" class="toolbar-feedback" role="status"></p>
+        </div>
+      </section>
+
+      <section id="current-project-panel" class="current-project card" hidden>
+        <div>
+          <p class="step-label">Открытый проект</p>
+          <label class="field">
+            <span class="field-label">Название</span>
+            <input id="current-project-title" type="text" maxlength="120">
+          </label>
+        </div>
+        <label class="field current-project-notes">
+          <span class="field-label">Заметка</span>
+          <textarea id="current-project-notes" maxlength="10000" rows="2"></textarea>
+        </label>
+        <p id="project-save-status" class="project-save-status" role="status">
+          Сохранено на устройстве
+        </p>
+      </section>
+
       <section class="intro" aria-labelledby="page-title">
         <p class="eyebrow">Расчёт ширины изделия</p>
         <h1 id="page-title">Сколько петель набрать?</h1>

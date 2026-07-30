@@ -96,6 +96,7 @@ def test_page_static_css_and_javascript_are_available(
         "/static/smart-start-state.js",
         "/static/step-assistant-state.js",
         "/static/tester-mode.js",
+        "/static/project-system.js",
         "/static/app.js",
     ]
     assert page.icons == ["/static/favicon.png"]

@@ -1,0 +1,10 @@
+{
+  "name": "yarnai-local-project-tests",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests-js/project-system.test.cjs"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "6.2.5"
+  }
+}

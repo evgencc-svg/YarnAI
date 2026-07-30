@@ -22,7 +22,26 @@ const startKnittingLink = document.querySelector("#start-knitting-link");
 const errorTitleElement = document.querySelector("#error-title");
 const errorContentElement = document.querySelector("#error-content");
 const warningsContentElement = document.querySelector("#warnings-content");
+const projectsLoading = document.querySelector("#projects-loading");
+const projectsError = document.querySelector("#projects-error");
+const projectsEmpty = document.querySelector("#projects-empty");
+const projectsList = document.querySelector("#projects-list");
+const newProjectTitle = document.querySelector("#new-project-title");
+const createProjectButton = document.querySelector("#create-project-button");
+const importProjectInput = document.querySelector("#import-project-input");
+const projectTransferStatus = document.querySelector(
+  "#project-transfer-status",
+);
+const currentProjectPanel = document.querySelector("#current-project-panel");
+const currentProjectTitle = document.querySelector("#current-project-title");
+const currentProjectNotes = document.querySelector("#current-project-notes");
+const projectSaveStatus = document.querySelector("#project-save-status");
+const projectSystem = window.YarnAIProjectSystem;
 let detailsStateBeforePrint = [];
+let projectRepository = null;
+let currentProjectAggregate = null;
+let projectAutosave = null;
+let currentProjectSection = "active";
 
 const statusLabels = {
   READY: "Расчёт готов",
@@ -52,6 +71,42 @@ form.addEventListener("input", (event) => {
   }
   validationSummary.hidden = true;
   shareFeedback.hidden = true;
+  scheduleProjectFormAutosave();
+});
+form.addEventListener("focusout", () => {
+  projectAutosave?.flush().catch(() => undefined);
+});
+createProjectButton.addEventListener("click", createProjectFromUi);
+newProjectTitle.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    createProjectFromUi();
+  }
+});
+document.querySelectorAll("[data-project-section]").forEach((tab) => {
+  tab.addEventListener("click", () => switchProjectSection(tab.dataset.projectSection));
+});
+projectsList.addEventListener("click", handleProjectListAction);
+importProjectInput.addEventListener("change", importProjectFromUi);
+currentProjectTitle.addEventListener("input", () => {
+  projectAutosave?.update({ title: currentProjectTitle.value });
+});
+currentProjectNotes.addEventListener("input", () => {
+  projectAutosave?.update({ notes: currentProjectNotes.value });
+});
+currentProjectTitle.addEventListener("blur", () => {
+  projectAutosave?.flush().catch(() => undefined);
+});
+currentProjectNotes.addEventListener("blur", () => {
+  projectAutosave?.flush().catch(() => undefined);
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    projectAutosave?.flush().catch(() => undefined);
+  }
+});
+window.addEventListener("beforeunload", () => {
+  projectAutosave?.flush().catch(() => undefined);
 });
 
 initializePage();
@@ -71,6 +126,8 @@ async function initializePage() {
     );
   }
 
+  await initializeProjectWorkspace();
+
   if (window.location.pathname === "/example") {
     document.title = "Канонический пример — YarnAI";
     document.querySelector(".eyebrow").textContent = "Канонический пример";
@@ -79,7 +136,11 @@ async function initializePage() {
     document.querySelector(".intro-copy").textContent =
       "Пример уже заполнен и рассчитан: при плотности 20 петель на 10 см рабочая ширина 50 см требует 100 петель.";
 
-    if (!hasSharedValues && (await fillCanonicalExample())) {
+    if (
+      !currentProjectAggregate &&
+      !hasSharedValues &&
+      (await fillCanonicalExample())
+    ) {
       form.requestSubmit();
     }
   }
@@ -113,7 +174,7 @@ async function handleSubmit(event) {
       return;
     }
 
-    showDomainResponse(data);
+    await showDomainResponse(data, payload, true);
   } catch (error) {
     if (error instanceof UnexpectedResponseError) {
       showSafeError(
@@ -144,6 +205,7 @@ async function fillCanonicalExample() {
     }
     const payload = await response.json();
     applyPayloadToForm(payload);
+    scheduleProjectFormAutosave();
     resetFeedback();
     showIdlePanel();
     showToolbarFeedback("Канонический пример заполнен.");
@@ -225,6 +287,7 @@ function clearForm() {
   resetFeedback();
   showIdlePanel();
   showToolbarFeedback("Форма очищена.");
+  scheduleProjectFormAutosave();
   document.querySelector("#width-value").focus();
 }
 
@@ -400,7 +463,7 @@ function buildPayload() {
   };
 }
 
-function showDomainResponse(data) {
+async function showDomainResponse(data, requestPayload = null, persist = false) {
   if (!isRecord(data) || typeof data.status !== "string") {
     throw new UnexpectedResponseError();
   }
@@ -470,6 +533,9 @@ function showDomainResponse(data) {
   prepareSmartStart(data);
   resultPanel.hidden = false;
   showWarnings(warnings);
+  if (persist && requestPayload && currentProjectAggregate) {
+    await persistCalculationInCurrentProject(requestPayload, data);
+  }
 }
 
 function prepareSmartStart(data) {
@@ -634,6 +700,460 @@ function showIdlePanel() {
 function focusForm() {
   form.scrollIntoView({ behavior: "smooth", block: "start" });
   document.querySelector("#width-value").focus({ preventScroll: true });
+}
+
+async function initializeProjectWorkspace() {
+  if (!projectSystem) {
+    showProjectsError(
+      "Система локальных проектов не загрузилась. Обновите страницу.",
+    );
+    return;
+  }
+  try {
+    projectRepository = new projectSystem.ProjectRepository();
+    await projectRepository.initialize();
+    const projectId = new URLSearchParams(window.location.search).get("project");
+    if (projectId && projectSystem.isUuidv7(projectId)) {
+      try {
+        await openProjectInWorkspace(projectId);
+      } catch (error) {
+        showProjectsError(projectErrorMessage(error));
+      }
+    }
+    await refreshProjectsList();
+  } catch (error) {
+    showProjectsError(projectErrorMessage(error));
+  }
+}
+
+async function refreshProjectsList() {
+  if (!projectRepository) {
+    return;
+  }
+  projectsLoading.hidden = false;
+  projectsError.hidden = true;
+  projectsEmpty.hidden = true;
+  projectsList.hidden = true;
+  try {
+    const projects = await projectRepository.listProjects({
+      section: currentProjectSection,
+    });
+    renderProjects(projects);
+    projectsLoading.hidden = true;
+    projectsEmpty.hidden = projects.length > 0;
+    projectsList.hidden = projects.length === 0;
+  } catch (error) {
+    projectsLoading.hidden = true;
+    showProjectsError(projectErrorMessage(error));
+  }
+}
+
+function renderProjects(projects) {
+  const statusLabelsForProjects = {
+    DRAFT: "Черновик",
+    ACTIVE: "В работе",
+    PAUSED: "Приостановлен",
+    COMPLETED: "Завершён",
+    ARCHIVED: "В архиве",
+    DELETED: "В корзине",
+  };
+  const formatter = new Intl.DateTimeFormat("ru", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+  projectsList.replaceChildren(
+    ...projects.map((project) => {
+      const item = document.createElement("article");
+      item.className = "project-list-item";
+      item.dataset.projectId = project.project_id;
+      if (project.project_id === currentProjectAggregate?.project.project_id) {
+        item.classList.add("is-current");
+      }
+      const summary = document.createElement("div");
+      const title = document.createElement("h3");
+      title.className = "project-list-title";
+      title.textContent = project.title;
+      const meta = document.createElement("p");
+      meta.className = "project-list-meta";
+      const incomplete = project.has_unfinished_calculation
+        ? " · есть незавершённый расчёт"
+        : project.active_calculation_id
+          ? " · расчёт сохранён"
+          : " · расчёт ещё не создан";
+      meta.textContent = `${statusLabelsForProjects[project.workspace_status]} · изменён ${formatter.format(new Date(project.updated_at))}${incomplete}`;
+      summary.append(title, meta);
+      const actions = document.createElement("div");
+      actions.className = "project-list-actions";
+      projectActionsForStatus(project.workspace_status).forEach(
+        ([action, label, danger = false]) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `project-action${danger ? " project-action-danger" : ""}`;
+          button.dataset.projectAction = action;
+          button.textContent = label;
+          actions.append(button);
+        },
+      );
+      item.append(summary, actions);
+      return item;
+    }),
+  );
+}
+
+function projectActionsForStatus(status) {
+  if (status === "DELETED") {
+    return [
+      ["restore-deleted", "Восстановить"],
+      ["purge", "Удалить навсегда", true],
+    ];
+  }
+  if (status === "ARCHIVED") {
+    return [
+      ["open", "Открыть"],
+      ["duplicate", "Дублировать"],
+      ["restore-archive", "Восстановить"],
+      ["export", "Экспорт"],
+      ["delete", "В корзину", true],
+    ];
+  }
+  return [
+    ["open", "Открыть"],
+    ["duplicate", "Дублировать"],
+    ["archive", "В архив"],
+    ["export", "Экспорт"],
+    ["delete", "В корзину", true],
+  ];
+}
+
+function switchProjectSection(section) {
+  if (!["active", "archive", "trash"].includes(section)) {
+    return;
+  }
+  currentProjectSection = section;
+  document.querySelectorAll("[data-project-section]").forEach((tab) => {
+    const active = tab.dataset.projectSection === section;
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
+  });
+  refreshProjectsList();
+}
+
+async function createProjectFromUi() {
+  if (!projectRepository) {
+    showProjectsError("Локальное хранилище проектов недоступно.");
+    return;
+  }
+  createProjectButton.disabled = true;
+  projectTransferStatus.textContent = "";
+  try {
+    const input = {};
+    if (newProjectTitle.value.trim()) {
+      input.title = newProjectTitle.value;
+    }
+    input.draft_input = captureProjectFormState();
+    const project = await projectRepository.createProject(input);
+    newProjectTitle.value = "";
+    currentProjectSection = "active";
+    await openProjectInWorkspace(project.project_id);
+    await refreshProjectsList();
+    projectTransferStatus.textContent =
+      "Проект создан и сохранён на этом устройстве.";
+  } catch (error) {
+    showProjectsError(projectErrorMessage(error));
+  } finally {
+    createProjectButton.disabled = false;
+  }
+}
+
+async function handleProjectListAction(event) {
+  const button = event.target.closest("[data-project-action]");
+  const item = event.target.closest("[data-project-id]");
+  if (!button || !item || !projectRepository) {
+    return;
+  }
+  const projectId = item.dataset.projectId;
+  const action = button.dataset.projectAction;
+  button.disabled = true;
+  projectsError.hidden = true;
+  projectTransferStatus.textContent = "";
+  try {
+    if (action === "open") {
+      await flushCurrentProjectBeforeLifecycle();
+      await openProjectInWorkspace(projectId);
+    } else if (action === "duplicate") {
+      await flushCurrentProjectBeforeLifecycle();
+      const duplicate = await projectRepository.duplicateProject(projectId);
+      currentProjectSection = "active";
+      await openProjectInWorkspace(duplicate.project_id);
+      projectTransferStatus.textContent = "Независимая копия проекта создана.";
+    } else if (action === "archive") {
+      await flushCurrentProjectBeforeLifecycle();
+      await projectRepository.archiveProject(projectId);
+      await closeWorkspaceIfCurrent(projectId);
+    } else if (action === "restore-archive") {
+      await projectRepository.restoreProject(projectId);
+      currentProjectSection = "active";
+    } else if (action === "delete") {
+      if (!window.confirm("Переместить проект в корзину? Его можно восстановить.")) {
+        return;
+      }
+      await flushCurrentProjectBeforeLifecycle();
+      await projectRepository.softDeleteProject(projectId);
+      await closeWorkspaceIfCurrent(projectId);
+    } else if (action === "restore-deleted") {
+      await projectRepository.restoreDeletedProject(projectId);
+      currentProjectSection = "active";
+    } else if (action === "purge") {
+      if (
+        !window.confirm(
+          "Удалить проект и все связанные расчёты и изображения безвозвратно?",
+        )
+      ) {
+        return;
+      }
+      await projectRepository.permanentlyDeleteProject(projectId, {
+        confirmed: true,
+      });
+      await closeWorkspaceIfCurrent(projectId);
+    } else if (action === "export") {
+      await exportProjectFromUi(projectId);
+    }
+    await refreshProjectsList();
+  } catch (error) {
+    showProjectsError(projectErrorMessage(error));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function openProjectInWorkspace(projectId) {
+  await projectAutosave?.destroy().catch(() => undefined);
+  projectAutosave = null;
+  const aggregate = await projectRepository.openProject(projectId, {
+    includeDeleted: false,
+  });
+  currentProjectAggregate = aggregate;
+  currentProjectPanel.hidden = false;
+  currentProjectTitle.value = aggregate.project.title;
+  currentProjectNotes.value = aggregate.project.notes;
+  projectAutosave = new projectSystem.ProjectAutosave(
+    projectRepository,
+    projectId,
+    {
+      delay: 500,
+      onStateChange: updateProjectSaveStatus,
+    },
+  );
+  const activeCalculation = aggregate.calculations.find(
+    (entry) =>
+      entry.calculation_id === aggregate.project.active_calculation_id,
+  );
+  if (activeCalculation) {
+    applyPayloadToForm(activeCalculation.request);
+    await showDomainResponse(
+      activeCalculation.result,
+      activeCalculation.request,
+      false,
+    );
+  } else {
+    showIdlePanel();
+  }
+  const recoveredPatch = aggregate.recovery_draft?.patch;
+  const savedDraft =
+    recoveredPatch?.draft_input ?? aggregate.project.draft_input;
+  if (savedDraft?.kind === "FORM_V1") {
+    applyProjectFormState(savedDraft);
+  } else if (!activeCalculation && savedDraft?.axes) {
+    applyPayloadToForm(savedDraft);
+  }
+  if (recoveredPatch) {
+    if (typeof recoveredPatch.title === "string") {
+      currentProjectTitle.value = recoveredPatch.title;
+    }
+    if (typeof recoveredPatch.notes === "string") {
+      currentProjectNotes.value = recoveredPatch.notes;
+    }
+    projectAutosave.update(recoveredPatch);
+    projectTransferStatus.textContent =
+      "Восстановлены последние доступные изменения после сбоя.";
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("project", projectId);
+  window.history.replaceState({}, "", url);
+  updateProjectSaveStatus({ state: "SAVED_LOCAL" });
+}
+
+async function closeWorkspaceIfCurrent(projectId) {
+  if (currentProjectAggregate?.project.project_id !== projectId) {
+    return;
+  }
+  await projectAutosave?.destroy().catch(() => undefined);
+  projectAutosave = null;
+  currentProjectAggregate = null;
+  currentProjectPanel.hidden = true;
+  const url = new URL(window.location.href);
+  url.searchParams.delete("project");
+  window.history.replaceState({}, "", url);
+}
+
+async function flushCurrentProjectBeforeLifecycle() {
+  if (!projectAutosave) {
+    return;
+  }
+  try {
+    await projectAutosave.flush();
+  } catch (error) {
+    throw new projectSystem.ProjectRepositoryError(
+      "PENDING_SAVE_FAILED",
+      "Последние изменения не сохранены. Действие отменено, чтобы не потерять данные.",
+      { cause: error },
+    );
+  }
+}
+
+function captureProjectFormState() {
+  const values = {};
+  [...form.elements].forEach((control) => {
+    if (
+      control.name &&
+      (control instanceof HTMLInputElement ||
+        control instanceof HTMLSelectElement ||
+        control instanceof HTMLTextAreaElement)
+    ) {
+      values[control.name] = control.value;
+    }
+  });
+  return { kind: "FORM_V1", values };
+}
+
+function applyProjectFormState(state) {
+  if (!state || state.kind !== "FORM_V1" || !isRecord(state.values)) {
+    return;
+  }
+  Object.entries(state.values).forEach(([name, value]) => {
+    const control = form.elements.namedItem(name);
+    if (
+      (control instanceof HTMLInputElement ||
+        control instanceof HTMLSelectElement ||
+        control instanceof HTMLTextAreaElement) &&
+      typeof value === "string"
+    ) {
+      control.value = value;
+    }
+  });
+}
+
+function scheduleProjectFormAutosave() {
+  if (!projectAutosave) {
+    return;
+  }
+  projectAutosave.update({
+    draft_input: captureProjectFormState(),
+    has_unfinished_calculation: true,
+  });
+}
+
+async function persistCalculationInCurrentProject(requestPayload, result) {
+  const projectId = currentProjectAggregate?.project.project_id;
+  if (!projectId) {
+    return;
+  }
+  try {
+    await projectAutosave?.flush();
+    const saved = await projectRepository.addCalculation(
+      projectId,
+      requestPayload,
+      result,
+    );
+    currentProjectAggregate.project = saved.project;
+    currentProjectAggregate.calculations.push(saved.calculation);
+    currentProjectAggregate.progress.push(...saved.progress);
+    updateProjectSaveStatus({ state: "SAVED_LOCAL" });
+    await refreshProjectsList();
+  } catch (error) {
+    updateProjectSaveStatus({
+      state: "SAVE_FAILED",
+      error,
+    });
+    showProjectsError(
+      `Расчёт показан, но не сохранён в проекте. ${projectErrorMessage(error)}`,
+    );
+  }
+}
+
+function updateProjectSaveStatus({ state, error = null }) {
+  const messages = {
+    CLEAN: "Сохранено на устройстве",
+    DIRTY: "Есть несохранённые изменения",
+    SAVING: "Сохраняем на устройстве…",
+    SAVED_LOCAL: "Сохранено на устройстве",
+    SAVE_FAILED:
+      "Не удалось сохранить. Изменения остаются в этой вкладке; повторите попытку.",
+    CONFLICT_LOCAL:
+      "Проект изменён в другой вкладке. Перезагрузите проект.",
+  };
+  projectSaveStatus.dataset.state = state;
+  projectSaveStatus.textContent =
+    state === "SAVE_FAILED" && error
+      ? `${messages[state]} ${projectErrorMessage(error)}`
+      : messages[state] ?? messages.CLEAN;
+}
+
+async function exportProjectFromUi(projectId) {
+  const exported = await projectRepository.exportProject(projectId);
+  const blob = new Blob([exported.json], { type: exported.mime_type });
+  const objectUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = exported.filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 0);
+  projectTransferStatus.textContent =
+    "Переносимый файл проекта подготовлен.";
+}
+
+async function importProjectFromUi() {
+  const file = importProjectInput.files?.[0];
+  if (!file || !projectRepository) {
+    return;
+  }
+  importProjectInput.disabled = true;
+  projectsError.hidden = true;
+  try {
+    const result = await projectRepository.importProject(file);
+    currentProjectSection = "active";
+    await openProjectInWorkspace(result.project_id);
+    await refreshProjectsList();
+    projectTransferStatus.textContent =
+      result.status === "ALREADY_IMPORTED"
+        ? "Этот файл уже был импортирован."
+        : result.collision
+          ? "Проект импортирован как независимая копия из-за совпадения идентификатора."
+          : "Проект импортирован и сохранён на устройстве.";
+  } catch (error) {
+    showProjectsError(projectErrorMessage(error));
+  } finally {
+    importProjectInput.value = "";
+    importProjectInput.disabled = false;
+  }
+}
+
+function showProjectsError(message) {
+  projectsError.textContent = message;
+  projectsError.hidden = false;
+  projectsLoading.hidden = true;
+}
+
+function projectErrorMessage(error) {
+  if (
+    projectSystem &&
+    error instanceof projectSystem.ProjectRepositoryError
+  ) {
+    return error.userMessage;
+  }
+  return "Произошла ошибка локального хранилища. Обновите страницу и попробуйте снова.";
 }
 
 function valueOf(id) {
