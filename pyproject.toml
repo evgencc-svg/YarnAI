@@ -25,6 +25,9 @@ yarnai-http = "yarnai.http:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+yarnai = ["static/*.css", "static/*.html", "static/*.js"]
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]

@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Локальный интерфейс YarnAI для расчёта ширины в петлях."
+    >
+    <title>YarnAI — расчёт ширины</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <span class="brand-mark" aria-hidden="true">Y</span>
+        <span>YarnAI</span>
+      </a>
+      <span class="header-note">Первая функция</span>
+    </header>
+
+    <main class="page-shell">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">Расчёт ширины изделия</p>
+        <h1 id="page-title">Сколько петель набрать?</h1>
+        <p class="intro-copy">
+          Укажите размер изделия и данные контрольного образца. YarnAI
+          рассчитает рабочее количество петель и сообщит, если данных
+          недостаточно или условия несовместимы.
+        </p>
+      </section>
+
+      <div class="workspace">
+        <form id="width-form" class="card form-card" novalidate>
+          <div class="card-heading">
+            <div>
+              <p class="step-label">Данные для расчёта</p>
+              <h2>Ширина и плотность</h2>
+            </div>
+            <span class="axis-badge">Ширина</span>
+          </div>
+
+          <div
+            id="validation-summary"
+            class="message message-error"
+            role="alert"
+            hidden
+          ></div>
+
+          <fieldset class="field-group">
+            <legend>Изделие</legend>
+            <div class="field-grid">
+              <label class="field field-wide">
+                <span class="field-label">Желаемая ширина</span>
+                <span class="input-with-unit">
+                  <input
+                    id="width-value"
+                    name="width-value"
+                    type="number"
+                    inputmode="decimal"
+                    step="any"
+                    value="50"
+                    required
+                  >
+                  <select
+                    id="width-unit"
+                    name="width-unit"
+                    aria-label="Единица ширины"
+                  >
+                    <option value="cm" selected>см</option>
+                    <option value="inch">дюймы</option>
+                  </select>
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Тип размера</span>
+                <select id="size-kind" name="size-kind" required>
+                  <option value="finished" selected>Готовая ширина</option>
+                  <option value="measurement">Мерка</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Направление округления</span>
+                <select id="direction" name="direction" required>
+                  <option value="nearest" selected>Ближайшее значение</option>
+                  <option value="not_less">Не меньше заданного</option>
+                  <option value="not_more">Не больше заданного</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="field-group">
+            <legend>Контрольный образец</legend>
+            <p class="group-hint">
+              В каноническом примере 20 петель занимают 10 см.
+            </p>
+            <div class="field-grid">
+              <label class="field">
+                <span class="field-label">Количество петель</span>
+                <span class="input-with-suffix">
+                  <input
+                    id="gauge-count"
+                    name="gauge-count"
+                    type="number"
+                    inputmode="decimal"
+                    step="any"
+                    value="20"
+                    required
+                  >
+                  <span class="unit-label">петель</span>
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field-label">На длине</span>
+                <span class="input-with-unit">
+                  <input
+                    id="gauge-length"
+                    name="gauge-length"
+                    type="number"
+                    inputmode="decimal"
+                    step="any"
+                    value="10"
+                    required
+                  >
+                  <select
+                    id="gauge-unit"
+                    name="gauge-unit"
+                    aria-label="Единица длины образца"
+                  >
+                    <option value="cm" selected>см</option>
+                    <option value="inch">дюймы</option>
+                  </select>
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Количество измерений</span>
+                <input
+                  id="measurement-count"
+                  name="measurement-count"
+                  type="number"
+                  inputmode="numeric"
+                  step="any"
+                  value="3"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span class="field-label">Источник плотности</span>
+                <select id="gauge-source" name="gauge-source" required>
+                  <option value="personal_swatch" selected>Личный образец</option>
+                  <option value="other_swatch">Другой образец</option>
+                  <option value="label">Этикетка пряжи</option>
+                  <option value="pattern">Описание изделия</option>
+                  <option value="unknown">Неизвестно</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <details class="details-section">
+            <summary>Параметры вязания</summary>
+            <div class="details-content field-grid">
+              <label class="field">
+                <span class="field-label">Категория изделия</span>
+                <select
+                  id="functional-category"
+                  name="functional-category"
+                  required
+                >
+                  <option value="ordinary" selected>Обычное изделие</option>
+                  <option value="negative_ease">С отрицательной свободой</option>
+                  <option value="critical_opening">Критичный проём</option>
+                  <option value="medical_or_orthopedic">Медицинское</option>
+                  <option value="protective">Защитное</option>
+                  <option value="child_sensitive">Детское чувствительное</option>
+                  <option value="animal_clothing">Одежда для животных</option>
+                  <option value="exact_cover">Точный чехол</option>
+                  <option value="unknown">Неизвестно</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Способ вязания</span>
+                <select id="knitting-mode" name="knitting-mode" required>
+                  <option value="flat" selected>Поворотными рядами</option>
+                  <option value="round">По кругу</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Узор зоны</span>
+                <input
+                  id="zone-pattern"
+                  name="zone-pattern"
+                  type="text"
+                  value="stockinette"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span class="field-label">Класс узора</span>
+                <select id="pattern-class" name="pattern-class" required>
+                  <option value="constant_stitch_count" selected>
+                    Постоянное число петель
+                  </option>
+                  <option value="variable_or_unknown_stitch_count">
+                    Переменное или неизвестное
+                  </option>
+                  <option value="composite_row">Составной ряд</option>
+                  <option value="multiple_gauges">Несколько плотностей</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Однородность зоны</span>
+                <select
+                  id="zone-homogeneous"
+                  name="zone-homogeneous"
+                  required
+                >
+                  <option value="yes" selected>Да</option>
+                  <option value="no">Нет</option>
+                  <option value="unknown">Неизвестно</option>
+                </select>
+              </label>
+            </div>
+          </details>
+
+          <details class="details-section">
+            <summary>Состояние образца</summary>
+            <div class="details-content field-grid">
+              <label class="field">
+                <span class="field-label">Снят со спиц</span>
+                <select id="off-needles" name="off-needles" required>
+                  <option value="yes" selected>Да</option>
+                  <option value="no">Нет</option>
+                  <option value="unknown">Неизвестно</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Обработка</span>
+                <select
+                  id="processing-state"
+                  name="processing-state"
+                  required
+                >
+                  <option value="after_intended_processing" selected>
+                    После плановой обработки
+                  </option>
+                  <option value="before_processing">До обработки</option>
+                  <option value="unknown">Неизвестно</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Полностью высох</span>
+                <select id="fully-dry" name="fully-dry" required>
+                  <option value="yes" selected>Да</option>
+                  <option value="no">Нет</option>
+                  <option value="unknown">Неизвестно</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Отдых после обработки</span>
+                <span class="input-with-suffix">
+                  <input
+                    id="rest-hours"
+                    name="rest-hours"
+                    type="number"
+                    inputmode="decimal"
+                    step="any"
+                    value="12"
+                    required
+                  >
+                  <span class="unit-label">часов</span>
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Состояние при измерении</span>
+                <select
+                  id="measurement-state"
+                  name="measurement-state"
+                  required
+                >
+                  <option value="relaxed" selected>Свободное</option>
+                  <option value="explicit_stretch">Заданное растяжение</option>
+                  <option value="unknown">Неизвестно</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Образец связан</span>
+                <select id="swatch-mode" name="swatch-mode" required>
+                  <option value="flat" selected>Поворотными рядами</option>
+                  <option value="round">По кругу</option>
+                  <option value="simulated_round">Имитацией круга</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Тяжёлое или крупное полотно</span>
+                <select
+                  id="heavy-or-large"
+                  name="heavy-or-large"
+                  required
+                >
+                  <option value="no" selected>Нет</option>
+                  <option value="yes">Да</option>
+                  <option value="unknown">Неизвестно</option>
+                </select>
+              </label>
+            </div>
+          </details>
+
+          <details class="details-section">
+            <summary>Пряжа и инструменты</summary>
+            <p class="details-hint">
+              Один контекст материала используется для изделия и образца.
+            </p>
+            <div class="details-content field-grid">
+              <label class="field">
+                <span class="field-label">Пряжа</span>
+                <input
+                  id="yarn"
+                  name="yarn"
+                  type="text"
+                  value="example yarn"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span class="field-label">Партия пряжи</span>
+                <input
+                  id="yarn-batch"
+                  name="yarn-batch"
+                  type="text"
+                  value="batch-1"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span class="field-label">Количество нитей</span>
+                <input
+                  id="strands"
+                  name="strands"
+                  type="number"
+                  inputmode="numeric"
+                  step="any"
+                  value="1"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span class="field-label">Описание нитей</span>
+                <input
+                  id="strands-description"
+                  name="strands-description"
+                  type="text"
+                  value="one strand"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span class="field-label">Размер спиц</span>
+                <span class="input-with-suffix">
+                  <input
+                    id="needle-mm"
+                    name="needle-mm"
+                    type="number"
+                    inputmode="decimal"
+                    step="any"
+                    value="4"
+                    required
+                  >
+                  <span class="unit-label">мм</span>
+                </span>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Тип спиц</span>
+                <input
+                  id="needle-type"
+                  name="needle-type"
+                  type="text"
+                  value="metal circular"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span class="field-label">Узор образца</span>
+                <input
+                  id="fabric-pattern"
+                  name="fabric-pattern"
+                  type="text"
+                  value="stockinette"
+                  required
+                >
+              </label>
+
+              <label class="field">
+                <span class="field-label">Способ вязания полотна</span>
+                <select id="fabric-mode" name="fabric-mode" required>
+                  <option value="flat" selected>Поворотными рядами</option>
+                  <option value="round">По кругу</option>
+                </select>
+              </label>
+
+              <label class="field field-wide">
+                <span class="field-label">Плановая обработка</span>
+                <input
+                  id="fabric-processing"
+                  name="fabric-processing"
+                  type="text"
+                  value="wash and dry flat"
+                  required
+                >
+              </label>
+            </div>
+          </details>
+
+          <button id="calculate-button" class="primary-button" type="submit">
+            <span class="button-label">Рассчитать</span>
+            <span class="button-loading" aria-hidden="true">
+              <span class="spinner"></span>
+              Считаем…
+            </span>
+          </button>
+        </form>
+
+        <aside class="result-column" aria-live="polite">
+          <section id="idle-panel" class="card state-card state-idle">
+            <span class="state-icon" aria-hidden="true">=</span>
+            <h2>Здесь появится результат</h2>
+            <p>
+              Проверьте данные слева и нажмите «Рассчитать». Их можно изменить
+              и отправить повторно в любой момент.
+            </p>
+          </section>
+
+          <section id="loading-panel" class="card state-card" hidden>
+            <span class="large-spinner" aria-hidden="true"></span>
+            <h2>Выполняем расчёт</h2>
+            <p>Проверяем данные и подбираем рабочее количество петель.</p>
+          </section>
+
+          <section id="result-panel" class="card result-card" hidden>
+            <p class="result-status">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span id="status-label">Расчёт готов</span>
+            </p>
+            <p class="result-number">
+              <strong id="working-count">—</strong>
+              <span id="stitch-word">петель</span>
+            </p>
+            <p class="result-caption">
+              Итоговое рабочее количество для заданной ширины
+            </p>
+            <button
+              id="recalculate-button"
+              class="secondary-button"
+              type="button"
+            >
+              Изменить данные и пересчитать
+            </button>
+          </section>
+
+          <section id="error-panel" class="card feedback-card error-card" hidden>
+            <p class="feedback-kicker">Расчёт не выполнен</p>
+            <h2 id="error-title">Проверьте данные</h2>
+            <div id="error-content"></div>
+            <button
+              id="error-recalculate-button"
+              class="secondary-button"
+              type="button"
+            >
+              Вернуться к данным
+            </button>
+          </section>
+
+          <section
+            id="warnings-panel"
+            class="card feedback-card warning-card"
+            hidden
+          >
+            <p class="feedback-kicker">Обратите внимание</p>
+            <h2>Предупреждения</h2>
+            <div id="warnings-content"></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <footer>
+      Локальный интерфейс для ручного тестирования первой функции YarnAI
+    </footer>
+  </body>
+</html>

@@ -204,6 +204,38 @@ yarnai-http
 The equivalent module command is `python -m yarnai.http`. The service listens
 at `http://127.0.0.1:8000`.
 
+### Local web interface
+
+The HTTP service also serves a lightweight user interface for local manual
+testing of the first width-calculation function. Start it with:
+
+```console
+yarnai-http
+```
+
+Then open `http://127.0.0.1:8000/` in a browser. The page uses only packaged
+HTML, CSS, and vanilla JavaScript; it has no frontend build step or external
+frontend dependencies. Every calculation is sent to the existing
+`POST /api/v1/calculate` endpoint.
+
+The form starts with the values from
+`examples/first_function_width.json`. Leave those values unchanged and click
+**Рассчитать** to run the canonical calculation. The result is shown as
+**100 петель**. You can edit the width, gauge, swatch state, knitting
+parameters, and yarn/tool context, then calculate again.
+
+The interface treats the main domain statuses as user-facing states:
+
+- `READY` and `READY_WITH_WARNINGS` show the selected working stitch count;
+- `INPUT_ERROR` asks the user to correct the supplied data;
+- `IMPOSSIBLE` explains that the requested conditions are incompatible;
+- warnings are shown in a separate notice;
+- HTTP `400`, `422`, and `500`, network failures, and incomplete responses
+  produce safe messages without tracebacks or internal exception details.
+
+This page is intentionally limited to local manual testing of YarnAI's first
+function. It does not store calculations or user data.
+
 Check its health:
 
 ```console

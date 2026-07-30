@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import NoReturn
 
 import uvicorn
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse
-from starlette.routing import Route
+from starlette.responses import FileResponse, JSONResponse
+from starlette.routing import Mount, Route
+from starlette.staticfiles import StaticFiles
 
 from yarnai import (
     CalculationApplicationError,
@@ -24,6 +26,7 @@ from yarnai import (
 TECHNICAL_ERROR_MESSAGE = (
     "The calculation could not be completed because of an internal technical error."
 )
+STATIC_DIRECTORY = Path(__file__).with_name("static")
 
 
 class _InvalidJsonError(ValueError):
@@ -34,6 +37,12 @@ async def health(_request: Request) -> JSONResponse:
     """Return a minimal process health response."""
 
     return JSONResponse({"status": "ok"})
+
+
+async def user_interface(_request: Request) -> FileResponse:
+    """Return the local first-function user interface."""
+
+    return FileResponse(STATIC_DIRECTORY / "index.html", media_type="text/html")
 
 
 async def calculate_first_function(request: Request) -> JSONResponse:
@@ -111,11 +120,17 @@ def create_app() -> Starlette:
     return Starlette(
         debug=False,
         routes=[
+            Route("/", user_interface, methods=["GET"]),
             Route("/health", health, methods=["GET"]),
             Route(
                 "/api/v1/calculate",
                 calculate_first_function,
                 methods=["POST"],
+            ),
+            Mount(
+                "/static",
+                app=StaticFiles(directory=STATIC_DIRECTORY),
+                name="static",
             ),
         ],
     )
