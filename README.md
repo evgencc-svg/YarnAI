@@ -76,9 +76,10 @@ Smart Start is a deterministic six-step workflow. After a successful final
 calculation, choose **Начать вязание** to check the project inputs, prepare
 materials, confirm the supplied gauge, cast on and recount the calculated
 stitches, and record readiness to follow the project's own first-row
-instructions. The latest successful calculation and its per-calculation
-progress are stored in browser `localStorage`; no account or server database
-is used.
+instructions. Calculation workflow state remains browser-local, while the
+project system uses IndexedDB. An optional account can store explicit cloud
+copies in PostgreSQL; registration is never required for the calculation or
+local projects.
 
 The application version is shown in the header and footer. The calculation
 core does not currently expose an independent public version value, so the UI
@@ -131,12 +132,12 @@ For the canonical example, a width of 50 cm at 20 stitches per 10 cm produces
 
 - Only width calculation and its deterministic Smart Start workflow are
   demonstrated.
-- Smart Start saves only the latest successful calculation and progress in the
-  current browser. It does not provide project accounts, cloud history, or
+- Smart Start saves its calculation progress in the current browser. Optional
+  accounts provide explicit cloud project copies, but not background
   cross-device synchronization.
 - The demonstration does not replace making and measuring a representative
   swatch.
-- There is no authentication, database, analytics, or cloud integration.
+- There is no analytics, automatic conflict merge, or background sync.
 - Photo recognition, camera verification, voice assistance, and AI checking
   are not implemented. Smart Start does not generate a full pattern or choose
   an unknown cast-on technique.
@@ -162,6 +163,42 @@ python -m pip install -e ".[test]"
 ```
 
 The package requires Python 3.12 or newer.
+
+## Optional accounts and cloud projects
+
+The server exposes registration, login, refresh, logout and current-user
+contracts below `/api/v1/auth`, plus authenticated project CRUD and lifecycle
+contracts below `/api/v1/projects`.
+
+Passwords are hashed with Argon2id. The browser keeps the short-lived signed
+access token only in JavaScript memory. A long-lived opaque refresh credential
+uses an `HttpOnly` cookie, while PostgreSQL stores only its keyed hash. Refresh
+credentials rotate on every use; replay revokes the session family.
+Cookie-authenticated refresh and logout also require a CSRF header.
+
+Copy `.env.example` into an environment-specific configuration source and set
+at least `DATABASE_URL`, `JWT_ACCESS_SECRET`, and `REFRESH_TOKEN_SECRET`.
+Production `DATABASE_URL` must point to PostgreSQL. SQLite is accepted only
+when `YARNAI_ALLOW_TEST_DATABASE_ADAPTER=true` is explicitly set by tests.
+Other settings cover token TTLs, secure cookie policy, exact CORS origins,
+trusted proxy IPs, Argon2id costs, request/payload sizes, and JSON depth.
+
+Run migrations explicitly before starting the service:
+
+```console
+alembic upgrade head
+python -m yarnai.http
+```
+
+The Render Blueprint keeps `python -m yarnai.http` as the production start
+command and runs `alembic upgrade head` before deployment. Secrets are supplied
+by the environment and never committed.
+
+The UI restores a refresh session on page load, shows the current account and
+cloud projects, and offers **Сохранить копию в облаке** for the open local
+project. This explicit action preserves the client UUIDv7, is owner-scoped and
+idempotent, never removes the local project, and never silently overwrites an
+existing cloud project. No local project is uploaded automatically.
 
 ## Minimal example
 
@@ -527,13 +564,19 @@ RSS процесса: 38.547 MiB до нагрузки, 113.527 MiB в пике,
 - Python: последняя patch-версия ветки 3.12 из `.python-version`;
 - environment: Render предоставляет `PORT`, Blueprint задаёт
   `YARNAI_HOST=0.0.0.0` и `YARNAI_LOG_LEVEL=info`;
-- persistent disk и база данных не нужны.
+- `DATABASE_URL` берётся из связанной PostgreSQL-базы, а `alembic upgrade head`
+  выполняется как pre-deploy command до неизменившейся production-команды;
+- persistent disk приложению не нужен.
 
 Чтобы развернуть сервис, подключите репозиторий как Blueprint в Render и
 подтвердите `render.yaml`. Фактический deployment при этой проверке не
 выполнялся: авторизованная сессия Render не предоставлена.
 
-Текущие ограничения: один процесс и локальный браузерный progress-state без
-межустройственной синхронизации; бесплатный Render instance имеет cold start
-и не является SLA-площадкой. Проверены 20 и 50 одновременных пользователей и
-короткий всплеск 300 запросов; более высокий масштаб не заявляется.
+Текущие ограничения: один процесс использует заменяемый in-process rate
+limiter; cloud upload выполняется только явно, без фоновой межустройственной
+синхронизации и автоматического merge. Бесплатные Render Web Service и
+PostgreSQL подходят только для preview: web service имеет cold start, а
+бесплатная база истекает через 30 дней и не имеет backups. Для долгоживущего
+production deployment нужен платный PostgreSQL-план. Проверены 20 и 50
+одновременных пользователей и короткий всплеск 300 запросов; более высокий
+масштаб не заявляется.

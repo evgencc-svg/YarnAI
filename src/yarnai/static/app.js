@@ -37,11 +37,29 @@ const currentProjectTitle = document.querySelector("#current-project-title");
 const currentProjectNotes = document.querySelector("#current-project-notes");
 const projectSaveStatus = document.querySelector("#project-save-status");
 const projectSystem = window.YarnAIProjectSystem;
+const cloudSystem = window.YarnAICloudAccounts;
+const accountGuest = document.querySelector("#account-guest");
+const accountUser = document.querySelector("#account-user");
+const accountUserEmail = document.querySelector("#account-user-email");
+const accountStatus = document.querySelector("#account-status");
+const loginForm = document.querySelector("#login-form");
+const registerForm = document.querySelector("#register-form");
+const logoutButton = document.querySelector("#logout-button");
+const cloudProjects = document.querySelector("#cloud-projects");
+const cloudProjectsList = document.querySelector("#cloud-projects-list");
+const cloudProjectsEmpty = document.querySelector("#cloud-projects-empty");
+const refreshCloudButton = document.querySelector("#refresh-cloud-button");
+const cloudProjectDetails = document.querySelector("#cloud-project-details");
+const cloudProjectDetailsTitle = document.querySelector("#cloud-project-details-title");
+const cloudProjectDetailsMeta = document.querySelector("#cloud-project-details-meta");
+const saveCloudCopyButton = document.querySelector("#save-cloud-copy-button");
+const cloudCopyStatus = document.querySelector("#cloud-copy-status");
 let detailsStateBeforePrint = [];
 let projectRepository = null;
 let currentProjectAggregate = null;
 let projectAutosave = null;
 let currentProjectSection = "active";
+let cloudClient = null;
 
 const statusLabels = {
   READY: "Расчёт готов",
@@ -88,6 +106,12 @@ document.querySelectorAll("[data-project-section]").forEach((tab) => {
 });
 projectsList.addEventListener("click", handleProjectListAction);
 importProjectInput.addEventListener("change", importProjectFromUi);
+loginForm.addEventListener("submit", (event) => authenticateFromForm(event, false));
+registerForm.addEventListener("submit", (event) => authenticateFromForm(event, true));
+logoutButton.addEventListener("click", logoutFromUi);
+refreshCloudButton.addEventListener("click", refreshCloudProjects);
+cloudProjectsList.addEventListener("click", openCloudProjectFromUi);
+saveCloudCopyButton.addEventListener("click", saveCurrentProjectToCloud);
 currentProjectTitle.addEventListener("input", () => {
   projectAutosave?.update({ title: currentProjectTitle.value });
 });
@@ -126,6 +150,7 @@ async function initializePage() {
     );
   }
 
+  await initializeCloudAccount();
   await initializeProjectWorkspace();
 
   if (window.location.pathname === "/example") {
@@ -726,6 +751,188 @@ async function initializeProjectWorkspace() {
   }
 }
 
+async function initializeCloudAccount() {
+  if (!cloudSystem) {
+    accountStatus.textContent = "Облачные функции не загрузились. Локальный режим доступен.";
+    return;
+  }
+  cloudClient = new cloudSystem.CloudAccountClient();
+  accountStatus.textContent = "Проверяем активную сессию…";
+  try {
+    await cloudClient.restoreSession();
+    renderAccountState();
+    if (cloudClient.user) {
+      await refreshCloudProjects();
+    }
+  } catch (error) {
+    accountStatus.textContent = cloudErrorMessage(error);
+    renderAccountState();
+  }
+}
+
+async function authenticateFromForm(event, registration) {
+  event.preventDefault();
+  if (!cloudClient) {
+    return;
+  }
+  const formElement = event.currentTarget;
+  const submit = formElement.querySelector("button[type='submit']");
+  const data = new FormData(formElement);
+  submit.disabled = true;
+  accountStatus.textContent = registration
+    ? "Создаём аккаунт…"
+    : "Выполняем вход…";
+  try {
+    if (registration) {
+      await cloudClient.register(data.get("email"), data.get("password"));
+    } else {
+      await cloudClient.login(data.get("email"), data.get("password"));
+    }
+    formElement.reset();
+    renderAccountState();
+    accountStatus.textContent = registration
+      ? "Аккаунт создан. Вы вошли."
+      : "Вход выполнен.";
+    await refreshCloudProjects();
+  } catch (error) {
+    accountStatus.textContent = cloudErrorMessage(error);
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function logoutFromUi() {
+  if (!cloudClient) {
+    return;
+  }
+  logoutButton.disabled = true;
+  accountStatus.textContent = "Завершаем сессию…";
+  try {
+    await cloudClient.logout();
+    accountStatus.textContent =
+      "Вы вышли. Локальные проекты остались на этом устройстве.";
+  } catch (error) {
+    accountStatus.textContent = cloudErrorMessage(error);
+  } finally {
+    logoutButton.disabled = false;
+    renderAccountState();
+  }
+}
+
+function renderAccountState() {
+  const signedIn = Boolean(cloudClient?.user);
+  accountGuest.hidden = signedIn;
+  accountUser.hidden = !signedIn;
+  cloudProjects.hidden = !signedIn;
+  accountUserEmail.textContent = signedIn ? cloudClient.user.email : "";
+  saveCloudCopyButton.disabled = !signedIn || !currentProjectAggregate;
+  if (!signedIn) {
+    cloudProjectsList.replaceChildren();
+    cloudProjectDetails.hidden = true;
+    if (accountStatus.textContent === "Проверяем активную сессию…") {
+      accountStatus.textContent =
+        "Гостевой режим: локальные проекты доступны без аккаунта.";
+    }
+  } else if (accountStatus.textContent === "Проверяем активную сессию…") {
+    accountStatus.textContent = `Сессия восстановлена: ${cloudClient.user.email}`;
+  }
+}
+
+async function refreshCloudProjects() {
+  if (!cloudClient?.user) {
+    return;
+  }
+  refreshCloudButton.disabled = true;
+  try {
+    const result = await cloudClient.listProjects("active", null, 50);
+    cloudProjectsEmpty.hidden = result.projects.length > 0;
+    cloudProjectsList.replaceChildren(
+      ...result.projects.map((project) => {
+        const item = document.createElement("article");
+        item.className = "project-list-item";
+        const summary = document.createElement("div");
+        const title = document.createElement("h3");
+        title.className = "project-list-title";
+        title.textContent = project.title;
+        const meta = document.createElement("p");
+        meta.className = "project-list-meta";
+        meta.textContent = `Версия ${project.revision} · ${new Date(project.updated_at).toLocaleString("ru")}`;
+        summary.append(title, meta);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "project-action";
+        button.dataset.cloudProjectId = project.id;
+        button.textContent = "Открыть";
+        item.append(summary, button);
+        return item;
+      }),
+    );
+  } catch (error) {
+    accountStatus.textContent = cloudErrorMessage(error);
+  } finally {
+    refreshCloudButton.disabled = false;
+  }
+}
+
+async function openCloudProjectFromUi(event) {
+  const button = event.target.closest("[data-cloud-project-id]");
+  if (!button || !cloudClient?.user) {
+    return;
+  }
+  button.disabled = true;
+  try {
+    const result = await cloudClient.getProject(button.dataset.cloudProjectId);
+    cloudProjectDetailsTitle.textContent = result.project.title;
+    cloudProjectDetailsMeta.textContent =
+      `Облачная revision ${result.project.revision}. ` +
+      `Копия сохранена ${new Date(result.project.updated_at).toLocaleString("ru")}.`;
+    cloudProjectDetails.hidden = false;
+  } catch (error) {
+    accountStatus.textContent = cloudErrorMessage(error);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function saveCurrentProjectToCloud() {
+  if (!cloudClient?.user || !currentProjectAggregate || !projectRepository) {
+    cloudCopyStatus.textContent =
+      "Войдите и откройте локальный проект перед сохранением.";
+    return;
+  }
+  saveCloudCopyButton.disabled = true;
+  cloudCopyStatus.textContent = "Сохраняем независимую копию…";
+  try {
+    await projectAutosave?.flush();
+    currentProjectAggregate = await projectRepository.getProject(
+      currentProjectAggregate.project.project_id,
+    );
+    const result = await cloudClient.saveLocalProject(currentProjectAggregate);
+    cloudCopyStatus.textContent =
+      `Копия «${result.project.title}» сохранена в облаке. Локальный проект не изменён.`;
+    await refreshCloudProjects();
+  } catch (error) {
+    cloudCopyStatus.textContent = cloudErrorMessage(error);
+  } finally {
+    saveCloudCopyButton.disabled = !cloudClient?.user || !currentProjectAggregate;
+  }
+}
+
+function cloudErrorMessage(error) {
+  const messages = {
+    INVALID_CREDENTIALS: "Email или пароль неверны.",
+    ACCOUNT_UNAVAILABLE: "Аккаунт с такими данными создать нельзя.",
+    VALIDATION_ERROR: error?.message,
+    PROJECT_ID_CONFLICT:
+      "Проект с этим ID уже есть в облаке. Он не был перезаписан.",
+    REVISION_CONFLICT: "Облачный проект уже изменился на другом устройстве.",
+    NETWORK_ERROR:
+      "Нет связи с сервером. Локальные проекты продолжают работать.",
+    AUTH_REQUIRED: "Войдите, чтобы использовать облачные проекты.",
+  };
+  return messages[error?.code] ?? error?.message ?? "Облачный запрос не выполнен.";
+}
+
 async function refreshProjectsList() {
   if (!projectRepository) {
     return;
@@ -934,6 +1141,8 @@ async function openProjectInWorkspace(projectId) {
   });
   currentProjectAggregate = aggregate;
   currentProjectPanel.hidden = false;
+  saveCloudCopyButton.disabled = !cloudClient?.user;
+  cloudCopyStatus.textContent = "";
   currentProjectTitle.value = aggregate.project.title;
   currentProjectNotes.value = aggregate.project.notes;
   projectAutosave = new projectSystem.ProjectAutosave(
@@ -991,6 +1200,8 @@ async function closeWorkspaceIfCurrent(projectId) {
   projectAutosave = null;
   currentProjectAggregate = null;
   currentProjectPanel.hidden = true;
+  saveCloudCopyButton.disabled = true;
+  cloudCopyStatus.textContent = "";
   const url = new URL(window.location.href);
   url.searchParams.delete("project");
   window.history.replaceState({}, "", url);

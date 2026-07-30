@@ -50,6 +50,15 @@ def test_runtime_settings_have_safe_defaults_and_validate_environment() -> None:
             RuntimeSettings.from_environment({"PORT": invalid_port})
     with pytest.raises(ValueError, match="YARNAI_LOG_LEVEL"):
         RuntimeSettings.from_environment({"YARNAI_LOG_LEVEL": "verbose"})
+    with pytest.raises(ValueError, match="ALLOWED_ORIGINS"):
+        RuntimeSettings.from_environment({"ALLOWED_ORIGINS": "*"})
+    with pytest.raises(ValueError, match="configured together"):
+        RuntimeSettings.from_environment(
+            {
+                "DATABASE_URL": "postgresql://localhost/yarnai",
+                "JWT_ACCESS_SECRET": "a" * 32,
+            }
+        )
 
 
 def test_production_command_disables_reload_and_forwarded_header_trust(
@@ -75,6 +84,7 @@ def test_production_command_disables_reload_and_forwarded_header_trust(
     assert captured["port"] == 8123
     assert captured["reload"] is False
     assert captured["proxy_headers"] is False
+    assert "forwarded_allow_ips" not in captured
     assert captured["access_log"] is False
     assert captured["workers"] == 1
 
@@ -171,7 +181,7 @@ def test_http_module_has_no_global_mutable_user_container() -> None:
     }
 
     assert public_mutable_containers == set()
-    assert vars(http_api.app.state) == {"_state": {}}
+    assert vars(http_api.app.state) == {"_state": {"database_engine": None}}
 
 
 def test_render_blueprint_is_minimal_and_matches_production_command() -> None:
@@ -185,14 +195,20 @@ def test_render_blueprint_is_minimal_and_matches_production_command() -> None:
         "runtime: python",
         "plan: free",
         "buildCommand: pip install -e .",
+        "preDeployCommand: alembic upgrade head",
         "startCommand: python -m yarnai.http",
         "healthCheckPath: /health",
         "key: YARNAI_HOST",
         "value: 0.0.0.0",
+        "key: DATABASE_URL",
+        "fromDatabase:",
+        "key: JWT_ACCESS_SECRET",
+        "key: REFRESH_TOKEN_SECRET",
+        "key: COOKIE_SECURE",
+        "databases:",
     ):
         assert required in blueprint
     assert "disk:" not in blueprint
-    assert "databases:" not in blueprint
     assert python_version.strip() == "3.12"
 
 

@@ -1575,6 +1575,7 @@ textarea {
   border: 0;
 }
 
+.account-panel,
 .projects-panel,
 .current-project {
   margin-bottom: 24px;
@@ -1596,6 +1597,43 @@ textarea {
 
 .projects-heading h2 {
   margin: 0;
+}
+
+.account-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.account-forms {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.account-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.account-form h3 {
+  margin: 0;
+}
+
+.account-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cloud-project-details {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
 }
 
 .projects-create input {
@@ -1738,6 +1776,10 @@ textarea {
     flex-direction: column;
   }
 
+  .account-forms {
+    grid-template-columns: 1fr;
+  }
+
   .projects-create input,
   .current-project > div:first-child {
     min-width: 0;
@@ -1754,6 +1796,7 @@ textarea {
 }
 
 @media print {
+  .account-panel,
   .projects-panel,
   .current-project {
     display: none !important;

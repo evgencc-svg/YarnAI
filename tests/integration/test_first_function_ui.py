@@ -74,7 +74,7 @@ def test_root_returns_html_page_with_calculation_form(
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
     page = _page_structure(response.text)
-    assert page.forms == 1
+    assert page.forms == 3
     assert page.calculate_buttons == 1
     assert "YarnAI" in response.text
     assert "Рассчитать" in response.text
@@ -97,6 +97,7 @@ def test_page_static_css_and_javascript_are_available(
         "/static/step-assistant-state.js",
         "/static/tester-mode.js",
         "/static/project-system.js",
+        "/static/cloud-accounts.js",
         "/static/app.js",
     ]
     assert page.icons == ["/static/favicon.png"]

@@ -14,6 +14,7 @@
     <script src="/static/step-assistant-state.js" defer></script>
     <script src="/static/tester-mode.js" defer></script>
     <script src="/static/project-system.js" defer></script>
+    <script src="/static/cloud-accounts.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body>
@@ -44,6 +45,91 @@
     </nav>
 
     <main class="page-shell">
+      <section
+        id="account-panel"
+        class="account-panel card"
+        aria-labelledby="account-title"
+      >
+        <div class="projects-heading">
+          <div>
+            <p class="eyebrow">Необязательный аккаунт</p>
+            <h2 id="account-title">Облачные проекты</h2>
+            <p>
+              Локальный режим работает без регистрации. В облако попадают
+              только проекты, которые вы отправите явно.
+            </p>
+          </div>
+          <div id="account-user" class="account-user" hidden>
+            <span id="account-user-email"></span>
+            <button id="logout-button" class="secondary-button" type="button">
+              Выйти
+            </button>
+          </div>
+        </div>
+
+        <div id="account-guest">
+          <div class="account-forms">
+            <form id="login-form" class="account-form">
+              <h3>Вход</h3>
+              <label class="field">
+                <span class="field-label">Email</span>
+                <input name="email" type="email" autocomplete="email" required>
+              </label>
+              <label class="field">
+                <span class="field-label">Пароль</span>
+                <input
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  minlength="12"
+                  required
+                >
+              </label>
+              <button class="primary-button" type="submit">Войти</button>
+            </form>
+            <form id="register-form" class="account-form">
+              <h3>Регистрация</h3>
+              <label class="field">
+                <span class="field-label">Email</span>
+                <input name="email" type="email" autocomplete="email" required>
+              </label>
+              <label class="field">
+                <span class="field-label">Пароль</span>
+                <input
+                  name="password"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="12"
+                  aria-describedby="password-help"
+                  required
+                >
+              </label>
+              <small id="password-help">
+                Не менее 12 символов; используйте три вида символов.
+              </small>
+              <button class="primary-button" type="submit">
+                Создать аккаунт
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <p id="account-status" class="toolbar-feedback" role="status"></p>
+        <div id="cloud-projects" hidden>
+          <button id="refresh-cloud-button" class="secondary-button" type="button">
+            Обновить список
+          </button>
+          <p id="cloud-projects-empty" class="project-list-state" hidden>
+            В облаке пока нет проектов.
+          </p>
+          <div id="cloud-projects-list" class="projects-list"></div>
+          <article id="cloud-project-details" class="cloud-project-details" hidden>
+            <h3 id="cloud-project-details-title"></h3>
+            <p id="cloud-project-details-meta"></p>
+          </article>
+        </div>
+      </section>
+
       <section
         id="projects-panel"
         class="projects-panel card"
@@ -143,6 +229,17 @@
         <p id="project-save-status" class="project-save-status" role="status">
           Сохранено на устройстве
         </p>
+        <div class="project-transfer">
+          <button
+            id="save-cloud-copy-button"
+            class="link-button link-button-primary"
+            type="button"
+            disabled
+          >
+            Сохранить копию в облаке
+          </button>
+          <p id="cloud-copy-status" class="toolbar-feedback" role="status"></p>
+        </div>
       </section>
 
       <section class="intro" aria-labelledby="page-title">

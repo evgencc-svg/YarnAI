@@ -2,7 +2,8 @@
   "name": "yarnai-local-project-tests",
   "private": true,
   "scripts": {
-    "test": "node --test tests-js/project-system.test.cjs"
+    "test": "node --test tests-js/project-system.test.cjs tests-js/cloud-accounts.test.cjs",
+    "build": "node --check src/yarnai/static/project-system.js && node --check src/yarnai/static/cloud-accounts.js && node --check src/yarnai/static/app.js"
   },
   "devDependencies": {
     "fake-indexeddb": "6.2.5"

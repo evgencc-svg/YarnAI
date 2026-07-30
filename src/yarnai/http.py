@@ -13,6 +13,7 @@ from typing import NoReturn
 import uvicorn
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse
 from starlette.routing import Mount, Route
@@ -27,6 +28,9 @@ from yarnai import (
     run_first_function,
 )
 from yarnai.config import RuntimeSettings
+from yarnai.cloud_api import CloudApi
+from yarnai.database import create_database_engine, create_session_factory
+from yarnai.security import uuid7
 
 
 TECHNICAL_ERROR_MESSAGE = (
@@ -46,8 +50,9 @@ class _InvalidJsonError(ValueError):
 class ProductionHttpMiddleware:
     """Log requests, contain failures, and apply explicit cache policies."""
 
-    def __init__(self, application) -> None:
+    def __init__(self, application, *, hsts_enabled: bool = False) -> None:
         self.application = application
+        self.hsts_enabled = hsts_enabled
 
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] != "http":
@@ -56,6 +61,8 @@ class ProductionHttpMiddleware:
 
         method = scope.get("method", "UNKNOWN")
         route = scope.get("path", "")
+        request_id = uuid7()
+        scope.setdefault("state", {})["request_id"] = request_id
         started_at = perf_counter()
         status_code = 500
         response_started = False
@@ -75,6 +82,35 @@ class ProductionHttpMiddleware:
                             _cache_control_for(route).encode("ascii"),
                         )
                     )
+                security_headers = (
+                    (b"x-content-type-options", b"nosniff"),
+                    (b"x-frame-options", b"DENY"),
+                    (b"referrer-policy", b"strict-origin-when-cross-origin"),
+                    (
+                        b"permissions-policy",
+                        b"camera=(), microphone=(), geolocation=()",
+                    ),
+                    (
+                        b"content-security-policy",
+                        b"default-src 'self'; script-src 'self'; style-src 'self'; "
+                        b"img-src 'self' data:; connect-src 'self'; "
+                        b"frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+                    ),
+                    (b"x-request-id", request_id.encode("ascii")),
+                )
+                if self.hsts_enabled:
+                    security_headers += (
+                        (
+                            b"strict-transport-security",
+                            b"max-age=31536000; includeSubDomains",
+                        ),
+                    )
+                existing = {name.lower() for name, _value in headers}
+                headers.extend(
+                    (name, value)
+                    for name, value in security_headers
+                    if name not in existing
+                )
                 message["headers"] = headers
             await send(message)
 
@@ -109,6 +145,52 @@ class ProductionHttpMiddleware:
                 status_code,
                 elapsed_ms,
             )
+
+
+class RequestBodyLimitMiddleware:
+    """Reject declared oversized request bodies before they are buffered."""
+
+    def __init__(self, application, maximum_bytes: int) -> None:
+        self.application = application
+        self.maximum_bytes = maximum_bytes
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http":
+            await self.application(scope, receive, send)
+            return
+        headers = dict(scope.get("headers", []))
+        raw_length = headers.get(b"content-length")
+        if raw_length:
+            try:
+                too_large = int(raw_length) > self.maximum_bytes
+            except ValueError:
+                too_large = True
+            if too_large:
+                response = _error_response(
+                    413,
+                    code="REQUEST_TOO_LARGE",
+                    message="Request body is too large.",
+                )
+                await response(scope, receive, send)
+                return
+
+        received = 0
+
+        async def limited_receive():
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > self.maximum_bytes:
+                    scope.setdefault("state", {})["body_too_large"] = True
+                    return {
+                        "type": "http.request",
+                        "body": b"",
+                        "more_body": False,
+                    }
+            return message
+
+        await self.application(scope, limited_receive, send)
 
 
 def _cache_control_for(route: str) -> str:
@@ -210,6 +292,8 @@ async def calculate_first_function(request: Request) -> JSONResponse:
 
 async def _read_json(request: Request) -> object:
     body = await request.body()
+    if getattr(request.state, "body_too_large", False):
+        raise _InvalidJsonError
     try:
         text = body.decode("utf-8")
         return json.loads(text, parse_constant=_reject_json_constant)
@@ -245,34 +329,75 @@ def _technical_error_response(code: str) -> JSONResponse:
     )
 
 
-def create_app() -> Starlette:
+def create_app(settings: RuntimeSettings | None = None) -> Starlette:
     """Create the public YarnAI HTTP application."""
 
-    return Starlette(
+    runtime_settings = settings or RuntimeSettings.from_environment()
+    routes = [
+        Route("/", user_interface, methods=["GET"]),
+        Route("/about", about_first_function, methods=["GET"]),
+        Route("/example", canonical_example, methods=["GET"]),
+        Route("/smart-start", smart_start, methods=["GET"]),
+        Route("/step-assistant", step_assistant, methods=["GET"]),
+        Route("/test", tester_start, methods=["GET"]),
+        Route("/feedback", feedback, methods=["GET"]),
+        Route("/health", health, methods=["GET"]),
+        Route(
+            "/api/v1/calculate",
+            calculate_first_function,
+            methods=["POST"],
+        ),
+    ]
+    engine = None
+    if runtime_settings.accounts_enabled:
+        engine = create_database_engine(runtime_settings.database_url)
+        routes.extend(
+            CloudApi(
+                runtime_settings,
+                create_session_factory(engine),
+            ).routes()
+        )
+    routes.append(
+        Mount(
+            "/static",
+            app=StaticFiles(directory=STATIC_DIRECTORY),
+            name="static",
+        )
+    )
+    middleware = [
+        Middleware(
+            ProductionHttpMiddleware,
+            hsts_enabled=runtime_settings.cookie_secure,
+        ),
+        Middleware(
+            RequestBodyLimitMiddleware,
+            maximum_bytes=runtime_settings.max_request_body_bytes,
+        ),
+    ]
+    if runtime_settings.allowed_origins:
+        middleware.append(
+            Middleware(
+                CORSMiddleware,
+                allow_origins=list(runtime_settings.allowed_origins),
+                allow_credentials=True,
+                allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+                allow_headers=[
+                    "Authorization",
+                    "Content-Type",
+                    "Idempotency-Key",
+                    "X-CSRF-Token",
+                ],
+                max_age=600,
+            )
+        )
+    application = Starlette(
         debug=False,
         lifespan=_application_lifespan,
-        routes=[
-            Route("/", user_interface, methods=["GET"]),
-            Route("/about", about_first_function, methods=["GET"]),
-            Route("/example", canonical_example, methods=["GET"]),
-            Route("/smart-start", smart_start, methods=["GET"]),
-            Route("/step-assistant", step_assistant, methods=["GET"]),
-            Route("/test", tester_start, methods=["GET"]),
-            Route("/feedback", feedback, methods=["GET"]),
-            Route("/health", health, methods=["GET"]),
-            Route(
-                "/api/v1/calculate",
-                calculate_first_function,
-                methods=["POST"],
-            ),
-            Mount(
-                "/static",
-                app=StaticFiles(directory=STATIC_DIRECTORY),
-                name="static",
-            ),
-        ],
-        middleware=[Middleware(ProductionHttpMiddleware)],
+        routes=routes,
+        middleware=middleware,
     )
+    application.state.database_engine = engine
+    return application
 
 
 @asynccontextmanager
@@ -281,6 +406,9 @@ async def _application_lifespan(_application: Starlette):
     try:
         yield
     finally:
+        engine = getattr(_application.state, "database_engine", None)
+        if engine is not None:
+            engine.dispose()
         LOGGER.info("application_stop")
 
 
@@ -310,16 +438,21 @@ def main() -> None:
 
     settings = RuntimeSettings.from_environment()
     configure_logging(settings.log_level)
+    options = {
+        "host": settings.host,
+        "port": settings.port,
+        "log_level": settings.log_level,
+        "reload": False,
+        "proxy_headers": bool(settings.trusted_proxy_ips),
+        "access_log": False,
+        "server_header": False,
+        "workers": 1,
+    }
+    if settings.trusted_proxy_ips:
+        options["forwarded_allow_ips"] = ",".join(settings.trusted_proxy_ips)
     uvicorn.run(
         app,
-        host=settings.host,
-        port=settings.port,
-        log_level=settings.log_level,
-        reload=False,
-        proxy_headers=False,
-        access_log=False,
-        server_header=False,
-        workers=1,
+        **options,
     )
 
 
