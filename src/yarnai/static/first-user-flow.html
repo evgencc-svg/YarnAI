@@ -10,6 +10,7 @@
     <title>Что ты хочешь связать? — YarnAI</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/first-user-flow.css">
+    <script src="/static/intent-engine.js" defer></script>
     <script src="/static/first-user-flow.js" defer></script>
   </head>
   <body class="first-flow-page">
@@ -148,6 +149,69 @@
               Любое предположение можно поправить обычным сообщением.
             </p>
           </aside>
+        </div>
+      </section>
+
+      <section
+        id="result-screen"
+        class="result-screen"
+        aria-labelledby="result-title"
+        hidden
+      >
+        <div class="result-card">
+          <div class="result-heading">
+            <div>
+              <p class="flow-eyebrow">Описание проекта</p>
+              <h1 id="result-title">Понял.</h1>
+            </div>
+            <button id="summary-new-dialog-button" class="quiet-button" type="button">
+              Начать заново
+            </button>
+          </div>
+
+          <p class="result-introduction">Ты хочешь связать:</p>
+          <ul id="result-known" class="result-list result-known"></ul>
+
+          <section
+            id="result-assumptions-block"
+            class="result-section result-assumptions"
+            aria-labelledby="result-assumptions-title"
+          >
+            <h2 id="result-assumptions-title">Я пока предполагаю:</h2>
+            <ul id="result-assumptions" class="result-list"></ul>
+          </section>
+
+          <section
+            id="result-missing-block"
+            class="result-section result-missing"
+            aria-labelledby="result-missing-title"
+          >
+            <h2 id="result-missing-title">Пока неизвестно:</h2>
+            <ul id="result-missing" class="result-list"></ul>
+          </section>
+
+          <p id="result-warning" class="result-warning" role="status"></p>
+
+          <div class="result-actions">
+            <button id="continue-dialog-button" type="button">Продолжить</button>
+          </div>
+
+          <form id="summary-correction-form" class="summary-correction-form">
+            <label for="summary-correction-input">
+              Нужно что-то исправить?
+            </label>
+            <div class="composer">
+              <textarea
+                id="summary-correction-input"
+                name="correction"
+                rows="2"
+                maxlength="2000"
+                placeholder="Например: «Нет, это будет детский свитер»"
+                required
+              ></textarea>
+              <button type="submit">Исправить</button>
+            </div>
+          </form>
         </div>
       </section>
 

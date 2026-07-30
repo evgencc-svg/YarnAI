@@ -524,6 +524,139 @@ p {
   border-top: 1px solid var(--flow-border);
 }
 
+.fact[data-status="assumed"] {
+  background: var(--flow-warm-soft);
+}
+
+.result-screen {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 42px 0 72px;
+}
+
+.result-card {
+  padding: clamp(26px, 6vw, 52px);
+  border: 1px solid var(--flow-border);
+  border-radius: 28px;
+  background: rgb(255 253 248 / 96%);
+  box-shadow: var(--flow-shadow);
+}
+
+.result-heading {
+  margin-bottom: 34px;
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.result-heading h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(3rem, 8vw, 5.2rem);
+  font-weight: 500;
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+}
+
+.result-introduction {
+  margin: 0 0 14px;
+  color: var(--flow-muted);
+  font-weight: 720;
+}
+
+.result-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result-list li {
+  position: relative;
+  margin-bottom: 11px;
+  padding-left: 25px;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.result-list li::before {
+  position: absolute;
+  left: 4px;
+  content: "•";
+  color: var(--flow-accent);
+  font-weight: 900;
+}
+
+.result-section {
+  margin-top: 30px;
+  padding-top: 24px;
+  border-top: 1px solid var(--flow-border);
+}
+
+.result-section h2 {
+  margin: 0 0 14px;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.result-assumptions .result-list li::before {
+  color: var(--flow-warm);
+}
+
+.result-missing .result-list li::before {
+  color: var(--flow-error);
+}
+
+.empty-summary-item {
+  color: var(--flow-muted);
+}
+
+.result-warning {
+  margin: 30px 0 0;
+  padding: 16px 18px;
+  border-radius: 14px;
+  color: #6f2831;
+  background: #fff0f1;
+  line-height: 1.5;
+  font-weight: 680;
+}
+
+.result-warning[data-state="complete"] {
+  color: var(--flow-accent-dark);
+  background: var(--flow-accent-soft);
+}
+
+.result-actions {
+  margin-top: 24px;
+}
+
+.result-actions button {
+  min-height: 52px;
+  padding: 12px 24px;
+  color: #fff;
+  background: var(--flow-accent);
+  border: 1px solid var(--flow-accent);
+  border-radius: 14px;
+  font-weight: 780;
+}
+
+.result-actions button:hover {
+  background: var(--flow-accent-dark);
+}
+
+.summary-correction-form {
+  margin-top: 34px;
+  padding-top: 24px;
+  border-top: 1px solid var(--flow-border);
+}
+
+.summary-correction-form > label {
+  display: block;
+  margin-bottom: 9px;
+  font-size: 0.84rem;
+  font-weight: 760;
+}
+
 .flow-footer {
   min-height: 78px;
   padding: 20px 0;
@@ -597,6 +730,10 @@ p {
 
   .dialog-heading {
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .result-heading {
     flex-direction: column;
   }
 

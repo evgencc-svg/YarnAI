@@ -110,7 +110,10 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
     page = parse_flow(response.text)
 
     assert page.stylesheets == ["/static/first-user-flow.css"]
-    assert page.scripts == ["/static/first-user-flow.js"]
+    assert page.scripts == [
+        "/static/intent-engine.js",
+        "/static/first-user-flow.js",
+    ]
     for asset in [*page.stylesheets, *page.scripts]:
         asset_response = client.get(asset)
         assert asset_response.status_code == 200
@@ -118,6 +121,7 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
         (
             (STATIC / "first-user-flow.html").read_text(encoding="utf-8"),
             (STATIC / "first-user-flow.css").read_text(encoding="utf-8"),
+            (STATIC / "intent-engine.js").read_text(encoding="utf-8"),
             (STATIC / "first-user-flow.js").read_text(encoding="utf-8"),
         )
     ).lower()
@@ -128,17 +132,44 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
 
 def test_flow_declares_prototype_limits_and_correction_path() -> None:
     html = (STATIC / "first-user-flow.html").read_text(encoding="utf-8")
-    script = (STATIC / "first-user-flow.js").read_text(encoding="utf-8")
+    ui_script = (STATIC / "first-user-flow.js").read_text(encoding="utf-8")
+    engine_script = (STATIC / "intent-engine.js").read_text(encoding="utf-8")
 
     assert "не распознаются автоматически" in " ".join(html.split())
     assert "Нет, это не реглан" in html
-    assert "Я получил фотографию" in script
-    assert "автоматического распознавания пока нет" in script
-    assert "class RuleBasedDialogueProvider" in script
-    assert "class DialogueEngine" in script
-    assert "localStorage" in script
-    assert "OpenAI" not in script
-    assert "Vision" not in script
+    assert "Я получил фотографию" in engine_script
+    assert "class RuleBasedProvider" in engine_script
+    assert "class IntentProvider" in engine_script
+    assert "class ProjectUnderstandingEngine" in engine_script
+    assert "localStorage" in ui_script
+    assert "OpenAI" not in engine_script
+    assert "Vision" not in engine_script
+
+
+def test_result_screen_is_human_readable_and_supports_corrections() -> None:
+    html = (STATIC / "first-user-flow.html").read_text(encoding="utf-8")
+
+    assert 'id="result-screen"' in html
+    assert 'id="result-known"' in html
+    assert 'id="result-assumptions"' in html
+    assert 'id="result-missing"' in html
+    assert 'id="continue-dialog-button"' in html
+    assert 'id="summary-correction-form"' in html
+    assert "Ты хочешь связать:" in html
+    assert "Пока неизвестно:" in html
+    assert ">Продолжить<" in "".join(html.split())
+
+
+def test_intent_decisions_live_outside_the_ui_layer() -> None:
+    ui_script = (STATIC / "first-user-flow.js").read_text(encoding="utf-8")
+    engine_script = (STATIC / "intent-engine.js").read_text(encoding="utf-8")
+
+    assert "collectMissingInformation" in engine_script
+    assert "selectNextQuestion" in engine_script
+    assert "buildSummary" in engine_script
+    assert "ProjectIntent" in engine_script
+    assert "collectMissingInformation" not in ui_script
+    assert "selectNextQuestion" not in ui_script
 
 
 def test_root_security_policy_allows_local_file_previews(
