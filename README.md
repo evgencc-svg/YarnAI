@@ -98,3 +98,27 @@ print(selected.working_count if selected else None)
 ```
 
 For this exact input, the selected width is 100 stitches.
+
+## YarnAI application integration
+
+The first application boundary is exposed separately from the calculation
+core:
+
+```python
+from yarnai import run_first_function
+from yarnai_calculation import CalculationRequest
+
+request: CalculationRequest = ...
+output = run_first_function(request)
+```
+
+`run_first_function` accepts the public `CalculationRequest` contract and
+calls only `yarnai_calculation.calculate`. It converts the complete core result
+to `FirstFunctionOutput`; domain outcomes such as invalid input, impossible
+calculations, and out-of-scope requests remain ordinary result statuses.
+
+Passing a value that is not a `CalculationRequest` raises
+`InvalidCalculationRequestError`. If an unexpected technical exception escapes
+the core, the boundary raises `CalculationCoreError` with the original
+exception available as `original_exception` and as the chained `__cause__`.
+Application code never imports modules below `yarnai_calculation`.
