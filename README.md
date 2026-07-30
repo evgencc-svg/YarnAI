@@ -122,3 +122,73 @@ Passing a value that is not a `CalculationRequest` raises
 the core, the boundary raises `CalculationCoreError` with the original
 exception available as `original_exception` and as the chained `__cause__`.
 Application code never imports modules below `yarnai_calculation`.
+
+## First-function command line interface
+
+Run the first executable vertical slice from the repository root:
+
+```console
+python -m yarnai [--input PATH]
+```
+
+The command uses only the public `yarnai` integration API. It writes a
+calculation result as JSON to stdout and errors as JSON to stderr. Decimal
+result values are serialized as strings so that no precision is lost. The
+top-level `status` uses stable enum names such as `READY`,
+`READY_WITH_WARNINGS`, and `INPUT_ERROR`; complete domain diagnostics,
+warnings, clarifications, and invariant traces remain in the response.
+
+The repository contains a working canonical width example at
+`examples/first_function_width.json`. Run it from a file:
+
+```console
+python -m yarnai --input examples/first_function_width.json
+```
+
+Omit `--input`, or use `--input -`, to read JSON from stdin. For example, in
+PowerShell:
+
+```console
+Get-Content -Raw examples/first_function_width.json | python -m yarnai
+```
+
+On shells with input redirection:
+
+```console
+python -m yarnai < examples/first_function_width.json
+```
+
+The canonical example produces a complete response whose key fields are:
+
+```json
+{
+  "status": "READY",
+  "final": true,
+  "canon_version": "1.0",
+  "specification_version": "1.0",
+  "axes": {
+    "width": {
+      "selected_candidate": {
+        "working_count": 100,
+        "visible_count": "100",
+        "actual_size_cm": "50"
+      }
+    }
+  },
+  "errors": [],
+  "warnings": [],
+  "clarifications": []
+}
+```
+
+This is a shortened view of the successful JSON: the actual response also
+contains normalized inputs, gauge assessment, neighboring candidates,
+explanations, and the full invariant trace.
+
+### Exit codes
+
+| Code | Meaning |
+| ---: | --- |
+| `0` | The calculation completed and returned structured JSON. This includes ordinary domain outcomes such as `INPUT_ERROR`, `IMPOSSIBLE`, or `CONFIRMATION_REQUIRED`. |
+| `2` | User input could not be read or parsed, or its JSON shape does not match the application contract. |
+| `3` | A technical failure occurred in the integration layer, calculation core, or result serialization. |

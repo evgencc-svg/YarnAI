@@ -1,0 +1,54 @@
+{
+  "axes": [
+    "width"
+  ],
+  "functional_category": "ordinary",
+  "knitting_mode": "flat",
+  "zone_pattern": "stockinette",
+  "pattern_class": "constant_stitch_count",
+  "zone_homogeneous": "yes",
+  "fabric_context": {
+    "yarn": "example yarn",
+    "yarn_batch": "batch-1",
+    "strands": 1,
+    "strands_description": "one strand",
+    "needle_mm": 4,
+    "needle_type": "metal circular",
+    "pattern": "stockinette",
+    "mode": "flat",
+    "processing": "wash and dry flat"
+  },
+  "width": {
+    "size_kind": "finished",
+    "value": 50,
+    "unit": "cm",
+    "direction": "nearest",
+    "gauge": {
+      "method": "ready_value",
+      "source": "personal_swatch",
+      "ready_count": 20,
+      "base_length": 10,
+      "source_measurement_count": 3,
+      "context": {
+        "off_needles": "yes",
+        "processing_state": "after_intended_processing",
+        "fully_dry": "yes",
+        "rest_hours": 12,
+        "measurement_state": "relaxed",
+        "fabric": {
+          "yarn": "example yarn",
+          "yarn_batch": "batch-1",
+          "strands": 1,
+          "strands_description": "one strand",
+          "needle_mm": 4,
+          "needle_type": "metal circular",
+          "pattern": "stockinette",
+          "mode": "flat",
+          "processing": "wash and dry flat"
+        },
+        "mode": "flat",
+        "heavy_or_large": "no"
+      }
+    }
+  }
+}

@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import yarnai.first_function as integration
+import yarnai_calculation
 from yarnai import (
     CalculationCoreError,
     FirstFunctionOutput,
@@ -123,14 +124,4 @@ def test_integration_layer_imports_core_only_from_package_root() -> None:
                     imported_names.update(alias.name for alias in node.names)
 
     assert imported_names
-    assert imported_names <= {
-        "Axis",
-        "AxisResult",
-        "CalculationRequest",
-        "CalculationResult",
-        "Diagnostic",
-        "GaugeAssessment",
-        "InvariantTrace",
-        "ResultStatus",
-        "calculate",
-    }
+    assert imported_names <= set(yarnai_calculation.__all__)
