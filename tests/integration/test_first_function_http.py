@@ -34,6 +34,56 @@ def test_health(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_http_server_uses_port_and_host_from_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setenv("PORT", "8765")
+    monkeypatch.setenv("YARNAI_HOST", "0.0.0.0")
+    monkeypatch.setattr(
+        http_api.uvicorn,
+        "run",
+        lambda application, *, host, port: captured.update(
+            application=application,
+            host=host,
+            port=port,
+        ),
+    )
+
+    http_api.main()
+
+    assert captured == {
+        "application": http_api.app,
+        "host": "0.0.0.0",
+        "port": 8765,
+    }
+
+
+def test_http_server_preserves_local_default_address(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.delenv("PORT", raising=False)
+    monkeypatch.delenv("YARNAI_HOST", raising=False)
+    monkeypatch.setattr(
+        http_api.uvicorn,
+        "run",
+        lambda application, *, host, port: captured.update(
+            application=application,
+            host=host,
+            port=port,
+        ),
+    )
+
+    http_api.main()
+
+    assert captured == {
+        "application": http_api.app,
+        "host": "127.0.0.1",
+        "port": 8000,
+    }
+
+
 def test_canonical_calculation_is_ready_with_100_working_stitches(
     client: TestClient,
 ) -> None:

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import NoReturn
 
@@ -27,6 +29,9 @@ TECHNICAL_ERROR_MESSAGE = (
     "The calculation could not be completed because of an internal technical error."
 )
 STATIC_DIRECTORY = Path(__file__).with_name("static")
+DEFAULT_HTTP_HOST = "127.0.0.1"
+DEFAULT_HTTP_PORT = 8000
+HTTP_HOST_ENVIRONMENT_VARIABLE = "YARNAI_HOST"
 
 
 class _InvalidJsonError(ValueError):
@@ -153,10 +158,22 @@ def create_app() -> Starlette:
 app = create_app()
 
 
-def main() -> None:
-    """Run the HTTP service locally on its documented address."""
+def server_address(
+    environ: Mapping[str, str] | None = None,
+) -> tuple[str, int]:
+    """Return the configured HTTP host and port."""
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    environment = os.environ if environ is None else environ
+    host = environment.get(HTTP_HOST_ENVIRONMENT_VARIABLE, DEFAULT_HTTP_HOST)
+    port = int(environment.get("PORT", str(DEFAULT_HTTP_PORT)))
+    return host, port
+
+
+def main() -> None:
+    """Run the HTTP service on its configured address."""
+
+    host, port = server_address()
+    uvicorn.run(app, host=host, port=port)
 
 
 if __name__ == "__main__":

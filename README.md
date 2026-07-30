@@ -46,6 +46,37 @@ The application version is shown in the header and footer. The calculation
 core does not currently expose an independent public version value, so the UI
 does not invent or display one.
 
+## Публичное развёртывание
+
+Репозиторий содержит Render Blueprint в файле `render.yaml`. Он создаёт
+Python Web Service на бесплатном плане, устанавливает проект командой
+`pip install -e .`, запускает штатную команду `yarnai-http` и использует
+`/health` для health checks.
+
+Чтобы развернуть приложение, владелец должен опубликовать ветку `main` в
+репозитории GitHub, GitLab или Bitbucket, доступном его аккаунту Render. Затем
+в Render Dashboard нужно выбрать **New > Blueprint**, подключить Git-провайдера,
+выбрать репозиторий YarnAI и подтвердить создание Blueprint из корневого
+`render.yaml`. После успешного первого deploy Render покажет постоянный HTTPS
+адрес сервиса. Blueprint включает автоматический deploy новых коммитов ветки
+`main`.
+
+У созданного сервиса доступны следующие публичные пути:
+
+- `/` — форма расчёта;
+- `/about` — описание первой функции;
+- `/example` — автоматически заполненный и рассчитанный пример;
+- `/health` — машиночитаемый health endpoint с ответом `{"status":"ok"}`.
+
+Ожидаемая форма адреса — `https://<render-service-subdomain>.onrender.com`;
+точный адрес появляется только после фактического создания сервиса и поэтому
+здесь заранее не публикуется.
+
+Бесплатный Render Web Service останавливается после 15 минут без входящего
+HTTP-трафика. Первый запрос после простоя может запускать сервис около минуты.
+Платные instance types не имеют этого cold start. Актуальные ограничения
+описаны в [официальной документации Render](https://render.com/docs/free).
+
 ## Purpose of the first function
 
 The first function converts a requested finished width or measurement into a
@@ -260,7 +291,9 @@ yarnai-http
 ```
 
 The equivalent module command is `python -m yarnai.http`. The service listens
-at `http://127.0.0.1:8000`.
+at `http://127.0.0.1:8000` by default. Set `PORT` to change the listening port
+and `YARNAI_HOST` to change the listening address. Render sets
+`YARNAI_HOST=0.0.0.0` through the Blueprint and supplies `PORT`.
 
 ### Demonstration web interface
 

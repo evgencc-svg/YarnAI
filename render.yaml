@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: yarnai-demo
+    runtime: python
+    plan: free
+    branch: main
+    autoDeployTrigger: commit
+    buildCommand: pip install -e .
+    startCommand: yarnai-http
+    healthCheckPath: /health
+    envVars:
+      - key: YARNAI_HOST
+        value: 0.0.0.0
