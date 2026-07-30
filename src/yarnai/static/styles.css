@@ -996,6 +996,107 @@ footer {
   align-items: center;
 }
 
+.step-assistant-workflow {
+  display: grid;
+  gap: 22px;
+}
+
+.assistant-project-summary {
+  padding: 20px clamp(24px, 5vw, 34px);
+}
+
+.assistant-project-count {
+  margin: 5px 0 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.assistant-project-count strong {
+  color: var(--text);
+  font-size: 1.75rem;
+}
+
+.assistant-row-card {
+  padding: clamp(26px, 6vw, 46px);
+}
+
+.assistant-row-heading {
+  margin-bottom: 32px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: start;
+}
+
+.assistant-row-heading h2 {
+  margin: 4px 0 0;
+  font-size: clamp(2rem, 7vw, 3rem);
+  letter-spacing: -0.04em;
+}
+
+.row-type-badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--accent-dark);
+  background: var(--accent-light);
+  font-size: 0.86rem;
+  font-weight: 760;
+}
+
+.assistant-counts {
+  margin: 0 0 36px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.assistant-counts div {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: #fbfdfc;
+}
+
+.assistant-counts dt {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.assistant-counts dd {
+  margin: 8px 0 0;
+  font-size: clamp(1.7rem, 6vw, 2.35rem);
+  font-weight: 780;
+  overflow-wrap: anywhere;
+}
+
+.assistant-progress-block {
+  margin-bottom: 28px;
+}
+
+.assistant-progress-text {
+  margin-bottom: 12px;
+  display: block;
+  font-size: clamp(2.2rem, 9vw, 4.2rem);
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 1;
+}
+
+.assistant-progress-text:focus {
+  outline: none;
+}
+
+.assistant-actions {
+  margin-top: 0;
+}
+
+.assistant-completion-card .assistant-actions {
+  margin-top: 28px;
+}
+
 .info-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1075,6 +1176,10 @@ footer {
   }
 
   .project-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .assistant-counts {
     grid-template-columns: 1fr;
   }
 }
@@ -1181,6 +1286,10 @@ footer {
 
   .smart-actions .smart-next-button {
     grid-row: 1;
+  }
+
+  .assistant-row-heading {
+    align-items: center;
   }
 
   .limitation-card {

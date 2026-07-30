@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Step Assistant YarnAI — счётчик петель и рядов для рассчитанного проекта."
+    >
+    <title>Step Assistant — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/smart-start-state.js" defer></script>
+    <script src="/static/step-assistant-state.js" defer></script>
+    <script src="/static/step-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для Step Assistant нужен JavaScript. Включите JavaScript в браузере и
+        перезагрузите страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/about">О первой функции</a>
+        <a href="/example">Пример</a>
+      </nav>
+      <span class="version-badge" title="Версия приложения">Демо 0.1.0</span>
+    </header>
+
+    <main class="page-shell smart-start-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Step Assistant</p>
+        <h1 id="page-title">Вяжи ряд в своём темпе</h1>
+        <p class="intro-copy">
+          Отмечай каждую выполненную петлю. Счётчик и текущий ряд сохранятся
+          в этом браузере.
+        </p>
+      </section>
+
+      <section id="step-assistant-empty" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">?</span>
+        <h2>Сначала заверши Smart Start</h2>
+        <p>
+          Step Assistant доступен для текущего успешного расчёта после
+          подготовки проекта.
+        </p>
+        <a class="link-button link-button-primary" href="/smart-start">
+          Перейти в Smart Start
+        </a>
+      </section>
+
+      <div id="step-assistant-workflow" class="step-assistant-workflow" hidden>
+        <section class="card assistant-project-summary">
+          <p class="step-label">Текущий проект</p>
+          <p class="assistant-project-count">
+            <strong id="project-stitch-count">—</strong>
+            <span>петель в ряду</span>
+          </p>
+        </section>
+
+        <section
+          id="active-row-panel"
+          class="card assistant-row-card"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <div class="assistant-row-heading">
+            <div>
+              <p class="step-label">Текущий ряд</p>
+              <h2>Ряд <span id="row-number">1</span></h2>
+            </div>
+            <span id="row-type" class="row-type-badge">Нечётный</span>
+          </div>
+
+          <dl class="assistant-counts">
+            <div>
+              <dt>Нужно провязать</dt>
+              <dd id="stitch-target">—</dd>
+            </div>
+            <div>
+              <dt>Уже выполнено</dt>
+              <dd id="stitch-completed">0</dd>
+            </div>
+            <div>
+              <dt>Осталось</dt>
+              <dd id="stitch-remaining">—</dd>
+            </div>
+          </dl>
+
+          <div class="assistant-progress-block">
+            <span
+              id="stitch-progress-text"
+              class="assistant-progress-text"
+              tabindex="-1"
+            >
+              0 / 0
+            </span>
+            <progress
+              id="stitch-progress"
+              class="step-progress"
+              max="1"
+              value="0"
+              aria-label="Прогресс текущего ряда"
+            ></progress>
+          </div>
+
+          <div class="smart-actions assistant-actions">
+            <button
+              id="back-stitch-button"
+              class="secondary-button"
+              type="button"
+            >
+              Назад
+            </button>
+            <button
+              id="next-stitch-button"
+              class="primary-button smart-next-button"
+              type="button"
+            >
+              Следующая петля
+            </button>
+          </div>
+        </section>
+
+        <section
+          id="row-completion-panel"
+          class="card completion-card assistant-completion-card"
+          aria-live="polite"
+          hidden
+        >
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">
+            Ряд <span id="completed-row-number">1</span>
+          </p>
+          <h2 id="row-completion-title" tabindex="-1">Ряд завершён.</h2>
+          <p id="completed-row-summary"></p>
+          <div class="smart-actions assistant-actions">
+            <button
+              id="completion-back-button"
+              class="secondary-button"
+              type="button"
+            >
+              Назад
+            </button>
+            <button
+              id="next-row-button"
+              class="primary-button smart-next-button"
+              type="button"
+            >
+              Следующий ряд
+            </button>
+          </div>
+        </section>
+
+        <div class="smart-footer-actions">
+          <a class="link-button" href="/smart-start">Вернуться в Smart Start</a>
+          <a class="link-button" href="/">Вернуться к расчёту</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · Step Assistant для текущего проекта</span>
+      <span>Версия приложения 0.1.0</span>
+    </footer>
+  </body>
+</html>

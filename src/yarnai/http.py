@@ -71,6 +71,15 @@ async def smart_start(_request: Request) -> FileResponse:
     )
 
 
+async def step_assistant(_request: Request) -> FileResponse:
+    """Return the row-by-row Step Assistant page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "step-assistant.html",
+        media_type="text/html",
+    )
+
+
 async def calculate_first_function(request: Request) -> JSONResponse:
     """Calculate the first function through the public YarnAI boundary."""
 
@@ -150,6 +159,7 @@ def create_app() -> Starlette:
             Route("/about", about_first_function, methods=["GET"]),
             Route("/example", canonical_example, methods=["GET"]),
             Route("/smart-start", smart_start, methods=["GET"]),
+            Route("/step-assistant", step_assistant, methods=["GET"]),
             Route("/health", health, methods=["GET"]),
             Route(
                 "/api/v1/calculate",
