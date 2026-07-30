@@ -17,11 +17,15 @@ const errorPanel = document.querySelector("#error-panel");
 const warningsPanel = document.querySelector("#warnings-panel");
 const workingCountElement = document.querySelector("#working-count");
 const stitchWordElement = document.querySelector("#stitch-word");
+const workingWidthElement = document.querySelector("#working-width");
+const resultGaugeElement = document.querySelector("#result-gauge");
+const resultSwatchElement = document.querySelector("#result-swatch");
 const statusLabelElement = document.querySelector("#status-label");
 const startKnittingLink = document.querySelector("#start-knitting-link");
 const errorTitleElement = document.querySelector("#error-title");
 const errorContentElement = document.querySelector("#error-content");
 const warningsContentElement = document.querySelector("#warnings-content");
+const previousStageLink = document.querySelector("#previous-stage-link");
 const projectsLoading = document.querySelector("#projects-loading");
 const projectsError = document.querySelector("#projects-error");
 const projectsEmpty = document.querySelector("#projects-empty");
@@ -38,6 +42,8 @@ const currentProjectNotes = document.querySelector("#current-project-notes");
 const projectSaveStatus = document.querySelector("#project-save-status");
 const projectSystem = window.YarnAIProjectSystem;
 const cloudSystem = window.YarnAICloudAccounts;
+const syncSystem = window.YarnAISync;
+const calculatorResult = window.YarnAICalculatorResult;
 const accountGuest = document.querySelector("#account-guest");
 const accountUser = document.querySelector("#account-user");
 const accountUserEmail = document.querySelector("#account-user-email");
@@ -54,12 +60,15 @@ const cloudProjectDetailsTitle = document.querySelector("#cloud-project-details-
 const cloudProjectDetailsMeta = document.querySelector("#cloud-project-details-meta");
 const saveCloudCopyButton = document.querySelector("#save-cloud-copy-button");
 const cloudCopyStatus = document.querySelector("#cloud-copy-status");
+const syncStatus = document.querySelector("#sync-status");
+const syncUploadButton = document.querySelector("#sync-upload-button");
 let detailsStateBeforePrint = [];
 let projectRepository = null;
 let currentProjectAggregate = null;
 let projectAutosave = null;
 let currentProjectSection = "active";
 let cloudClient = null;
+let syncService = null;
 
 const statusLabels = {
   READY: "Расчёт готов",
@@ -112,6 +121,10 @@ logoutButton.addEventListener("click", logoutFromUi);
 refreshCloudButton.addEventListener("click", refreshCloudProjects);
 cloudProjectsList.addEventListener("click", openCloudProjectFromUi);
 saveCloudCopyButton.addEventListener("click", saveCurrentProjectToCloud);
+syncUploadButton.addEventListener("click", uploadPendingOperations);
+window.addEventListener("yarnai-project-changed", () => {
+  refreshSyncStatus().catch(() => undefined);
+});
 currentProjectTitle.addEventListener("input", () => {
   projectAutosave?.update({ title: currentProjectTitle.value });
 });
@@ -136,10 +149,15 @@ window.addEventListener("beforeunload", () => {
 initializePage();
 
 async function initializePage() {
-  const hasSharedValues = applyUrlParameters();
+  const parameters = new URLSearchParams(window.location.search);
+  const projectId = parameters.get("project");
+  const transfer =
+    window.location.pathname === "/calculator" && !projectId
+      ? calculatorResult?.readTransfer(window.location.search)
+      : null;
+  const hasSharedValues = applyUrlParameters(transfer?.values);
   const testerMode = window.YarnAITesterMode;
-  const isNewTest =
-    new URLSearchParams(window.location.search).get("tester") === "new";
+  const isNewTest = parameters.get("tester") === "new";
 
   if (isNewTest) {
     testerMode?.clearActiveCalculation(getLocalStorage());
@@ -150,8 +168,23 @@ async function initializePage() {
     );
   }
 
+  if (transfer?.state === "ready") {
+    setLoading(true);
+  } else if (transfer) {
+    showTransferProblem(transfer);
+  }
+
   await initializeCloudAccount();
   await initializeProjectWorkspace();
+
+  if (transfer?.state === "ready") {
+    await calculatePayload(buildPayload(), false);
+    return;
+  }
+  if (transfer && !currentProjectAggregate) {
+    showTransferProblem(transfer);
+    return;
+  }
 
   if (window.location.pathname === "/example") {
     document.title = "Канонический пример — YarnAI";
@@ -180,6 +213,10 @@ async function handleSubmit(event) {
   }
 
   const payload = buildPayload();
+  await calculatePayload(payload, true);
+}
+
+async function calculatePayload(payload, persist) {
   setLoading(true);
 
   try {
@@ -199,7 +236,7 @@ async function handleSubmit(event) {
       return;
     }
 
-    await showDomainResponse(data, payload, true);
+    await showDomainResponse(data, payload, persist);
   } catch (error) {
     if (error instanceof UnexpectedResponseError) {
       showSafeError(
@@ -338,11 +375,13 @@ async function shareForm() {
   }
 }
 
-function applyUrlParameters() {
-  const parameters = new URLSearchParams(window.location.search);
+function applyUrlParameters(transferredValues = null) {
+  const parameters = transferredValues
+    ? Object.entries(transferredValues)
+    : new URLSearchParams(window.location.search).entries();
   let applied = false;
 
-  parameters.forEach((value, name) => {
+  for (const [name, value] of parameters) {
     const control = form.elements.namedItem(name);
     if (
       control instanceof HTMLInputElement ||
@@ -351,7 +390,7 @@ function applyUrlParameters() {
       control.value = value;
       applied = true;
     }
-  });
+  }
   return applied;
 }
 
@@ -532,29 +571,20 @@ async function showDomainResponse(data, requestPayload = null, persist = false) 
     throw new UnexpectedResponseError();
   }
 
-  if (
-    !isRecord(data.axes) ||
-    !isRecord(data.axes.width) ||
-    !isRecord(data.axes.width.selected_candidate)
-  ) {
-    throw new UnexpectedResponseError();
-  }
-
-  const workingCount =
-    data.axes.width.selected_candidate.working_count;
-
-  if (
-    typeof workingCount !== "number" ||
-    !Number.isFinite(workingCount)
-  ) {
+  const details = calculatorResult?.resultDetails(data);
+  if (!details) {
     throw new UnexpectedResponseError();
   }
 
   hidePrimaryPanels();
+  previousStageLink.hidden = true;
   statusLabelElement.textContent =
     statusLabels[data.status] ?? statusLabels.READY;
-  workingCountElement.textContent = String(workingCount);
-  stitchWordElement.textContent = pluralizeStitches(workingCount);
+  workingCountElement.textContent = String(details.workingCount);
+  stitchWordElement.textContent = pluralizeStitches(details.workingCount);
+  workingWidthElement.textContent = formatWorkingWidth(details.workingWidth);
+  resultGaugeElement.textContent = formatResultGauge(details.gauge);
+  resultSwatchElement.textContent = formatSwatch(details.swatch);
   prepareSmartStart(data);
   resultPanel.hidden = false;
   showWarnings(warnings);
@@ -586,6 +616,7 @@ function prepareSmartStart(data) {
 
 function showDomainError(title, diagnostics, fallback) {
   hidePrimaryPanels();
+  previousStageLink.hidden = true;
   errorTitleElement.textContent = title;
   errorContentElement.replaceChildren(
     createDiagnosticList(diagnostics, fallback),
@@ -611,9 +642,8 @@ function showWarnings(warnings) {
 }
 
 function createDiagnosticList(diagnostics, fallback) {
-  const safeDiagnostics = Array.isArray(diagnostics)
-    ? diagnostics.filter(isRecord)
-    : [];
+  const safeDiagnostics =
+    calculatorResult?.diagnostics(diagnostics, fallback) ?? [];
 
   if (safeDiagnostics.length === 0) {
     const paragraph = document.createElement("p");
@@ -624,18 +654,12 @@ function createDiagnosticList(diagnostics, fallback) {
   const list = document.createElement("ul");
   safeDiagnostics.forEach((diagnostic) => {
     const item = document.createElement("li");
-    item.textContent =
-      typeof diagnostic.reason === "string" && diagnostic.reason.trim()
-        ? diagnostic.reason
-        : fallback;
+    item.textContent = diagnostic.reason;
 
-    if (
-      typeof diagnostic.next_action === "string" &&
-      diagnostic.next_action.trim()
-    ) {
+    if (diagnostic.nextAction) {
       const action = document.createElement("span");
       action.className = "diagnostic-action";
-      action.textContent = diagnostic.next_action;
+      action.textContent = diagnostic.nextAction;
       item.append(action);
     }
     list.append(item);
@@ -667,11 +691,100 @@ function showHttpError(status) {
 
 function showSafeError(title, message) {
   hidePrimaryPanels();
+  previousStageLink.hidden = true;
   errorTitleElement.textContent = title;
   const paragraph = document.createElement("p");
   paragraph.textContent = message;
   errorContentElement.replaceChildren(paragraph);
   errorPanel.hidden = false;
+}
+
+function showTransferProblem(transfer) {
+  if (transfer.state === "damaged") {
+    showSafeError(
+      "Ссылка на расчёт повреждена",
+      "Некоторые параметры имеют неверный формат. Вернитесь на предыдущий этап и сформируйте расчёт заново.",
+    );
+  } else {
+    showSafeError(
+      "Не хватает данных для расчёта",
+      "В ссылке нет всех обязательных параметров. Расчёт не запускался — вернитесь на предыдущий этап и заполните недостающие данные.",
+    );
+  }
+  previousStageLink.hidden = false;
+}
+
+function formatWorkingWidth(width) {
+  const units = { cm: "см", inch: "дюйм." };
+  const unit = units[width.unit] ?? width.unit;
+  return `${formatResultNumber(width.value)} ${unit}`;
+}
+
+function formatResultGauge(gauge) {
+  return (
+    `${formatResultNumber(gauge.readyCount)} петель на ` +
+    `${formatResultNumber(gauge.baseLengthCm)} см · ` +
+    `${formatResultNumber(gauge.densityPerCm)} пет./см`
+  );
+}
+
+function formatSwatch(swatch) {
+  const sources = {
+    personal_swatch: "Личный контрольный образец",
+    other_swatch: "Другой контрольный образец",
+    label: "Данные с этикетки",
+    pattern: "Данные из описания",
+    unknown: "Источник не указан",
+  };
+  const qualities = {
+    canonical: "качество подтверждено",
+    acceptable: "качество приемлемо",
+    uncertain: "качество требует проверки",
+  };
+  const parts = [
+    sources[swatch.source] ?? "Контрольный образец",
+    `${swatch.measurementCount} ${pluralizeMeasurements(swatch.measurementCount)}`,
+    qualities[swatch.quality] ?? "качество не определено",
+  ];
+  const conditions = [];
+  if (swatch.offNeedles === "yes") {
+    conditions.push("снят со спиц");
+  }
+  if (swatch.processingState === "after_intended_processing") {
+    conditions.push("обработан");
+  }
+  if (swatch.fullyDry === "yes") {
+    conditions.push("полностью высушен");
+  }
+  if (Number.isFinite(Number(swatch.restHours))) {
+    conditions.push(`отдых ${formatResultNumber(swatch.restHours)} ч`);
+  }
+  const conditionSummary = conditions.join(", ");
+  return conditions.length > 0
+    ? `${parts.join(" · ")}. ${conditionSummary[0].toUpperCase()}${conditionSummary.slice(1)}.`
+    : `${parts.join(" · ")}.`;
+}
+
+function formatResultNumber(value) {
+  const number = Number(value);
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 3,
+  }).format(number);
+}
+
+function pluralizeMeasurements(count) {
+  const value = Math.abs(Number(count)) % 100;
+  const last = value % 10;
+  if (value > 10 && value < 20) {
+    return "измерений";
+  }
+  if (last === 1) {
+    return "измерение";
+  }
+  if (last >= 2 && last <= 4) {
+    return "измерения";
+  }
+  return "измерений";
 }
 
 async function readJsonResponse(response) {
@@ -737,6 +850,10 @@ async function initializeProjectWorkspace() {
   try {
     projectRepository = new projectSystem.ProjectRepository();
     await projectRepository.initialize();
+    if (syncSystem && cloudClient) {
+      syncService = new syncSystem.SyncService(projectRepository, cloudClient);
+      await projectRepository.resetUploadingOperations();
+    }
     const projectId = new URLSearchParams(window.location.search).get("project");
     if (projectId && projectSystem.isUuidv7(projectId)) {
       try {
@@ -746,6 +863,7 @@ async function initializeProjectWorkspace() {
       }
     }
     await refreshProjectsList();
+    await refreshSyncStatus();
   } catch (error) {
     showProjectsError(projectErrorMessage(error));
   }
@@ -826,6 +944,7 @@ function renderAccountState() {
   cloudProjects.hidden = !signedIn;
   accountUserEmail.textContent = signedIn ? cloudClient.user.email : "";
   saveCloudCopyButton.disabled = !signedIn || !currentProjectAggregate;
+  syncUploadButton.disabled = !signedIn || !currentProjectAggregate;
   if (!signedIn) {
     cloudProjectsList.replaceChildren();
     cloudProjectDetails.hidden = true;
@@ -891,6 +1010,57 @@ async function openCloudProjectFromUi(event) {
     accountStatus.textContent = cloudErrorMessage(error);
   } finally {
     button.disabled = false;
+  }
+}
+
+async function refreshSyncStatus() {
+  if (!syncStatus || !projectRepository || !currentProjectAggregate) {
+    return;
+  }
+  const projectId = currentProjectAggregate.project.project_id;
+  const summary = await projectRepository.getOutboxSummary(projectId);
+  if (summary.failed > 0) {
+    syncStatus.dataset.state = "error";
+    syncStatus.textContent = "Ошибка синхронизации";
+  } else if (summary.pending > 0 || summary.uploading > 0) {
+    syncStatus.dataset.state = "pending";
+    syncStatus.textContent = "Есть ожидающие операции";
+  } else {
+    syncStatus.dataset.state = "synced";
+    syncStatus.textContent = "Синхронизировано";
+  }
+  syncUploadButton.disabled =
+    !cloudClient?.user ||
+    !syncService ||
+    (summary.pending === 0 && summary.retryable_failed === 0);
+}
+
+async function uploadPendingOperations() {
+  if (!cloudClient?.user || !syncService || !currentProjectAggregate) {
+    syncStatus.dataset.state = "error";
+    syncStatus.textContent = "Ошибка синхронизации";
+    return;
+  }
+  syncUploadButton.disabled = true;
+  syncStatus.dataset.state = "pending";
+  syncStatus.textContent = "Есть ожидающие операции";
+  try {
+    await projectAutosave?.flush();
+    const result = await syncService.uploadPending({
+      projectId: currentProjectAggregate.project.project_id,
+    });
+    if (result.errors.length > 0) {
+      syncStatus.dataset.state = "error";
+      syncStatus.textContent = "Ошибка синхронизации";
+    } else {
+      await refreshSyncStatus();
+      await refreshCloudProjects();
+    }
+  } catch {
+    syncStatus.dataset.state = "error";
+    syncStatus.textContent = "Ошибка синхронизации";
+  } finally {
+    await refreshSyncStatus();
   }
 }
 
@@ -1142,6 +1312,7 @@ async function openProjectInWorkspace(projectId) {
   currentProjectAggregate = aggregate;
   currentProjectPanel.hidden = false;
   saveCloudCopyButton.disabled = !cloudClient?.user;
+  syncUploadButton.disabled = !cloudClient?.user;
   cloudCopyStatus.textContent = "";
   currentProjectTitle.value = aggregate.project.title;
   currentProjectNotes.value = aggregate.project.notes;
@@ -1190,6 +1361,7 @@ async function openProjectInWorkspace(projectId) {
   url.searchParams.set("project", projectId);
   window.history.replaceState({}, "", url);
   updateProjectSaveStatus({ state: "SAVED_LOCAL" });
+  await refreshSyncStatus();
 }
 
 async function closeWorkspaceIfCurrent(projectId) {
@@ -1201,6 +1373,7 @@ async function closeWorkspaceIfCurrent(projectId) {
   currentProjectAggregate = null;
   currentProjectPanel.hidden = true;
   saveCloudCopyButton.disabled = true;
+  syncUploadButton.disabled = true;
   cloudCopyStatus.textContent = "";
   const url = new URL(window.location.href);
   url.searchParams.delete("project");

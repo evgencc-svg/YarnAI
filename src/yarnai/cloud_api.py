@@ -86,6 +86,7 @@ class CloudApi:
             Route("/api/v1/auth/refresh", self.refresh, methods=["POST"]),
             Route("/api/v1/auth/logout", self.logout, methods=["POST"]),
             Route("/api/v1/auth/me", self.me, methods=["GET"]),
+            Route("/api/v1/sync/upload", self.upload_sync, methods=["POST"]),
             Route("/api/v1/projects", self.create_project, methods=["POST"]),
             Route("/api/v1/projects", self.list_projects, methods=["GET"]),
             Route(
@@ -307,6 +308,264 @@ class CloudApi:
             return JSONResponse({"user": self._serialize_user(user)})
         except ApiProblem as error:
             return self._problem_response(request, error)
+
+    async def upload_sync(self, request: Request) -> Response:
+        """Apply an authenticated batch of ordered local Outbox operations."""
+
+        try:
+            user, _session = self._authenticate(request)
+            body = await self._body(
+                request,
+                allowed={"schema_version", "operations"},
+            )
+            self._schema_version(body.get("schema_version"))
+            operations = body.get("operations")
+            if not isinstance(operations, list) or not 1 <= len(operations) <= 100:
+                raise ApiProblem(
+                    422,
+                    "INVALID_SYNC_BATCH",
+                    "operations must contain 1 to 100 items.",
+                )
+
+            confirmed: list[dict[str, Any]] = []
+            errors: list[dict[str, Any]] = []
+            project_ids: set[str] = set()
+            with self.session_factory.begin() as database:
+                for raw_operation in operations:
+                    operation_id = (
+                        raw_operation.get("operation_id")
+                        if isinstance(raw_operation, dict)
+                        else None
+                    )
+                    project_id = (
+                        raw_operation.get("project_id")
+                        if isinstance(raw_operation, dict)
+                        else None
+                    )
+                    if isinstance(project_id, str):
+                        project_ids.add(project_id)
+                    try:
+                        confirmation = self._apply_uploaded_operation(
+                            database,
+                            user.id,
+                            raw_operation,
+                        )
+                        database.flush()
+                        confirmed.append(confirmation)
+                    except ApiProblem as problem:
+                        item = {
+                            "operation_id": operation_id,
+                            "project_id": project_id,
+                            "status": problem.status_code,
+                            "code": problem.code,
+                            "message": problem.message,
+                        }
+                        if problem.details:
+                            item.update(problem.details)
+                        errors.append(item)
+
+                server_revisions = {}
+                for project_id in project_ids:
+                    project = self._owned_project(database, user.id, project_id)
+                    if project is not None:
+                        server_revisions[project_id] = project.revision
+
+            return JSONResponse(
+                {
+                    "confirmed_operations": confirmed,
+                    "server_revisions": server_revisions,
+                    "errors": errors,
+                }
+            )
+        except (ValueError, ApiProblem) as error:
+            return self._handled_problem(request, error)
+
+    def _apply_uploaded_operation(
+        self,
+        database: Session,
+        user_id: str,
+        raw_operation: Any,
+    ) -> dict[str, Any]:
+        if not isinstance(raw_operation, dict):
+            raise ApiProblem(422, "INVALID_SYNC_OPERATION", "Operation must be an object.")
+        allowed = {
+            "operation_id",
+            "project_id",
+            "revision",
+            "operation_type",
+            "created_at",
+            "payload",
+            "schema_version",
+            "source_device_id",
+        }
+        forbidden = set(raw_operation) - allowed
+        if forbidden:
+            raise ApiProblem(
+                422,
+                "FORBIDDEN_FIELDS",
+                "Operation contains unsupported fields.",
+                {"fields": sorted(forbidden)},
+            )
+        operation_id = raw_operation.get("operation_id")
+        if not isinstance(operation_id, str) or not UUID_V7_PATTERN.fullmatch(
+            operation_id
+        ):
+            raise ApiProblem(422, "INVALID_OPERATION_ID", "operation_id must be UUIDv7.")
+        project_id = self._project_id(raw_operation.get("project_id"))
+        self._schema_version(raw_operation.get("schema_version"))
+        revision = raw_operation.get("revision")
+        if not isinstance(revision, int) or isinstance(revision, bool) or revision < 1:
+            raise ApiProblem(422, "INVALID_REVISION", "revision must be positive.")
+        operation_type = raw_operation.get("operation_type")
+        if not isinstance(operation_type, str) or not 1 <= len(operation_type) <= 40:
+            raise ApiProblem(
+                422,
+                "INVALID_OPERATION_TYPE",
+                "operation_type is invalid.",
+            )
+        created_at_value = raw_operation.get("created_at")
+        if (
+            not isinstance(created_at_value, str)
+            or not TIMESTAMP_PATTERN.fullmatch(created_at_value)
+            or not self._valid_timestamp(created_at_value)
+        ):
+            raise ApiProblem(422, "INVALID_TIMESTAMP", "created_at must be UTC.")
+        created_at = datetime.fromisoformat(created_at_value[:-1] + "+00:00")
+        payload = self._payload(raw_operation.get("payload"))
+        snapshot = payload.get("project")
+        if not isinstance(snapshot, dict):
+            raise ApiProblem(
+                422,
+                "PROJECT_SNAPSHOT_REQUIRED",
+                "Operation payload must contain a project snapshot.",
+            )
+        self._schema_version(snapshot.get("schema_version"))
+        if snapshot.get("project_id") != project_id:
+            raise ApiProblem(
+                422,
+                "PROJECT_SNAPSHOT_MISMATCH",
+                "Project snapshot does not match project_id.",
+            )
+        title = self._title(snapshot.get("title"))
+        status = snapshot.get("workspace_status")
+        if status not in PROJECT_STATUSES:
+            raise ApiProblem(
+                422,
+                "INVALID_PROJECT_STATUS",
+                "Invalid project lifecycle status.",
+            )
+        source_device_id = self._source_device_id(
+            raw_operation.get("source_device_id")
+        )
+
+        replay = database.scalar(
+            select(SyncOperation).where(
+                SyncOperation.user_id == user_id,
+                SyncOperation.operation_id == operation_id,
+            )
+        )
+        if replay is not None:
+            if replay.project_id != project_id or replay.applied_revision != revision:
+                raise ApiProblem(
+                    409,
+                    "OPERATION_ID_CONFLICT",
+                    "operation_id was already used for another operation.",
+                )
+            return {
+                "operation_id": operation_id,
+                "project_id": project_id,
+                "revision": revision,
+                "server_revision": replay.applied_revision,
+                "replayed": True,
+            }
+
+        now = utc_now()
+        project = database.get(Project, project_id)
+        if project is None:
+            if revision != 1 or operation_type not in {
+                "PROJECT_CREATED",
+                "PROJECT_DUPLICATED",
+                "PROJECT_IMPORTED",
+            }:
+                raise self._not_found()
+            project = Project(
+                id=project_id,
+                owner_user_id=user_id,
+                schema_version=1,
+                status=status,
+                status_before_archive=snapshot.get("status_before_archive"),
+                status_before_delete=snapshot.get("status_before_delete"),
+                title=title,
+                payload=payload,
+                payload_checksum=sha256_json(payload),
+                revision=1,
+                created_at=created_at,
+                updated_at=now,
+                archived_at=self._optional_timestamp(snapshot.get("archived_at")),
+                deleted_at=self._optional_timestamp(snapshot.get("deleted_at")),
+                purge_after=self._optional_timestamp(snapshot.get("purge_after")),
+                source_device_id=source_device_id,
+                sync_metadata={"upload_stage": 1},
+            )
+            database.add(project)
+        else:
+            if project.owner_user_id != user_id:
+                raise self._not_found()
+            if project.revision != revision - 1:
+                raise ApiProblem(
+                    409,
+                    "REVISION_CONFLICT",
+                    "Project revision does not follow the server revision.",
+                    {"current_revision": project.revision},
+                )
+            project.schema_version = 1
+            project.status = status
+            project.status_before_archive = snapshot.get("status_before_archive")
+            project.status_before_delete = snapshot.get("status_before_delete")
+            project.title = title
+            project.payload = payload
+            project.payload_checksum = sha256_json(payload)
+            project.revision = revision
+            project.updated_at = now
+            project.archived_at = self._optional_timestamp(snapshot.get("archived_at"))
+            project.deleted_at = self._optional_timestamp(snapshot.get("deleted_at"))
+            project.purge_after = self._optional_timestamp(snapshot.get("purge_after"))
+            project.source_device_id = source_device_id or project.source_device_id
+
+        database.add(
+            SyncOperation(
+                id=uuid7(),
+                operation_id=operation_id,
+                user_id=user_id,
+                project_id=project_id,
+                base_revision=revision - 1,
+                applied_revision=revision,
+                kind=operation_type,
+                payload=payload,
+                status="APPLIED",
+                created_at=created_at,
+                source_device_id=source_device_id,
+            )
+        )
+        return {
+            "operation_id": operation_id,
+            "project_id": project_id,
+            "revision": revision,
+            "server_revision": revision,
+            "replayed": False,
+        }
+
+    @staticmethod
+    def _optional_timestamp(value: Any) -> datetime | None:
+        if value is None:
+            return None
+        if (
+            not isinstance(value, str)
+            or not TIMESTAMP_PATTERN.fullmatch(value)
+            or not CloudApi._valid_timestamp(value)
+        ):
+            raise ApiProblem(422, "INVALID_TIMESTAMP", "Invalid project timestamp.")
+        return datetime.fromisoformat(value[:-1] + "+00:00")
 
     async def create_project(self, request: Request) -> Response:
         try:

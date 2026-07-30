@@ -15,6 +15,8 @@
     <script src="/static/tester-mode.js" defer></script>
     <script src="/static/project-system.js" defer></script>
     <script src="/static/cloud-accounts.js" defer></script>
+    <script src="/static/sync-service.js" defer></script>
+    <script src="/static/calculator-result.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body>
@@ -229,7 +231,18 @@
         <p id="project-save-status" class="project-save-status" role="status">
           Сохранено на устройстве
         </p>
+        <p id="sync-status" class="sync-status" data-state="pending" role="status">
+          Есть ожидающие операции
+        </p>
         <div class="project-transfer">
+          <button
+            id="sync-upload-button"
+            class="link-button link-button-primary"
+            type="button"
+            disabled
+          >
+            Синхронизировать
+          </button>
           <button
             id="save-cloud-copy-button"
             class="link-button link-button-primary"
@@ -716,6 +729,20 @@
             <p class="result-caption">
               Итоговое рабочее количество для заданной ширины
             </p>
+            <dl class="result-facts" aria-label="Подробности расчёта">
+              <div>
+                <dt>Рабочая ширина</dt>
+                <dd id="working-width">—</dd>
+              </div>
+              <div>
+                <dt>Плотность</dt>
+                <dd id="result-gauge">—</dd>
+              </div>
+              <div>
+                <dt>Контрольный образец</dt>
+                <dd id="result-swatch">—</dd>
+              </div>
+            </dl>
             <a
               id="start-knitting-link"
               class="link-button result-primary-link"
@@ -737,6 +764,14 @@
             <p class="feedback-kicker">Расчёт не выполнен</p>
             <h2 id="error-title">Проверьте данные</h2>
             <div id="error-content"></div>
+            <a
+              id="previous-stage-link"
+              class="link-button"
+              href="/"
+              hidden
+            >
+              Вернуться на предыдущий этап
+            </a>
             <button
               id="error-recalculate-button"
               class="secondary-button"

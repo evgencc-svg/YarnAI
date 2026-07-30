@@ -196,7 +196,7 @@ class RequestBodyLimitMiddleware:
 def _cache_control_for(route: str) -> str:
     if route.startswith("/static/"):
         return STATIC_CACHE_CONTROL
-    if route in {"/health", "/api/v1/calculate"}:
+    if route == "/health" or route.startswith("/api/"):
         return DYNAMIC_CACHE_CONTROL
     return PAGE_CACHE_CONTROL
 

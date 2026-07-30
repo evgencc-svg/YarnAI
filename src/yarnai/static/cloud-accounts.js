@@ -144,6 +144,16 @@
       });
     }
 
+    async uploadOperations(operations) {
+      return this._request("/api/v1/sync/upload", {
+        method: "POST",
+        body: {
+          schema_version: 1,
+          operations,
+        },
+      });
+    }
+
     _acceptAuth(result) {
       this.accessToken = result.access_token;
       this.user = result.user;

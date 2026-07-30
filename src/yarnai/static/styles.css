@@ -640,9 +640,34 @@ select[aria-invalid="true"] {
 
 .result-caption {
   max-width: 280px;
-  margin-bottom: 28px;
+  margin-bottom: 18px;
   color: rgb(255 255 255 / 76%);
   font-size: 0.9rem;
+}
+
+.result-facts {
+  margin: 0 0 26px;
+  display: grid;
+  gap: 12px;
+}
+
+.result-facts div {
+  padding-top: 11px;
+  border-top: 1px solid rgb(255 255 255 / 22%);
+}
+
+.result-facts dt {
+  margin-bottom: 3px;
+  color: rgb(255 255 255 / 70%);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.result-facts dd {
+  margin: 0;
+  line-height: 1.45;
 }
 
 .secondary-button {
@@ -1764,6 +1789,21 @@ textarea {
   color: var(--accent);
 }
 
+.sync-status {
+  min-width: 175px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.sync-status[data-state="synced"] {
+  color: var(--accent);
+}
+
+.sync-status[data-state="error"] {
+  color: var(--error);
+}
+
 @media (max-width: 760px) {
   .projects-heading,
   .current-project {
@@ -1919,6 +1959,14 @@ textarea {
 
   .result-caption {
     color: #333;
+  }
+
+  .result-facts div {
+    border-color: #bbb;
+  }
+
+  .result-facts dt {
+    color: #444;
   }
 
   .info-grid {

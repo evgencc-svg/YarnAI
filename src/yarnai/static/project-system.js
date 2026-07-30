@@ -2,7 +2,7 @@
 
 (function initializeProjectSystem(global) {
   const DB_NAME = "yarnai-local";
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   const RECORD_SCHEMA_VERSION = 1;
   const EXPORT_SCHEMA_VERSION = 1;
   const EXPORT_FORMAT = "yarnai-project";
@@ -62,6 +62,7 @@
     operations: [
       ["by_device_sequence", ["device_id", "device_sequence"], { unique: true }],
       ["by_partition_sync_time", ["partition_key", "sync_status", "occurred_at"]],
+      ["by_state_created", ["state", "created_at"]],
       ["by_aggregate_revision", ["aggregate_type", "aggregate_id", "resulting_revision"]],
       ["by_project_time", ["project_id", "occurred_at"]],
       ["by_retention_until", "retention_until"],
@@ -350,6 +351,28 @@
         created_at: utcNow(),
       });
     }
+    if (oldVersion < 2) {
+      const operations = transaction.objectStore("operations");
+      ensureIndexes(operations, [
+        ["by_state_created", ["state", "created_at"]],
+      ]);
+      const cursorRequest = operations.openCursor();
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) {
+          return;
+        }
+        const operation = cursor.value;
+        operation.operation_type = operation.operation_type ?? operation.kind;
+        operation.revision =
+          operation.revision ?? operation.resulting_revision;
+        operation.state =
+          operation.state ??
+          (operation.sync_status === "SYNCED" ? "uploaded" : "pending");
+        cursor.update(operation);
+        cursor.continue();
+      };
+    }
   }
 
   function openDatabase() {
@@ -522,13 +545,22 @@
       device_sequence: null,
       base_revision: baseRevision,
       resulting_revision: resultRevision,
+      revision: resultRevision,
       kind,
-      payload: clone(payload ?? {}),
+      operation_type: kind,
+      payload: {
+        ...clone(payload ?? {}),
+        project: clone(project),
+      },
       occurred_at: timestamp,
       created_at: timestamp,
       retention_until: new Date(Date.parse(timestamp) + CHECKPOINT_RETENTION_MS).toISOString(),
       sync_status: "LOCAL_ONLY",
+      state: "pending",
       server_version: null,
+      uploaded_at: null,
+      last_error: null,
+      retryable: false,
     };
   }
 
@@ -602,6 +634,165 @@
       } catch (error) {
         throw mapStorageError(error);
       }
+    }
+
+    async getOutboxOperations(options = {}) {
+      const states = new Set(options.states ?? ["pending"]);
+      const limit = Math.max(1, Math.min(Number(options.limit) || 50, 100));
+      const database = await this._database();
+      const transaction = database.transaction("operations", "readonly");
+      const stored = await requestResult(
+        transaction.objectStore("operations").getAll(),
+      );
+      await transactionComplete(transaction);
+      const selected = stored
+        .map((operation) => ({
+          ...operation,
+          operation_type: operation.operation_type ?? operation.kind,
+          revision: operation.revision ?? operation.resulting_revision,
+          state:
+            operation.state ??
+            (operation.sync_status === "SYNCED" ? "uploaded" : "pending"),
+        }))
+        .filter(
+          (operation) =>
+            states.has(operation.state) &&
+            (!options.projectId || operation.project_id === options.projectId),
+        )
+        .sort(
+          (left, right) =>
+            left.created_at.localeCompare(right.created_at) ||
+            left.device_sequence - right.device_sequence,
+        )
+        .slice(0, limit);
+      const projects = new Map();
+      for (const operation of selected) {
+        if (!operation.payload?.project && !projects.has(operation.project_id)) {
+          projects.set(
+            operation.project_id,
+            await this._getRawProject(operation.project_id),
+          );
+        }
+      }
+      return selected.map((operation) => {
+        const result = clone(operation);
+        if (!result.payload?.project) {
+          result.payload = {
+            ...clone(result.payload ?? {}),
+            project: clone(projects.get(result.project_id)),
+          };
+        }
+        return result;
+      });
+    }
+
+    async getOutboxSummary(projectId = null) {
+      const operations = await this.getOutboxOperations({
+        states: ["pending", "uploading", "failed", "uploaded"],
+        limit: 100,
+        projectId,
+      });
+      return operations.reduce(
+        (summary, operation) => {
+          summary[operation.state] += 1;
+          if (operation.state === "failed" && operation.retryable) {
+            summary.retryable_failed += 1;
+          }
+          return summary;
+        },
+        {
+          pending: 0,
+          uploading: 0,
+          uploaded: 0,
+          failed: 0,
+          retryable_failed: 0,
+        },
+      );
+    }
+
+    async _updateOutboxState(operationIds, state, details = {}) {
+      if (!Array.isArray(operationIds) || operationIds.length === 0) {
+        return;
+      }
+      const database = await this._database();
+      const transaction = database.transaction("operations", "readwrite");
+      const store = transaction.objectStore("operations");
+      try {
+        for (const operationId of operationIds) {
+          const operation = await requestResult(store.get(operationId));
+          if (!operation) {
+            continue;
+          }
+          operation.state = state;
+          operation.sync_status =
+            state === "uploaded" ? "SYNCED" : "LOCAL_ONLY";
+          operation.uploaded_at =
+            state === "uploaded" ? details.uploaded_at ?? utcNow() : null;
+          operation.server_version =
+            details.server_version?.[operation.project_id] ??
+            operation.server_version ??
+            null;
+          operation.last_error = details.error ?? null;
+          operation.retryable = Boolean(details.retryable);
+          store.put(operation);
+        }
+        await transactionComplete(transaction);
+      } catch (error) {
+        throw mapStorageError(error);
+      }
+    }
+
+    async markOperationsUploading(operationIds) {
+      return this._updateOutboxState(operationIds, "uploading");
+    }
+
+    async markOperationsUploaded(confirmations) {
+      const serverVersion = {};
+      for (const confirmation of confirmations) {
+        serverVersion[confirmation.project_id] = confirmation.server_revision;
+      }
+      return this._updateOutboxState(
+        confirmations.map((confirmation) => confirmation.operation_id),
+        "uploaded",
+        { server_version: serverVersion },
+      );
+    }
+
+    async markOperationsFailed(errors, options = {}) {
+      for (const error of errors) {
+        await this._updateOutboxState([error.operation_id], "failed", {
+          error: {
+            code: error.code ?? "SYNC_UPLOAD_FAILED",
+            message: error.message ?? "Operation upload failed.",
+            status: error.status ?? 0,
+          },
+          retryable: Boolean(options.retryable ?? error.retryable),
+        });
+      }
+    }
+
+    async resetUploadingOperations() {
+      const uploading = await this.getOutboxOperations({
+        states: ["uploading"],
+        limit: 100,
+      });
+      await this._updateOutboxState(
+        uploading.map((operation) => operation.operation_id),
+        "pending",
+      );
+    }
+
+    async requeueRetryableFailedOperations() {
+      const failed = await this.getOutboxOperations({
+        states: ["failed"],
+        limit: 100,
+      });
+      await this._updateOutboxState(
+        failed
+          .filter((operation) => operation.retryable)
+          .map((operation) => operation.operation_id),
+        "pending",
+      );
     }
 
     _serialize(projectId, command) {

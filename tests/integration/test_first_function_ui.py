@@ -98,6 +98,8 @@ def test_page_static_css_and_javascript_are_available(
         "/static/tester-mode.js",
         "/static/project-system.js",
         "/static/cloud-accounts.js",
+        "/static/sync-service.js",
+        "/static/calculator-result.js",
         "/static/app.js",
     ]
     assert page.icons == ["/static/favicon.png"]
@@ -114,14 +116,23 @@ def test_page_static_css_and_javascript_are_available(
 
 def test_javascript_calls_http_api_and_reads_complete_result_path() -> None:
     script = (STATIC / "app.js").read_text(encoding="utf-8")
+    integration_script = (STATIC / "calculator-result.js").read_text(
+        encoding="utf-8"
+    )
 
     assert 'const API_PATH = "/api/v1/calculate"' in script
     assert "fetch(API_PATH" in script
-    assert "data.axes.width.selected_candidate.working_count" in script
+    assert "selected_candidate" in integration_script
+    assert "actual_size_original_unit" in integration_script
 
 
 def test_ui_does_not_call_calculation_core_directly() -> None:
-    script = (STATIC / "app.js").read_text(encoding="utf-8")
+    script = "\n".join(
+        (
+            (STATIC / "app.js").read_text(encoding="utf-8"),
+            (STATIC / "calculator-result.js").read_text(encoding="utf-8"),
+        )
+    )
 
     assert "yarnai_calculation" not in script
     assert "run_first_function" not in script
@@ -195,6 +206,34 @@ def test_javascript_supports_example_clear_and_query_sharing() -> None:
     assert "navigator.clipboard" in script
     assert 'window.addEventListener("beforeprint", preparePrintView)' in script
     assert 'window.addEventListener("afterprint", restoreDetailsAfterPrint)' in script
+
+
+def test_calculator_result_has_complete_states_and_details() -> None:
+    html = (STATIC / "index.html").read_text(encoding="utf-8")
+    script = (STATIC / "app.js").read_text(encoding="utf-8")
+    integration_script = (STATIC / "calculator-result.js").read_text(
+        encoding="utf-8"
+    )
+
+    for element_id in (
+        "loading-panel",
+        "result-panel",
+        "working-count",
+        "working-width",
+        "result-gauge",
+        "result-swatch",
+        "warnings-panel",
+        "error-panel",
+        "previous-stage-link",
+    ):
+        assert f'id="{element_id}"' in html
+    assert "Не хватает данных для расчёта" in script
+    assert "Ссылка на расчёт повреждена" in script
+    assert "Расчёт не запускался" in script
+    assert "calculatorResult?.readTransfer" in script
+    assert "calculatorResult?.resultDetails" in script
+    assert "REQUIRED_PARAMETERS" in integration_script
+    assert "URLSearchParams" in integration_script
 
 
 def test_page_has_version_noscript_and_print_styles() -> None:

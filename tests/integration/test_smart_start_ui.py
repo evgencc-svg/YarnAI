@@ -126,6 +126,9 @@ def test_start_button_is_revealed_only_for_a_final_successful_result() -> None:
 
 def test_smart_start_uses_public_calculation_fields_and_has_six_steps() -> None:
     calculator_script = (STATIC / "app.js").read_text(encoding="utf-8")
+    result_script = (STATIC / "calculator-result.js").read_text(
+        encoding="utf-8"
+    )
     state_script = (STATIC / "smart-start-state.js").read_text(
         encoding="utf-8"
     )
@@ -137,9 +140,9 @@ def test_smart_start_uses_public_calculation_fields_and_has_six_steps() -> None:
     assert "candidate.working_count" in state_script
     assert '"gauges", "width"' in state_script
     assert (
-        "data.axes.width.selected_candidate.working_count"
-        in calculator_script
+        "calculatorResult?.resultDetails(data)" in calculator_script
     )
+    assert "candidate?.working_count" in result_script
     assert "const STEP_COUNT = 6" in state_script
     for title in (
         "Проверить исходные данные",
