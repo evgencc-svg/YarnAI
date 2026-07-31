@@ -1144,7 +1144,7 @@
 
   function homeState(result, projectId) {
     if (!result) return null;
-    const href = `/first-blocking?project=${encodeURIComponent(projectId)}`;
+    const blockingHref = `/first-blocking?project=${encodeURIComponent(projectId)}`;
     if (result.state === "corrupted" || result.state === "blocked") {
       return {
         stage: "Первая блокировка недоступна",
@@ -1153,7 +1153,7 @@
           result.blockers?.[0]?.message ||
           "Сначала завершите закрепление хвоста.",
         label: "Проверить готовность",
-        href,
+        href: blockingHref,
         status: "blocked",
       };
     }
@@ -1167,11 +1167,14 @@
       completed: ["Первая блокировка завершена", "Посмотреть результат"],
     };
     const [stage, label] = labels[result.blocking.status] || labels.collecting;
+    const completed = result.blocking.status === "completed";
     return {
-      stage,
+      stage: completed ? "Первый проект завершён" : stage,
       summary: progressSummary(result.blocking),
-      label,
-      href,
+      label: completed ? "Создать проект по описанию" : label,
+      href: completed
+        ? `/import-pattern?project=${encodeURIComponent(projectId)}`
+        : blockingHref,
       status: result.blocking.status,
       blocking: copy(result.blocking),
     };

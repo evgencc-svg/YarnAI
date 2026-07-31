@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Import Pattern безопасно собирает PDF, изображения и текстовые файлы одного будущего проекта.">
+    <title>Import Pattern — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-import.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-blocking.js" defer></script>
+    <script src="/static/pattern-import.js" defer></script>
+    <script src="/static/pattern-import-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для сохранения материалов нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/calculator">Калькулятор</a>
+      </nav>
+      <span class="version-badge">Import Pattern</span>
+    </header>
+
+    <main class="page-shell pattern-import-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Новый проект по готовому описанию</p>
+        <h1 id="page-title">Import Pattern</h1>
+        <p class="intro-copy">Добавьте PDF, изображения или текстовые файлы. Все материалы войдут в один будущий проект.</p>
+        <p class="pattern-import-boundary">Сейчас YarnAI только сохраняет список и порядок. Содержимое не читается, не распознаётся и не анализируется.</p>
+      </section>
+
+      <section id="pattern-import-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось открыть Import Pattern</h2>
+        <p id="pattern-import-error-message"></p>
+        <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+      </section>
+
+      <div id="pattern-import-workflow" hidden>
+        <section class="card pattern-import-summary">
+          <div>
+            <p class="step-label">Текущий проект</p>
+            <h2 id="pattern-import-project-title">Сохранённый проект</h2>
+          </div>
+          <span id="pattern-import-status" class="pattern-import-status" role="status">Загрузка</span>
+          <p id="pattern-import-status-message"></p>
+        </section>
+
+        <section id="pattern-import-corrupted" class="card danger-card" hidden>
+          <h2>Запись Import Pattern повреждена</h2>
+          <p id="pattern-import-diagnostic"></p>
+          <p>Остальные progress-записи проекта не изменены.</p>
+          <button id="pattern-import-reset" class="link-button link-button-primary" type="button">Создать intake заново</button>
+        </section>
+
+        <section id="pattern-import-blocked" class="card danger-card" hidden>
+          <p class="step-label">Безопасная остановка</p>
+          <h2>Import Pattern пока недоступен</h2>
+          <ul id="pattern-import-blockers"></ul>
+          <a class="link-button" href="/">Вернуться к проекту</a>
+        </section>
+
+        <section id="pattern-import-collecting" class="card action-card" hidden>
+          <div class="pattern-import-actions">
+            <div>
+              <p class="step-label">Материалы проекта</p>
+              <h2>Добавьте всё, что относится к описанию</h2>
+              <p>Можно выбрать несколько файлов сразу. Поддерживаются PDF, изображения и текстовые файлы до 50 МБ каждый.</p>
+            </div>
+            <button id="pattern-import-add" class="link-button link-button-primary" type="button">Добавить материал</button>
+            <input id="pattern-import-input" class="visually-hidden" type="file" accept="application/pdf,image/*,text/plain,text/markdown,.pdf,.txt,.md" multiple>
+          </div>
+          <p id="pattern-import-form-error" class="form-error" role="alert"></p>
+        </section>
+
+        <section id="pattern-import-materials-panel" class="card" hidden>
+          <div class="pattern-import-list-heading">
+            <div>
+              <p class="step-label">Порядок источников</p>
+              <h2>Загруженные материалы</h2>
+            </div>
+            <span id="pattern-import-count" class="pattern-import-count"></span>
+          </div>
+          <ol id="pattern-import-materials" class="pattern-import-materials"></ol>
+          <label class="check-row pattern-import-confirm-row">
+            <input id="pattern-import-confirm" type="checkbox">
+            Я проверил(а) список и подтверждаю, что все материалы относятся к одному будущему проекту
+          </label>
+          <button id="pattern-import-continue" class="link-button link-button-primary" type="button" disabled>Продолжить</button>
+          <p class="pattern-import-safety">Продолжение только завершит intake. Никакая обработка или следующий этап не запустятся.</p>
+        </section>
+
+        <section id="pattern-import-completed" class="card completed-card" hidden>
+          <p class="step-label">Import Pattern подтверждён</p>
+          <h2>Материалы сохранены</h2>
+          <p id="pattern-import-completed-summary"></p>
+          <p>Содержимое не обрабатывалось. Следующая стадия отсутствует и ничего не запускается автоматически.</p>
+          <a class="link-button" href="/">Вернуться к проектам</a>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

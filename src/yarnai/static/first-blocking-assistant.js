@@ -65,6 +65,7 @@ const ui = {
   restartCorrection: $("#blocking-restart-correction"),
   completed: $("#blocking-completed"),
   completedDate: $("#blocking-completed-date"),
+  patternImportLink: $("#blocking-pattern-import-link"),
 };
 
 let repository;
@@ -276,6 +277,9 @@ function render() {
     renderCorrection(state);
   } else if (state.status === "completed") {
     ui.completed.hidden = false;
+    ui.patternImportLink.href = `/import-pattern?project=${encodeURIComponent(
+      projectId,
+    )}`;
     ui.completedDate.textContent = `Подтверждено ${new Intl.DateTimeFormat(
       "ru",
       { dateStyle: "medium", timeStyle: "short" },

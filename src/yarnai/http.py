@@ -324,6 +324,15 @@ async def first_blocking(_request: Request) -> FileResponse:
     )
 
 
+async def pattern_import(_request: Request) -> FileResponse:
+    """Return the safe pattern-material intake page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-import.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -447,6 +456,11 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/first-blocking",
             first_blocking,
+            methods=["GET"],
+        ),
+        Route(
+            "/import-pattern",
+            pattern_import,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),
