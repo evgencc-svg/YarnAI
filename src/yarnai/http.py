@@ -279,6 +279,15 @@ async def bind_off_assistant(_request: Request) -> FileResponse:
     )
 
 
+async def second_piece_assistant(_request: Request) -> FileResponse:
+    """Return the identical second-piece assistant page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "second-piece-assistant.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -379,6 +388,11 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route("/section-assistant", section_assistant, methods=["GET"]),
         Route("/shaping-assistant", shaping_assistant, methods=["GET"]),
         Route("/bind-off-assistant", bind_off_assistant, methods=["GET"]),
+        Route(
+            "/second-piece-assistant",
+            second_piece_assistant,
+            methods=["GET"],
+        ),
         Route("/test", tester_start, methods=["GET"]),
         Route("/feedback", feedback, methods=["GET"]),
         Route("/health", health, methods=["GET"]),

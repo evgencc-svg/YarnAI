@@ -43,6 +43,8 @@
   const firstFabricSection = globalObject.YarnAIFirstFabricSection;
   const firstSimpleShaping = globalObject.YarnAIFirstSimpleShaping;
   const firstBindOff = globalObject.YarnAIFirstBindOff;
+  const secondIdenticalPiece =
+    globalObject.YarnAISecondIdenticalPiece;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -553,6 +555,7 @@
             let sectionInspection = firstFabricSection?.inspectAggregate(aggregate);
             let shapingInspection = firstSimpleShaping?.inspectAggregate(aggregate);
             let bindOffInspection = null;
+            let secondPieceInspection = null;
             if (
               firstFabricSection &&
               stepInspection?.state === "ready" &&
@@ -599,6 +602,16 @@
                 bindOffInspection = firstBindOff.inspectAggregate(aggregate);
               }
             }
+            if (
+              secondIdenticalPiece &&
+              (bindOffInspection?.bindOff?.status === "completed" ||
+                String(aggregate.project.current_stage || "").startsWith(
+                  "second_piece_",
+                ))
+            ) {
+              secondPieceInspection =
+                secondIdenticalPiece.inspectAggregate(aggregate);
+            }
             return {
               project,
               inspection: calculatedProjects.inspectAggregate(aggregate),
@@ -606,6 +619,7 @@
               sectionInspection: firstFabricSection?.inspectAggregate(aggregate),
               shapingInspection: firstSimpleShaping?.inspectAggregate(aggregate),
               bindOffInspection,
+              secondPieceInspection,
             };
           } catch (error) {
             return {
@@ -620,6 +634,7 @@
               sectionInspection: null,
               shapingInspection: null,
               bindOffInspection: null,
+              secondPieceInspection: null,
             };
           }
         }),
@@ -650,6 +665,7 @@
           sectionInspection,
           shapingInspection,
           bindOffInspection,
+          secondPieceInspection,
         }) => {
           const card = document.createElement("article");
           card.className = "saved-project-card";
@@ -689,8 +705,14 @@
             bindOffInspection,
             project.project_id,
           );
+          const secondPieceHome = secondIdenticalPiece?.homeState(
+            secondPieceInspection,
+            project.project_id,
+          );
           const stage =
-            bindOffHome
+            secondPieceHome
+              ? secondPieceHome.stage
+              : bindOffHome
               ? bindOffHome.stage
               : shapingHome
               ? shapingHome.stage
@@ -710,7 +732,9 @@
 
           const summary = document.createElement("p");
           summary.className = "saved-project-summary";
-          if (bindOffHome) {
+          if (secondPieceHome) {
+            summary.textContent = secondPieceHome.summary;
+          } else if (bindOffHome) {
             summary.textContent = bindOffHome.summary;
           } else if (shapingHome) {
             summary.textContent = shapingHome.summary;
@@ -731,6 +755,7 @@
           const link = document.createElement("a");
           link.className = "saved-project-continue";
           link.href =
+            secondPieceHome?.href ??
             bindOffHome?.href ??
             shapingHome?.href ??
             sectionHome?.href ??
@@ -741,6 +766,7 @@
             ) ??
             `/calculator?project=${encodeURIComponent(project.project_id)}`;
           link.textContent =
+            secondPieceHome?.label ??
             bindOffHome?.label ??
             shapingHome?.label ??
             sectionHome?.label ??

@@ -1,0 +1,126 @@
+.second-piece-shell {
+  max-width: 940px;
+}
+
+.second-piece-workflow {
+  display: grid;
+  gap: 1rem;
+}
+
+.second-piece-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.source-ready-badge {
+  flex: none;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  color: #275d42;
+  background: #e5f2e9;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.second-piece-source-facts,
+.second-piece-progress-facts {
+  margin: 1rem 0;
+}
+
+.saved-note {
+  margin-bottom: 0;
+  color: var(--muted, #655f57);
+}
+
+.second-piece-checklist {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.2rem 0;
+}
+
+.second-piece-checklist label {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border, #ded7cb);
+  border-radius: 0.8rem;
+  background: var(--surface-soft, #f5f1e9);
+  line-height: 1.45;
+}
+
+.second-piece-checklist input {
+  margin-top: 0.2rem;
+}
+
+.second-piece-differences {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #ded7cb);
+}
+
+.second-piece-differences summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.second-piece-difference-actions,
+.second-piece-bind-off-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: end;
+}
+
+.second-piece-custom-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.second-piece-custom-form label {
+  width: 100%;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.second-piece-custom-form input {
+  width: 8rem;
+}
+
+#second-piece-bind-undo {
+  margin-top: 1rem;
+}
+
+#second-piece-blockers {
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .second-piece-heading {
+    display: block;
+  }
+
+  .source-ready-badge {
+    display: inline-block;
+    margin-top: 0.5rem;
+  }
+
+  .second-piece-source-facts,
+  .second-piece-progress-facts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .second-piece-bind-off-actions,
+  .second-piece-bind-off-actions > button,
+  .second-piece-custom-form {
+    width: 100%;
+  }
+
+  .second-piece-custom-form input {
+    flex: 1;
+  }
+}

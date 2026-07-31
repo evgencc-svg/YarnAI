@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="YarnAI повторяет завершённую первую деталь по сохранённому плану и ведёт отдельный прогресс второй детали."
+    >
+    <title>Вторая одинаковая деталь — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/second-piece-assistant.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-simple-shaping.js" defer></script>
+    <script src="/static/first-bind-off.js" defer></script>
+    <script src="/static/second-identical-piece.js" defer></script>
+    <script src="/static/second-piece-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для помощника второй детали нужен JavaScript. Включи JavaScript и перезагрузи страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/calculator">Калькулятор</a>
+      </nav>
+      <span class="version-badge">Демо 0.1.0</span>
+    </header>
+
+    <main class="page-shell second-piece-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Отдельный повтор проверенной детали</p>
+        <h1 id="page-title">Свяжем вторую такую же деталь</h1>
+        <p class="intro-copy">
+          Размеры и расчёты повторно вводить не нужно. План первой детали будет
+          сохранён как неизменяемый образец, а новый прогресс останется полностью отдельным.
+        </p>
+      </section>
+
+      <section id="second-piece-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось открыть вторую деталь</h2>
+        <p id="second-piece-error-message"></p>
+        <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+      </section>
+
+      <div id="second-piece-workflow" class="second-piece-workflow" hidden>
+        <section class="card assistant-project-summary">
+          <p class="step-label">Текущий проект</p>
+          <h2 id="second-piece-project-title">Сохранённый проект</h2>
+          <p id="second-piece-status-message" role="status"></p>
+        </section>
+
+        <section id="second-piece-source-panel" class="card">
+          <div class="second-piece-heading">
+            <div>
+              <p class="step-label">Проверенный образец</p>
+              <h2>Первая деталь завершена</h2>
+            </div>
+            <span class="source-ready-badge">✓ подтверждено</span>
+          </div>
+          <dl class="section-facts second-piece-source-facts">
+            <div><dt>Участок</dt><dd id="second-piece-source-section">—</dd></div>
+            <div><dt>Набор</dt><dd><span id="second-piece-source-initial">—</span> п.</dd></div>
+            <div><dt>Перед закрытием</dt><dd><span id="second-piece-source-target">—</span> п.</dd></div>
+            <div><dt>Формирование</dt><dd><span id="second-piece-source-events">—</span> события</dd></div>
+            <div><dt>План рядов</dt><dd id="second-piece-source-rows">—</dd></div>
+            <div><dt>Закрытие</dt><dd id="second-piece-source-bind-off">—</dd></div>
+          </dl>
+          <p id="second-piece-source-completed" class="saved-note"></p>
+        </section>
+
+        <section id="second-piece-blocked-panel" class="card smart-empty-state" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <h2>Автоматический повтор заблокирован</h2>
+          <ul id="second-piece-blockers"></ul>
+          <p>
+            YarnAI не будет выдавать изменённую или зеркальную деталь за идентичную.
+            Исходная первая деталь сохранена без изменений.
+          </p>
+        </section>
+
+        <section id="second-piece-warnings-panel" class="card warning-panel" hidden>
+          <h2>Обрати внимание</h2>
+          <ul id="second-piece-warnings"></ul>
+        </section>
+
+        <section id="second-piece-preparation-panel" class="card" hidden>
+          <p class="step-label">Шаг 1 · подготовка</p>
+          <h2>Подтверди идентичный повтор</h2>
+          <p>
+            Эти условия защищают от случайного переноса плана на другую деталь.
+          </p>
+          <form id="second-piece-checklist-form">
+            <div id="second-piece-checklist" class="second-piece-checklist"></div>
+            <p id="second-piece-form-error" class="form-error" role="alert"></p>
+            <button id="second-piece-start-button" class="primary-button" type="submit">
+              Подтвердить и начать вторую деталь
+            </button>
+          </form>
+          <details class="second-piece-differences">
+            <summary>Вторая деталь должна отличаться</summary>
+            <p>
+              Автоматический повтор остановится и покажет причину. Размеры и план
+              первой детали изменены не будут.
+            </p>
+            <div class="second-piece-difference-actions">
+              <button data-difference="mirrored" class="quiet-button" type="button">
+                Нужна зеркальная деталь
+              </button>
+              <button data-difference="size" class="quiet-button" type="button">
+                Нужен другой размер
+              </button>
+              <button data-difference="yarn" class="quiet-button" type="button">
+                Другая пряжа
+              </button>
+              <button data-difference="needles" class="quiet-button" type="button">
+                Другие спицы
+              </button>
+              <button data-difference="gauge" class="quiet-button" type="button">
+                Изменилась плотность
+              </button>
+              <button data-difference="construction" class="quiet-button" type="button">
+                Другая конструкция
+              </button>
+            </div>
+          </details>
+        </section>
+
+        <section id="second-piece-progress-overview" class="card" hidden>
+          <div class="second-piece-heading">
+            <div>
+              <p class="step-label">Отдельный сохранённый прогресс</p>
+              <h2 id="second-piece-current-step">Текущий этап</h2>
+            </div>
+            <span id="second-piece-saved-status" class="row-type-badge">Сохранено</span>
+          </div>
+          <dl class="section-facts second-piece-progress-facts">
+            <div><dt>Сейчас на спице</dt><dd><span id="second-piece-current-stitches">—</span> п.</dd></div>
+            <div><dt>Формирование</dt><dd id="second-piece-shaping-count">—</dd></div>
+            <div><dt>Закрыто</dt><dd><span id="second-piece-bound-count">—</span> п.</dd></div>
+          </dl>
+          <p id="second-piece-next-step" tabindex="-1"></p>
+        </section>
+
+        <section id="second-piece-cast-on-panel" class="card assistant-row-card" hidden>
+          <p class="step-label">Шаг 2 · набор</p>
+          <h2>Набери <span id="second-piece-cast-on-count">—</span> петель</h2>
+          <p>Используй ту же пряжу, те же спицы и тот же способ набора.</p>
+          <button id="second-piece-cast-on-button" class="primary-button" type="button">
+            Набрано точное количество
+          </button>
+        </section>
+
+        <section id="second-piece-shaping-panel" class="card assistant-row-card" hidden>
+          <p class="step-label">Шаг 3 · сохранённое формирование</p>
+          <h2 id="second-piece-shaping-title">Следующее событие</h2>
+          <p id="second-piece-shaping-instruction"></p>
+          <progress
+            id="second-piece-shaping-progress"
+            class="step-progress"
+            max="1"
+            value="0"
+            aria-label="Прогресс формирования второй детали"
+          ></progress>
+          <div class="smart-actions assistant-actions">
+            <button id="second-piece-shaping-undo" class="secondary-button" type="button">
+              Исправить последнее событие
+            </button>
+            <button id="second-piece-shaping-complete" class="primary-button" type="button">
+              Событие выполнено
+            </button>
+            <button id="second-piece-bind-off-start" class="primary-button" type="button" hidden>
+              Начать закрытие
+            </button>
+          </div>
+        </section>
+
+        <section id="second-piece-bind-off-panel" class="card assistant-row-card" hidden>
+          <p class="step-label">Шаг 4 · то же обычное закрытие</p>
+          <h2>Закрытие петель</h2>
+          <p>
+            Закрывай последовательно тем же способом, который подтверждён у первой детали.
+          </p>
+          <p id="second-piece-bind-off-progress" tabindex="-1"></p>
+          <progress
+            id="second-piece-bind-off-bar"
+            class="step-progress"
+            max="1"
+            value="0"
+            aria-label="Прогресс закрытия второй детали"
+          ></progress>
+          <div id="second-piece-bind-off-actions" class="second-piece-bind-off-actions">
+            <button id="second-piece-bind-one" class="primary-button" type="button">
+              Закрыта 1 петля
+            </button>
+            <button id="second-piece-bind-five" class="secondary-button" type="button">
+              Закрыто 5 петель
+            </button>
+            <form id="second-piece-bind-custom-form" class="second-piece-custom-form">
+              <label for="second-piece-bind-custom">Своё количество</label>
+              <input
+                id="second-piece-bind-custom"
+                type="number"
+                min="1"
+                step="1"
+                inputmode="numeric"
+                required
+              >
+              <button id="second-piece-bind-custom-button" class="secondary-button" type="submit">
+                Сохранить
+              </button>
+            </form>
+          </div>
+          <button id="second-piece-bind-undo" class="quiet-button" type="button">
+            Исправить последнее закрытие
+          </button>
+        </section>
+
+        <section id="second-piece-finish-panel" class="card completion-card" hidden>
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Шаг 5 · все петли отмечены как закрытые</p>
+          <h2>Закрепи последнюю петлю</h2>
+          <p>
+            Ноль петель не завершил деталь автоматически. Обрежь нить,
+            протяни хвост через последнюю петлю и затяни.
+          </p>
+          <div class="smart-actions assistant-actions">
+            <button id="second-piece-finish-undo" class="secondary-button" type="button">
+              Исправить последнее закрытие
+            </button>
+            <button id="second-piece-complete-button" class="primary-button" type="button">
+              Последняя петля закреплена — завершить
+            </button>
+          </div>
+        </section>
+
+        <section id="second-piece-completed-panel" class="card completion-card" hidden>
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Сохранено отдельно от первой детали</p>
+          <h2>Вторая одинаковая деталь готова</h2>
+          <p id="second-piece-completed-summary"></p>
+          <p id="second-piece-completed-date"></p>
+          <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+        </section>
+
+        <div class="smart-footer-actions">
+          <a class="link-button" href="/">Вернуться к проекту</a>
+          <a id="second-piece-first-detail-link" class="link-button" href="/">
+            Открыть завершённую первую деталь
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · вторая одинаковая деталь</span>
+      <span>Версия приложения 0.1.0</span>
+    </footer>
+  </body>
+</html>

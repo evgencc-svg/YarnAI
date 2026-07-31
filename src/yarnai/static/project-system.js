@@ -25,6 +25,7 @@
     "FIRST_FABRIC_SECTION",
     "FIRST_SIMPLE_SHAPING",
     "FIRST_BIND_OFF",
+    "SECOND_IDENTICAL_PIECE",
   ]);
   const ALL_STATUSES = new Set([...ACTIVE_STATUSES, "ARCHIVED", "DELETED"]);
   const RESTORABLE_STATUSES = new Set([
@@ -1893,6 +1894,8 @@
               : kind === "FIRST_SIMPLE_SHAPING"
                 ? { version: 0, initialized: false }
               : kind === "FIRST_BIND_OFF"
+                ? { version: 0, initialized: false }
+              : kind === "SECOND_IDENTICAL_PIECE"
                 ? { version: 0, initialized: false }
               : {
                   current_row: 1,
