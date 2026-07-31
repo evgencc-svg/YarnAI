@@ -118,6 +118,7 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
         "/static/calculated-project.js",
         "/static/first-knitting-step.js",
         "/static/first-fabric-section.js",
+        "/static/first-simple-shaping.js",
         "/static/first-user-flow.js",
     ]
     for asset in [*page.stylesheets, *page.scripts]:

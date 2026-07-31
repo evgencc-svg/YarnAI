@@ -41,6 +41,7 @@
   const calculatedProjects = globalObject.YarnAICalculatedProjects;
   const firstKnittingStep = globalObject.YarnAIFirstKnittingStep;
   const firstFabricSection = globalObject.YarnAIFirstFabricSection;
+  const firstSimpleShaping = globalObject.YarnAIFirstSimpleShaping;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -549,6 +550,7 @@
             let aggregate = await repository.getProject(project.project_id);
             const stepInspection = firstKnittingStep?.inspectAggregate(aggregate);
             let sectionInspection = firstFabricSection?.inspectAggregate(aggregate);
+            let shapingInspection = firstSimpleShaping?.inspectAggregate(aggregate);
             if (
               firstFabricSection &&
               stepInspection?.state === "ready" &&
@@ -564,11 +566,28 @@
                 sectionInspection = firstFabricSection.inspectAggregate(aggregate);
               }
             }
+            if (
+              firstSimpleShaping &&
+              sectionInspection?.state === "ready" &&
+              sectionInspection.section.status === "completed"
+            ) {
+              try {
+                shapingInspection = await firstSimpleShaping.ensureForProject(
+                  repository,
+                  project.project_id,
+                );
+                aggregate = await repository.getProject(project.project_id);
+              } catch {
+                shapingInspection =
+                  firstSimpleShaping.inspectAggregate(aggregate);
+              }
+            }
             return {
               project,
               inspection: calculatedProjects.inspectAggregate(aggregate),
               stepInspection: firstKnittingStep?.inspectAggregate(aggregate),
-              sectionInspection,
+              sectionInspection: firstFabricSection?.inspectAggregate(aggregate),
+              shapingInspection,
             };
           } catch (error) {
             return {
@@ -581,6 +600,7 @@
               },
               stepInspection: null,
               sectionInspection: null,
+              shapingInspection: null,
             };
           }
         }),
@@ -604,7 +624,13 @@
     });
     savedProjectsList.replaceChildren(
       ...entries.map(
-        ({ project, inspection, stepInspection, sectionInspection }) => {
+        ({
+          project,
+          inspection,
+          stepInspection,
+          sectionInspection,
+          shapingInspection,
+        }) => {
           const card = document.createElement("article");
           card.className = "saved-project-card";
           card.dataset.projectId = project.project_id;
@@ -635,8 +661,14 @@
             sectionInspection,
             project.project_id,
           );
+          const shapingHome = firstSimpleShaping?.homeState(
+            shapingInspection,
+            project.project_id,
+          );
           const stage =
-            sectionInspection?.state === "ready"
+            shapingHome
+              ? shapingHome.stage
+              : sectionInspection?.state === "ready"
               ? sectionStages[sectionInspection.section.status]
               : stepInspection?.state === "ready"
                 ? stepStages[stepInspection.step.status]
@@ -652,7 +684,9 @@
 
           const summary = document.createElement("p");
           summary.className = "saved-project-summary";
-          if (sectionHome) {
+          if (shapingHome) {
+            summary.textContent = shapingHome.summary;
+          } else if (sectionHome) {
             summary.textContent = sectionHome.summary;
           } else if (stepInspection?.state === "ready") {
             summary.textContent = firstKnittingStep.progressSummary(
@@ -669,6 +703,7 @@
           const link = document.createElement("a");
           link.className = "saved-project-continue";
           link.href =
+            shapingHome?.href ??
             sectionHome?.href ??
             firstKnittingStep?.continueDestination(
               inspection,
@@ -677,6 +712,7 @@
             ) ??
             `/calculator?project=${encodeURIComponent(project.project_id)}`;
           link.textContent =
+            shapingHome?.label ??
             sectionHome?.label ??
             (stepInspection?.state === "ready" &&
             stepInspection.step.status === "not_started"

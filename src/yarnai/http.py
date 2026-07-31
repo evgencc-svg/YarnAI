@@ -261,6 +261,15 @@ async def section_assistant(_request: Request) -> FileResponse:
     )
 
 
+async def shaping_assistant(_request: Request) -> FileResponse:
+    """Return the first simple shaping assistant page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "shaping-assistant.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -359,6 +368,7 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route("/smart-start", smart_start, methods=["GET"]),
         Route("/step-assistant", step_assistant, methods=["GET"]),
         Route("/section-assistant", section_assistant, methods=["GET"]),
+        Route("/shaping-assistant", shaping_assistant, methods=["GET"]),
         Route("/test", tester_start, methods=["GET"]),
         Route("/feedback", feedback, methods=["GET"]),
         Route("/health", health, methods=["GET"]),

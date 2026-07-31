@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="YarnAI проводит по первому простому симметричному убавлению полотна."
+    >
+    <title>Первое простое формирование — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/shaping-assistant.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-knitting-step.js" defer></script>
+    <script src="/static/first-fabric-section.js" defer></script>
+    <script src="/static/first-simple-shaping.js" defer></script>
+    <script src="/static/shaping-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для ассистента формирования нужен JavaScript. Включи JavaScript и перезагрузи страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/calculator">Калькулятор</a>
+      </nav>
+      <span class="version-badge">Демо 0.1.0</span>
+    </header>
+
+    <main class="page-shell smart-start-shell shaping-assistant-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Первое простое формирование</p>
+        <h1 id="page-title">Равномерно уменьшим ширину полотна</h1>
+        <p class="intro-copy">
+          Только симметричные убавления: по одной петле у каждого края в выбранных рядах.
+        </p>
+      </section>
+
+      <section id="shaping-assistant-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось безопасно открыть формирование</h2>
+        <p id="shaping-error-message"></p>
+        <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+      </section>
+
+      <div id="shaping-assistant-workflow" class="step-assistant-workflow" hidden>
+        <section class="card assistant-project-summary">
+          <p class="step-label">Текущий проект</p>
+          <h2 id="shaping-project-title">Сохранённый проект</h2>
+          <p id="shaping-status-message"></p>
+        </section>
+
+        <section id="shaping-question-panel" class="card section-question-card" hidden>
+          <p class="step-label">Нужен один ответ</p>
+          <form id="shaping-question-form">
+            <fieldset>
+              <legend id="shaping-question-text"></legend>
+              <div id="shaping-question-inputs" class="section-question-inputs"></div>
+            </fieldset>
+            <p id="shaping-question-error" class="form-error" role="alert"></p>
+            <button id="shaping-answer-button" class="primary-button" type="submit">
+              Сохранить ответ
+            </button>
+          </form>
+        </section>
+
+        <section id="shaping-declined-panel" class="card completion-card" hidden>
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Ответ сохранён</p>
+          <h2>Формирование сейчас не требуется</h2>
+          <p>Фиктивный этап убавлений не создан. Ответ сохранён в проекте.</p>
+        </section>
+
+        <section id="shaping-plan-panel" class="card shaping-plan-card" hidden>
+          <p class="step-label">План убавлений</p>
+          <h2>Симметрично с двух сторон</h2>
+          <dl class="section-facts shaping-facts">
+            <div><dt>Исходно</dt><dd><span id="shaping-start-count">—</span> п.</dd></div>
+            <div><dt>Цель</dt><dd><span id="shaping-target-count">—</span> п.</dd></div>
+            <div><dt>Участок</dt><dd><span id="shaping-total-rows">—</span> р.</dd></div>
+            <div><dt>Убавления</dt><dd><span id="shaping-events-count">—</span> раз</dd></div>
+          </dl>
+          <p class="shaping-row-plan">
+            Ряды с убавлениями: <strong id="shaping-decrease-rows">—</strong>
+          </p>
+          <button id="shaping-start-button" class="primary-button" type="button">
+            Начать формирование
+          </button>
+        </section>
+
+        <section id="shaping-blocked-panel" class="card smart-empty-state" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <h2>Формирование заблокировано</h2>
+          <ul id="shaping-blockers"></ul>
+          <p>Рабочая инструкция не создана, исходные числа не изменены.</p>
+        </section>
+
+        <section id="shaping-warnings-panel" class="card warning-panel" hidden>
+          <h2>Обрати внимание</h2>
+          <ul id="shaping-warnings"></ul>
+        </section>
+
+        <section id="shaping-progress-panel" class="card assistant-row-card" hidden aria-live="polite">
+          <div class="assistant-row-heading">
+            <div>
+              <p class="step-label">Что делать сейчас</p>
+              <h2>Ряд <span id="shaping-current-row">1</span></h2>
+            </div>
+            <span id="shaping-current-count" class="row-type-badge">— петель</span>
+          </div>
+          <p id="shaping-current-instruction" class="section-current-instruction"></p>
+          <p id="shaping-progress-text" tabindex="-1">0 из 0 рядов</p>
+          <progress
+            id="shaping-progress"
+            class="step-progress"
+            max="1"
+            value="0"
+            aria-label="Прогресс первого формирования"
+          ></progress>
+          <div class="smart-actions assistant-actions">
+            <button id="shaping-row-back-button" class="secondary-button" type="button">
+              Исправить предыдущий ряд
+            </button>
+            <button id="shaping-row-complete-button" class="primary-button" type="button">
+              Ряд завершён
+            </button>
+          </div>
+        </section>
+
+        <section id="shaping-target-panel" class="card completion-card" hidden aria-live="polite">
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Все ряды выполнены</p>
+          <h2>Проверь число петель</h2>
+          <p>
+            Должно остаться <strong><span id="shaping-final-count">—</span> петель</strong>.
+            Этап ещё не завершён автоматически.
+          </p>
+          <div class="smart-actions assistant-actions">
+            <button id="shaping-target-back-button" class="secondary-button" type="button">
+              Исправить предыдущий ряд
+            </button>
+            <button id="shaping-complete-button" class="primary-button" type="button">
+              Завершить формирование
+            </button>
+          </div>
+        </section>
+
+        <section id="shaping-completed-panel" class="card completion-card" hidden>
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Этап завершён</p>
+          <h2>Первое формирование завершено</h2>
+          <p id="shaping-completed-summary"></p>
+        </section>
+
+        <section id="shaping-edit-panel" class="card section-edit-panel" hidden>
+          <h2>Исправить ответ до начала</h2>
+          <div class="section-edit-controls">
+            <label for="shaping-edit-field">Что изменить</label>
+            <select id="shaping-edit-field"></select>
+            <button id="shaping-edit-button" class="secondary-button" type="button">
+              Изменить
+            </button>
+          </div>
+        </section>
+
+        <div class="smart-footer-actions">
+          <a id="shaping-project-link" class="link-button" href="/">Вернуться к проекту</a>
+          <a id="shaping-section-link" class="link-button" href="/">Открыть первый участок</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · первое простое формирование</span>
+      <span>Версия приложения 0.1.0</span>
+    </footer>
+  </body>
+</html>

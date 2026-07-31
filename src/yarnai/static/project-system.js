@@ -23,6 +23,7 @@
   const SUPPORTED_CALCULATION_PROGRESS_KINDS = Object.freeze([
     ...DEFAULT_CALCULATION_PROGRESS_KINDS,
     "FIRST_FABRIC_SECTION",
+    "FIRST_SIMPLE_SHAPING",
   ]);
   const ALL_STATUSES = new Set([...ACTIVE_STATUSES, "ARCHIVED", "DELETED"]);
   const RESTORABLE_STATUSES = new Set([
@@ -1888,6 +1889,8 @@
             ? { current_step: 0, completed: false }
             : kind === "FIRST_FABRIC_SECTION"
               ? { version: 0, initialized: false }
+              : kind === "FIRST_SIMPLE_SHAPING"
+                ? { version: 0, initialized: false }
               : {
                   current_row: 1,
                   current_stitch: 0,

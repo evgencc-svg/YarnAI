@@ -39,6 +39,7 @@ const targetPanel = document.querySelector("#section-target-panel");
 const targetBackButton = document.querySelector("#section-target-back-button");
 const completeButton = document.querySelector("#section-complete-button");
 const completedPanel = document.querySelector("#section-completed-panel");
+const shapingLink = document.querySelector("#section-shaping-link");
 const editPanel = document.querySelector("#section-edit-panel");
 const editField = document.querySelector("#section-edit-field");
 const editButton = document.querySelector("#section-edit-button");
@@ -98,6 +99,8 @@ function render(moveFocus) {
   projectTitle.textContent =
     inspection.source.project.title || "Сохранённый проект";
   projectLink.href = "/";
+  shapingLink.href =
+    `/shaping-assistant?project=${encodeURIComponent(projectId)}`;
 
   questionPanel.hidden = section.status !== "collecting";
   readyPanel.hidden = section.status !== "ready";

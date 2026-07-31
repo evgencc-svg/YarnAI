@@ -1,0 +1,32 @@
+.shaping-assistant-shell {
+  max-width: 920px;
+}
+
+.shaping-plan-card h2 {
+  margin-bottom: 1rem;
+}
+
+.shaping-facts {
+  margin-bottom: 1rem;
+}
+
+.shaping-row-plan {
+  padding: 0.9rem 1rem;
+  border-radius: 0.8rem;
+  background: var(--surface-soft, #f5f1e9);
+  line-height: 1.55;
+}
+
+#shaping-current-instruction {
+  font-size: clamp(1.08rem, 2vw, 1.3rem);
+}
+
+#shaping-blockers {
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .shaping-facts {
+    grid-template-columns: 1fr 1fr;
+  }
+}
