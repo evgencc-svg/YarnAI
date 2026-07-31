@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="YarnAI помогает определить и связать первый прямой участок полотна после набора петель."
+    >
+    <title>Первый участок полотна — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-knitting-step.js" defer></script>
+    <script src="/static/first-fabric-section.js" defer></script>
+    <script src="/static/section-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для ассистента участка нужен JavaScript. Включи JavaScript и перезагрузи страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/calculator">Калькулятор</a>
+      </nav>
+      <span class="version-badge">Демо 0.1.0</span>
+    </header>
+
+    <main class="page-shell smart-start-shell section-assistant-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Первый участок полотна</p>
+        <h1 id="page-title">Набор завершён. Определим следующий участок.</h1>
+        <p class="intro-copy">
+          YarnAI задаст только следующий необходимый вопрос и не будет придумывать формирование изделия.
+        </p>
+      </section>
+
+      <section id="section-assistant-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось безопасно открыть участок</h2>
+        <p id="section-error-message"></p>
+        <a id="section-error-return" class="link-button link-button-primary" href="/">
+          Вернуться к проекту
+        </a>
+      </section>
+
+      <div id="section-assistant-workflow" class="step-assistant-workflow" hidden>
+        <section class="card assistant-project-summary">
+          <p class="step-label">Текущий проект</p>
+          <h2 id="section-project-title">Сохранённый проект</h2>
+          <p id="section-status-message"></p>
+        </section>
+
+        <section id="section-question-panel" class="card section-question-card" hidden>
+          <p class="step-label">Нужен один ответ</p>
+          <form id="section-question-form">
+            <fieldset id="section-question-fieldset">
+              <legend id="section-question-text"></legend>
+              <div id="section-question-inputs" class="section-question-inputs"></div>
+            </fieldset>
+            <p id="section-question-help" class="form-hint" hidden></p>
+            <p id="section-question-error" class="form-error" role="alert"></p>
+            <button id="section-answer-button" class="primary-button" type="submit">
+              Сохранить ответ
+            </button>
+          </form>
+        </section>
+
+        <section id="section-ready-panel" class="card" hidden>
+          <p class="step-label">Участок готов</p>
+          <h2>Первый прямой участок</h2>
+          <dl class="section-facts">
+            <div><dt>Способ вязания</dt><dd id="section-knitting-mode">—</dd></div>
+            <div><dt>Полотно</dt><dd id="section-fabric-type">—</dd></div>
+            <div><dt>Цель</dt><dd id="section-target">—</dd></div>
+            <div><dt>Количество рядов</dt><dd id="section-calculated-rows">—</dd></div>
+          </dl>
+          <p id="section-instruction-summary"></p>
+          <p id="section-row-calculation" class="form-hint" hidden></p>
+          <button id="section-start-button" class="primary-button" type="button">
+            Начать участок
+          </button>
+        </section>
+
+        <section id="section-blocked-panel" class="card smart-empty-state" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <h2>Прямой участок нельзя сформировать безопасно</h2>
+          <ul id="section-blocking-reasons"></ul>
+          <p>Инструкция не создана. Сохранённые данные не удалены.</p>
+        </section>
+
+        <section id="section-warnings-panel" class="card warning-panel" hidden>
+          <h2>Обрати внимание</h2>
+          <ul id="section-warnings"></ul>
+        </section>
+
+        <section id="section-progress-panel" class="card assistant-row-card" hidden aria-live="polite">
+          <div class="assistant-row-heading">
+            <div>
+              <p class="step-label">Текущий ряд</p>
+              <h2>Ряд <span id="section-current-row">1</span></h2>
+            </div>
+            <span id="section-row-type" class="row-type-badge">Нечётный</span>
+          </div>
+          <p id="section-current-instruction" class="section-current-instruction"></p>
+          <p id="section-progress-text" tabindex="-1">0 из 0 рядов</p>
+          <progress
+            id="section-progress"
+            class="step-progress"
+            max="1"
+            value="0"
+            aria-label="Прогресс первого участка"
+          ></progress>
+          <div class="smart-actions assistant-actions">
+            <button id="section-row-back-button" class="secondary-button" type="button">
+              Уменьшить номер ряда
+            </button>
+            <button id="section-row-complete-button" class="primary-button" type="button">
+              Ряд завершён
+            </button>
+          </div>
+        </section>
+
+        <section id="section-target-panel" class="card completion-card" hidden aria-live="polite">
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Цель достигнута</p>
+          <h2>Все запланированные ряды отмечены</h2>
+          <p>Участок ещё не завершён автоматически. Проверь работу и подтверди завершение.</p>
+          <div class="smart-actions assistant-actions">
+            <button id="section-target-back-button" class="secondary-button" type="button">
+              Вернуться на один ряд
+            </button>
+            <button id="section-complete-button" class="primary-button" type="button">
+              Завершить участок
+            </button>
+          </div>
+        </section>
+
+        <section id="section-completed-panel" class="card completion-card" hidden>
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Участок завершён</p>
+          <h2>Первый участок завершён</h2>
+          <p>
+            Первый участок завершён. Для следующего этапа нужно определить формирование изделия.
+          </p>
+        </section>
+
+        <section id="section-edit-panel" class="card section-edit-panel" hidden>
+          <h2>Исправить ответ до начала</h2>
+          <div class="section-edit-controls">
+            <label for="section-edit-field">Что изменить</label>
+            <select id="section-edit-field"></select>
+            <button id="section-edit-button" class="secondary-button" type="button">
+              Изменить
+            </button>
+          </div>
+        </section>
+
+        <div class="smart-footer-actions">
+          <a id="section-project-link" class="link-button" href="/">Вернуться к проекту</a>
+          <a class="link-button" href="/">На главную</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · первый прямой участок полотна</span>
+      <span>Версия приложения 0.1.0</span>
+    </footer>
+  </body>
+</html>

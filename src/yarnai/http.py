@@ -252,6 +252,15 @@ async def step_assistant(_request: Request) -> FileResponse:
     )
 
 
+async def section_assistant(_request: Request) -> FileResponse:
+    """Return the first straight fabric section assistant page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "section-assistant.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -349,6 +358,7 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route("/example", canonical_example, methods=["GET"]),
         Route("/smart-start", smart_start, methods=["GET"]),
         Route("/step-assistant", step_assistant, methods=["GET"]),
+        Route("/section-assistant", section_assistant, methods=["GET"]),
         Route("/test", tester_start, methods=["GET"]),
         Route("/feedback", feedback, methods=["GET"]),
         Route("/health", health, methods=["GET"]),

@@ -39,6 +39,7 @@ const projectLink = document.querySelector("#assistant-project-link");
 const nextTechnologyMessage = document.querySelector(
   "#next-technology-message",
 );
+const nextSectionLink = document.querySelector("#next-section-link");
 
 let calculation = null;
 let progress = null;
@@ -209,6 +210,11 @@ function renderProjectMode(moveFocus) {
   activeRowPanel.hidden = targetReached;
   rowCompletionPanel.hidden = !targetReached;
   nextTechnologyMessage.hidden = !explicitlyCompleted;
+  nextSectionLink.hidden = !explicitlyCompleted;
+  if (explicitlyCompleted) {
+    nextSectionLink.href =
+      `/section-assistant?project=${encodeURIComponent(projectId)}`;
+  }
   completionBackButton.hidden = explicitlyCompleted;
   nextRowButton.hidden = explicitlyCompleted;
 

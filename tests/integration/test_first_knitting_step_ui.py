@@ -104,4 +104,6 @@ def test_step_assistant_exposes_project_progress_and_explicit_completion() -> No
     assert "changeCurrentCount" in script
     assert "completeForProject" in script
     assert "status === \"completed\"" in script
-    assert "Следующий этап технологии пока не сформирован" in html
+    assert "Набор завершён. Определим следующий участок." in html
+    assert 'id="next-section-link"' in html
+    assert "Перейти к следующему участку" in html

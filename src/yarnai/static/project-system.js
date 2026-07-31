@@ -16,6 +16,14 @@
   const TIMESTAMP_PATTERN =
     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
   const ACTIVE_STATUSES = new Set(["DRAFT", "ACTIVE", "PAUSED", "COMPLETED"]);
+  const DEFAULT_CALCULATION_PROGRESS_KINDS = Object.freeze([
+    "SMART_START",
+    "STEP_ASSISTANT",
+  ]);
+  const SUPPORTED_CALCULATION_PROGRESS_KINDS = Object.freeze([
+    ...DEFAULT_CALCULATION_PROGRESS_KINDS,
+    "FIRST_FABRIC_SECTION",
+  ]);
   const ALL_STATUSES = new Set([...ACTIVE_STATUSES, "ARCHIVED", "DELETED"]);
   const RESTORABLE_STATUSES = new Set([
     "DRAFT",
@@ -1088,6 +1096,118 @@
       return clone(record);
     }
 
+    async ensureCalculationProgress(
+      projectId,
+      calculationId,
+      kind,
+      initialState,
+      options = {},
+    ) {
+      if (
+        !isUuidv7(projectId) ||
+        !isUuidv7(calculationId) ||
+        typeof kind !== "string" ||
+        !kind.trim() ||
+        !initialState ||
+        typeof initialState !== "object" ||
+        Array.isArray(initialState)
+      ) {
+        throw new ProjectRepositoryError(
+          "INVALID_PROGRESS_SCOPE",
+          "Не удалось безопасно подготовить состояние проекта.",
+        );
+      }
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.workspace_status === "DELETED") {
+          throw new ProjectRepositoryError(
+            "INVALID_LIFECYCLE_TRANSITION",
+            "Нельзя изменять прогресс проекта из корзины.",
+          );
+        }
+        if (before.active_calculation_id !== calculationId) {
+          throw new ProjectRepositoryError(
+            "CALCULATION_MISMATCH",
+            "Прогресс относится не к активному расчёту проекта.",
+          );
+        }
+        const database = await this._database();
+        const readTransaction = database.transaction("progress", "readonly");
+        const existing = await requestResult(
+          readTransaction
+            .objectStore("progress")
+            .index("by_scope_epoch")
+            .get([projectId, calculationId, kind, 1]),
+        );
+        await transactionComplete(readTransaction);
+        if (existing) {
+          validateProgressRecord(existing, projectId, calculationId, kind);
+          return clone(existing);
+        }
+
+        const timestamp = options.timestamp ?? utcNow();
+        const progress = this._initialProgress(
+          projectId,
+          calculationId,
+          kind,
+          timestamp,
+        );
+        progress.state = clone(initialState);
+        const nextProject = clone(before);
+        nextProject.updated_at = timestamp;
+        nextProject.revision = before.revision + 1;
+        nextProject.materialized_checksum = await checksumPayload(
+          projectChecksumPayload(nextProject),
+        );
+        const operation = createOperation(
+          nextProject,
+          options.operationKind ?? "PROGRESS_CREATED",
+          {
+            calculation_id: calculationId,
+            progress_id: progress.progress_id,
+            progress_kind: kind,
+            progress_revision: progress.revision,
+            progress_state: clone(progress.state),
+          },
+          timestamp,
+          before.revision,
+          nextProject.revision,
+        );
+        const checkpoint = createCheckpoint(
+          nextProject,
+          nextProject.materialized_checksum,
+          nextProject.revision,
+          timestamp,
+        );
+        const transaction = database.transaction(
+          ["projects", "progress", "operations", "checkpoints", "meta"],
+          "readwrite",
+        );
+        try {
+          const storedProject = await requestResult(
+            transaction.objectStore("projects").get(projectId),
+          );
+          if (!storedProject || storedProject.revision !== before.revision) {
+            transaction.abort();
+            throw new ProjectRepositoryError(
+              "PROGRESS_REVISION_CONFLICT",
+              "Проект изменён в другой вкладке. Обновите страницу.",
+            );
+          }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress);
+          transaction.objectStore("projects").put(nextProject);
+          transaction.objectStore("operations").add(operation);
+          transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) {
+          throw mapStorageError(error);
+        }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
     async updateCalculationProgress(
       projectId,
       calculationId,
@@ -1155,6 +1275,13 @@
         const nextProject = clone(before);
         if (typeof options.projectStage === "string") {
           nextProject.current_stage = options.projectStage;
+        }
+        if (
+          options.projectDraftInput !== undefined &&
+          options.projectDraftInput !== null
+        ) {
+          nextProject.draft_input = clone(options.projectDraftInput);
+          nextProject.has_unfinished_calculation = false;
         }
         nextProject.updated_at = timestamp;
         nextProject.revision = before.revision + 1;
@@ -1695,7 +1822,7 @@
         projectChecksumPayload(project),
       );
       const progress = project.active_calculation_id
-        ? ["SMART_START", "STEP_ASSISTANT"].map((kind) =>
+        ? DEFAULT_CALCULATION_PROGRESS_KINDS.map((kind) =>
             this._initialProgress(
               newProjectId,
               project.active_calculation_id,
@@ -1759,11 +1886,13 @@
         state:
           kind === "SMART_START"
             ? { current_step: 0, completed: false }
-            : {
-                current_row: 1,
-                current_stitch: 0,
-                completed_rows: [],
-              },
+            : kind === "FIRST_FABRIC_SECTION"
+              ? { version: 0, initialized: false }
+              : {
+                  current_row: 1,
+                  current_stitch: 0,
+                  completed_rows: [],
+                },
         created_at: timestamp,
         updated_at: timestamp,
         revision: 1,
@@ -1847,7 +1976,7 @@
         next.materialized_checksum = await checksumPayload(
           projectChecksumPayload(next),
         );
-        const progress = ["SMART_START", "STEP_ASSISTANT"].map((kind) =>
+        const progress = DEFAULT_CALCULATION_PROGRESS_KINDS.map((kind) =>
           this._initialProgress(projectId, calculationId, kind, timestamp),
         );
         const operation = createOperation(
@@ -2308,7 +2437,7 @@
         if (
           entry.project_id !== sourceProjectId ||
           !isUuidv7(entry.progress_id) ||
-          !["SMART_START", "STEP_ASSISTANT"].includes(entry.kind)
+          !SUPPORTED_CALCULATION_PROGRESS_KINDS.includes(entry.kind)
         ) {
           throw new ProjectRepositoryError(
             "INVALID_IMPORT_PROGRESS",
