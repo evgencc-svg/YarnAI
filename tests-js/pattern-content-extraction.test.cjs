@@ -113,6 +113,19 @@ test("applies text size limits and reports unsupported, image metadata and missi
   assert.equal(missing.error.code, "file_blob_missing");
 });
 
+test("combined text limit deterministically produces partial instead of completed", () => {
+  const files = [1, 2, 3].map((order) => ({
+    sourceFileId: String(order), order, name: `${order}.txt`, mediaType: "text/plain", size: 400_000,
+    extractionStatus: "extracted", text: "x".repeat(400_000), textLength: 400_000, warnings: [], error: null,
+  }));
+  const result = extraction.buildResult(files);
+  assert.ok(result.combinedText.length <= extraction.MAX_COMBINED_TEXT_CHARS);
+  assert.equal(result.files[2].extractionStatus, "truncated");
+  assert.equal(result.files[2].error.code, "combined_text_too_long");
+  const waiting = extraction.createInitialState({ projectId: "p", sourceImportId: "i", sourceImportRevision: 1, sourceAnalysisId: "a", sourceAnalysisRevision: 1, filesCount: 3 });
+  assert.equal(extraction.finishState(extraction.startState(waiting), result).status, "partial");
+});
+
 test("retry increments revision and interrupted extracting recovers as failed", async () => {
   const context = await fixture([material("one", 1, "notes.txt", "text", 1)], [new Blob(["x"], { type: "text/plain" })]);
   let result = await extraction.runForProject(context.repository, context.project.project_id);

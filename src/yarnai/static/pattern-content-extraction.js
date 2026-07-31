@@ -213,25 +213,32 @@
   }
 
   function buildResult(files) {
-    const ordered = [...files].sort((left, right) => left.order - right.order);
+    const ordered = files.map(copy).sort((left, right) => left.order - right.order);
     const sections = [];
     const warnings = [];
     for (const file of ordered) {
       warnings.push(...file.warnings.map((warning) => ({ ...warning, sourceFileId: file.sourceFileId })));
       if (file.extractionStatus !== "extracted" || !file.text) continue;
+      const fileSections = [];
       if (Array.isArray(file.pages)) {
         for (const page of file.pages) {
-          if (page.text) sections.push(`=== FILE: ${file.name} | PAGE: ${page.pageNumber} ===\n${page.text}`);
+          if (page.text) fileSections.push(`=== FILE: ${file.name} | PAGE: ${page.pageNumber} ===\n${page.text}`);
         }
       } else {
-        sections.push(`=== FILE: ${file.name} ===\n${file.text}`);
+        fileSections.push(`=== FILE: ${file.name} ===\n${file.text}`);
       }
+      const candidate = [...sections, ...fileSections].join("\n\n");
+      if (candidate.length > MAX_COMBINED_TEXT_CHARS) {
+        const warning = notice("combined_text_too_long", "Файл не включён в объединённый текст из-за суммарного лимита.");
+        file.extractionStatus = "truncated";
+        file.warnings.push(warning);
+        file.error = warning;
+        warnings.push({ ...warning, sourceFileId: file.sourceFileId });
+        continue;
+      }
+      sections.push(...fileSections);
     }
-    let combinedText = sections.join("\n\n");
-    if (combinedText.length > MAX_COMBINED_TEXT_CHARS) {
-      combinedText = "";
-      warnings.push(notice("combined_text_too_long", "Объединённый текст превышает безопасный лимит и не был сформирован."));
-    }
+    const combinedText = sections.join("\n\n");
     return normalizeResult({ schemaVersion: 1, files: ordered, combinedText, warnings });
   }
 
