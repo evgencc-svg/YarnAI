@@ -49,6 +49,8 @@
     globalObject.YarnAIFirstAssemblyPreparation;
   const firstAssemblyJoin =
     globalObject.YarnAIFirstAssemblyJoin;
+  const firstAssemblyInspection =
+    globalObject.YarnAIFirstAssemblyInspection;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -562,6 +564,7 @@
             let secondPieceInspection = null;
             let assemblyInspection = null;
             let assemblyJoinInspection = null;
+            let assemblyQualityInspection = null;
             if (
               firstFabricSection &&
               stepInspection?.state === "ready" &&
@@ -656,6 +659,25 @@
                   firstAssemblyJoin.inspectAggregate(aggregate);
               }
             }
+            if (
+              firstAssemblyInspection &&
+              (assemblyJoinInspection?.join?.status === "completed" ||
+                String(aggregate.project.current_stage || "").startsWith(
+                  "assembly_inspection_",
+                ))
+            ) {
+              try {
+                assemblyQualityInspection =
+                  await firstAssemblyInspection.ensureForProject(
+                    repository,
+                    project.project_id,
+                  );
+                aggregate = await repository.getProject(project.project_id);
+              } catch {
+                assemblyQualityInspection =
+                  firstAssemblyInspection.inspectAggregate(aggregate);
+              }
+            }
             return {
               project,
               inspection: calculatedProjects.inspectAggregate(aggregate),
@@ -666,6 +688,7 @@
               secondPieceInspection,
               assemblyInspection,
               assemblyJoinInspection,
+              assemblyQualityInspection,
             };
           } catch (error) {
             return {
@@ -683,6 +706,7 @@
               secondPieceInspection: null,
               assemblyInspection: null,
               assemblyJoinInspection: null,
+              assemblyQualityInspection: null,
             };
           }
         }),
@@ -716,6 +740,7 @@
           secondPieceInspection,
           assemblyInspection,
           assemblyJoinInspection,
+          assemblyQualityInspection,
         }) => {
           const card = document.createElement("article");
           card.className = "saved-project-card";
@@ -767,8 +792,15 @@
             assemblyJoinInspection,
             project.project_id,
           );
+          const assemblyQualityHome =
+            firstAssemblyInspection?.homeState(
+              assemblyQualityInspection,
+              project.project_id,
+            );
           const stage =
-            assemblyJoinHome
+            assemblyQualityHome
+              ? assemblyQualityHome.stage
+              : assemblyJoinHome
               ? assemblyJoinHome.stage
               : assemblyHome
               ? assemblyHome.stage
@@ -794,7 +826,9 @@
 
           const summary = document.createElement("p");
           summary.className = "saved-project-summary";
-          if (assemblyJoinHome) {
+          if (assemblyQualityHome) {
+            summary.textContent = assemblyQualityHome.summary;
+          } else if (assemblyJoinHome) {
             summary.textContent = assemblyJoinHome.summary;
           } else if (assemblyHome) {
             summary.textContent = assemblyHome.summary;
@@ -819,10 +853,16 @@
           content.append(title, meta, summary);
 
           const link = document.createElement(
-            assemblyJoinHome ? "a" : assemblyHome ? "button" : "a",
+            assemblyQualityHome || assemblyJoinHome
+              ? "a"
+              : assemblyHome
+                ? "button"
+                : "a",
           );
           link.className = "saved-project-continue";
-          if (assemblyJoinHome) {
+          if (assemblyQualityHome) {
+            link.href = assemblyQualityHome.href;
+          } else if (assemblyJoinHome) {
             link.href = assemblyJoinHome.href;
           } else if (!assemblyHome) {
             link.href =
@@ -841,6 +881,7 @@
             link.disabled = true;
           }
           link.textContent =
+            assemblyQualityHome?.label ??
             assemblyJoinHome?.label ??
             assemblyHome?.label ??
             secondPieceHome?.label ??
@@ -855,7 +896,11 @@
                 ? "Уточнить следующий участок"
                 : "Продолжить");
           card.append(content);
-          if (!assemblyJoinHome && assemblyHome?.preparation) {
+          if (
+            !assemblyQualityHome &&
+            !assemblyJoinHome &&
+            assemblyHome?.preparation
+          ) {
             card.append(
               renderAssemblyChecklist(
                 assemblyHome.preparation,

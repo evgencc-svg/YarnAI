@@ -297,6 +297,15 @@ async def first_assembly_join(_request: Request) -> FileResponse:
     )
 
 
+async def first_assembly_inspection(_request: Request) -> FileResponse:
+    """Return the first completed-join inspection assistant page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "first-assembly-inspection.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -405,6 +414,11 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/first-assembly-join",
             first_assembly_join,
+            methods=["GET"],
+        ),
+        Route(
+            "/first-assembly-inspection",
+            first_assembly_inspection,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),

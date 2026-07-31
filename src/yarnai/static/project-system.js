@@ -28,6 +28,7 @@
     "SECOND_IDENTICAL_PIECE",
     "FIRST_ASSEMBLY_PREPARATION",
     "FIRST_ASSEMBLY_JOIN",
+    "FIRST_ASSEMBLY_INSPECTION",
   ]);
   const ALL_STATUSES = new Set([...ACTIVE_STATUSES, "ARCHIVED", "DELETED"]);
   const RESTORABLE_STATUSES = new Set([
@@ -1902,6 +1903,8 @@
               : kind === "FIRST_ASSEMBLY_PREPARATION"
                 ? { version: 0, initialized: false }
               : kind === "FIRST_ASSEMBLY_JOIN"
+                ? { version: 0, initialized: false }
+              : kind === "FIRST_ASSEMBLY_INSPECTION"
                 ? { version: 0, initialized: false }
               : {
                   current_row: 1,

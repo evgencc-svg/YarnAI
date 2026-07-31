@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="YarnAI помогает проверить качество первого выполненного соединения и явно принять первый шов."
+    >
+    <title>Проверка первого шва — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/first-assembly-inspection.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-assembly-preparation.js" defer></script>
+    <script src="/static/first-assembly-join.js" defer></script>
+    <script src="/static/first-assembly-inspection.js" defer></script>
+    <script src="/static/first-assembly-inspection-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для проверки первого шва нужен JavaScript. Включите его и перезагрузите страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/calculator">Калькулятор</a>
+      </nav>
+      <span class="version-badge">Stage 12C</span>
+    </header>
+
+    <main class="page-shell smart-start-shell inspection-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Первая сборочная операция</p>
+        <h1 id="page-title">Проверим первый шов</h1>
+        <p class="intro-copy">
+          Расправьте детали, не растягивайте шов и осмотрите соединение при хорошем освещении.
+        </p>
+      </section>
+
+      <section id="inspection-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось открыть проверку</h2>
+        <p id="inspection-error-message"></p>
+        <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+      </section>
+
+      <div id="inspection-workflow" class="step-assistant-workflow" hidden>
+        <section class="card assistant-project-summary">
+          <p class="step-label">Текущий проект</p>
+          <h2 id="inspection-project-title">Сохранённый проект</h2>
+          <p id="inspection-status-message" role="status"></p>
+        </section>
+
+        <section class="card inspection-source-card" aria-labelledby="source-title">
+          <p class="step-label">Завершённое соединение Stage 12B</p>
+          <h2 id="source-title">Что именно соединено</h2>
+          <p id="inspection-source-summary"></p>
+          <dl class="section-facts inspection-source-facts">
+            <div>
+              <dt>Детали</dt>
+              <dd id="inspection-pieces">—</dd>
+            </div>
+            <div>
+              <dt>Края</dt>
+              <dd id="inspection-edges">—</dd>
+            </div>
+            <div>
+              <dt>Способ</dt>
+              <dd id="inspection-operation">—</dd>
+            </div>
+            <div>
+              <dt>Соединено</dt>
+              <dd id="inspection-units">—</dd>
+            </div>
+            <div>
+              <dt>Рабочая нить</dt>
+              <dd id="inspection-thread">—</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section id="inspection-blocked-panel" class="card smart-empty-state" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <h2>Проверка первого шва заблокирована</h2>
+          <ul id="inspection-blockers" class="inspection-blockers"></ul>
+          <p>
+            Рабочие действия отключены. Сохранённый снимок источника не сбрасывается и не исправляется автоматически.
+          </p>
+          <a class="link-button" href="/">Вернуться к проекту</a>
+        </section>
+
+        <section id="inspection-ready-panel" class="card inspection-guide-card" hidden>
+          <p class="step-label">Короткая проверка качества</p>
+          <h2>Подготовьте шов к осмотру</h2>
+          <ol>
+            <li>Положите детали на ровную поверхность.</li>
+            <li>Расположите шов свободно, не растягивая полотно.</li>
+            <li>Включите хороший свет и осмотрите соединение целиком.</li>
+          </ol>
+          <button id="inspection-start-button" class="primary-button" type="button">
+            Начать проверку
+          </button>
+        </section>
+
+        <section id="inspection-check-panel" class="card inspection-check-card" hidden>
+          <p class="step-label">Проверка сохраняется</p>
+          <h2>Контрольный список</h2>
+          <div id="inspection-checklist" class="inspection-checklist"></div>
+
+          <fieldset class="inspection-result-choice">
+            <legend>Как выглядит шов?</legend>
+            <button id="inspection-good-button" class="secondary-button" type="button">
+              Всё выглядит хорошо
+            </button>
+            <button id="inspection-problem-button" class="secondary-button" type="button">
+              Есть проблема
+            </button>
+            <p id="inspection-choice-status" role="status"></p>
+          </fieldset>
+
+          <div id="inspection-issue-form" class="inspection-issue-form" hidden>
+            <label for="inspection-issue-code">Что заметили?</label>
+            <select id="inspection-issue-code">
+              <option value="">Выберите проблему</option>
+              <option value="edges_misaligned">Края заметно смещены</option>
+              <option value="skipped_join_unit">Пропущена петля или участок</option>
+              <option value="seam_too_tight">Шов слишком тугой</option>
+              <option value="seam_too_loose">Шов слишком свободный</option>
+              <option value="thread_not_secure">Нить закреплена ненадёжно</option>
+              <option value="other">Другая проблема</option>
+            </select>
+            <label id="inspection-issue-note-label" for="inspection-issue-note" hidden>
+              Кратко опишите проблему
+            </label>
+            <textarea
+              id="inspection-issue-note"
+              rows="3"
+              maxlength="240"
+              placeholder="До 240 символов"
+              hidden
+            ></textarea>
+            <button id="inspection-mark-issue-button" class="primary-button" type="button">
+              Сохранить проблему
+            </button>
+          </div>
+
+          <p id="inspection-form-error" class="form-error" role="alert"></p>
+          <button id="inspection-complete-button" class="primary-button" type="button">
+            Подтвердить первый шов
+          </button>
+          <p class="inspection-explicit-note">
+            Отметки в списке не завершают проверку автоматически.
+          </p>
+        </section>
+
+        <section id="inspection-correction-panel" class="card inspection-correction-card" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <p class="step-label">Нужно ручное исправление</p>
+          <h2 id="inspection-issue-title">Проблема сохранена</h2>
+          <p id="inspection-correction-instruction"></p>
+          <p>
+            Приложение не распускает и не исправляет шов автоматически. Вернитесь к соединению и исправьте отмеченный участок вручную.
+          </p>
+          <label class="inspection-acknowledgement">
+            <input id="inspection-acknowledge-checkbox" type="checkbox">
+            <span>Я понимаю, что шов нужно исправить вручную.</span>
+          </label>
+          <button id="inspection-acknowledge-button" class="secondary-button" type="button">
+            Подтвердить понимание
+          </button>
+          <button id="inspection-resolved-button" class="primary-button" type="button">
+            Я исправил проблему
+          </button>
+          <p id="inspection-correction-error" class="form-error" role="alert"></p>
+        </section>
+
+        <section id="inspection-completed-panel" class="card completion-card" hidden>
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Сохранено в проекте</p>
+          <h2>Первый шов проверен</h2>
+          <p>Соединение принято. Первая сборочная операция завершена.</p>
+          <p id="inspection-completed-date"></p>
+          <a class="link-button link-button-primary" href="/">Продолжить работу над изделием</a>
+        </section>
+
+        <div class="smart-footer-actions">
+          <a class="link-button" href="/">Вернуться к проекту</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · проверка первого шва</span>
+      <span>Stage 12C</span>
+    </footer>
+  </body>
+</html>

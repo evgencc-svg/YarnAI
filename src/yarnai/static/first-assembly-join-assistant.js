@@ -40,6 +40,9 @@ const completedSummary = document.querySelector(
   "#join-completed-summary",
 );
 const completedDate = document.querySelector("#join-completed-date");
+const inspectionLink = document.querySelector(
+  "#join-inspection-link",
+);
 
 let repository = null;
 let inspection = null;
@@ -154,6 +157,8 @@ function render(moveFocus) {
         dateStyle: "medium",
         timeStyle: "short",
       }).format(new Date(current.completedAt))}.`;
+    inspectionLink.href =
+      `/first-assembly-inspection?project=${encodeURIComponent(projectId)}`;
     return;
   }
   renderProgress(current, moveFocus);
