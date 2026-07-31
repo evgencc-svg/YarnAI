@@ -288,6 +288,15 @@ async def second_piece_assistant(_request: Request) -> FileResponse:
     )
 
 
+async def first_assembly_join(_request: Request) -> FileResponse:
+    """Return the first straight-edge joining assistant page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "first-assembly-join.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -391,6 +400,11 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/second-piece-assistant",
             second_piece_assistant,
+            methods=["GET"],
+        ),
+        Route(
+            "/first-assembly-join",
+            first_assembly_join,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),

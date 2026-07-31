@@ -23,7 +23,8 @@ def test_stage_12a_home_card_exposes_checklist_and_user_controls() -> None:
     assert "renderAssemblyChecklist" in script
     assert 'item.source === "user"' in script
     assert "firstAssemblyPreparation.confirmForProject" in script
-    assert "Stage 12B, пока не реализован" in script
+    assert "firstAssemblyJoin.ensureForProject" in script
+    assert "assemblyJoinHome.href" in script
 
 
 def test_stage_12a_model_has_minimal_statuses_and_supported_operation() -> None:

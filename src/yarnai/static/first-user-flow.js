@@ -47,6 +47,8 @@
     globalObject.YarnAISecondIdenticalPiece;
   const firstAssemblyPreparation =
     globalObject.YarnAIFirstAssemblyPreparation;
+  const firstAssemblyJoin =
+    globalObject.YarnAIFirstAssemblyJoin;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -559,6 +561,7 @@
             let bindOffInspection = null;
             let secondPieceInspection = null;
             let assemblyInspection = null;
+            let assemblyJoinInspection = null;
             if (
               firstFabricSection &&
               stepInspection?.state === "ready" &&
@@ -634,6 +637,25 @@
                   firstAssemblyPreparation.inspectAggregate(aggregate);
               }
             }
+            if (
+              firstAssemblyJoin &&
+              (assemblyInspection?.preparation?.status === "ready" ||
+                String(aggregate.project.current_stage || "").startsWith(
+                  "assembly_join_",
+                ))
+            ) {
+              try {
+                assemblyJoinInspection =
+                  await firstAssemblyJoin.ensureForProject(
+                    repository,
+                    project.project_id,
+                  );
+                aggregate = await repository.getProject(project.project_id);
+              } catch {
+                assemblyJoinInspection =
+                  firstAssemblyJoin.inspectAggregate(aggregate);
+              }
+            }
             return {
               project,
               inspection: calculatedProjects.inspectAggregate(aggregate),
@@ -643,6 +665,7 @@
               bindOffInspection,
               secondPieceInspection,
               assemblyInspection,
+              assemblyJoinInspection,
             };
           } catch (error) {
             return {
@@ -659,6 +682,7 @@
               bindOffInspection: null,
               secondPieceInspection: null,
               assemblyInspection: null,
+              assemblyJoinInspection: null,
             };
           }
         }),
@@ -691,6 +715,7 @@
           bindOffInspection,
           secondPieceInspection,
           assemblyInspection,
+          assemblyJoinInspection,
         }) => {
           const card = document.createElement("article");
           card.className = "saved-project-card";
@@ -738,8 +763,14 @@
             assemblyInspection,
             project.project_id,
           );
+          const assemblyJoinHome = firstAssemblyJoin?.homeState(
+            assemblyJoinInspection,
+            project.project_id,
+          );
           const stage =
-            assemblyHome
+            assemblyJoinHome
+              ? assemblyJoinHome.stage
+              : assemblyHome
               ? assemblyHome.stage
               : secondPieceHome
               ? secondPieceHome.stage
@@ -763,7 +794,9 @@
 
           const summary = document.createElement("p");
           summary.className = "saved-project-summary";
-          if (assemblyHome) {
+          if (assemblyJoinHome) {
+            summary.textContent = assemblyJoinHome.summary;
+          } else if (assemblyHome) {
             summary.textContent = assemblyHome.summary;
           } else if (secondPieceHome) {
             summary.textContent = secondPieceHome.summary;
@@ -786,10 +819,12 @@
           content.append(title, meta, summary);
 
           const link = document.createElement(
-            assemblyHome ? "button" : "a",
+            assemblyJoinHome ? "a" : assemblyHome ? "button" : "a",
           );
           link.className = "saved-project-continue";
-          if (!assemblyHome) {
+          if (assemblyJoinHome) {
+            link.href = assemblyJoinHome.href;
+          } else if (!assemblyHome) {
             link.href =
               secondPieceHome?.href ??
               bindOffHome?.href ??
@@ -806,6 +841,7 @@
             link.disabled = true;
           }
           link.textContent =
+            assemblyJoinHome?.label ??
             assemblyHome?.label ??
             secondPieceHome?.label ??
             bindOffHome?.label ??
@@ -819,7 +855,7 @@
                 ? "Уточнить следующий участок"
                 : "Продолжить");
           card.append(content);
-          if (assemblyHome?.preparation) {
+          if (!assemblyJoinHome && assemblyHome?.preparation) {
             card.append(
               renderAssemblyChecklist(
                 assemblyHome.preparation,

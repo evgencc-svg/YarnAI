@@ -122,6 +122,7 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
         "/static/first-bind-off.js",
         "/static/second-identical-piece.js",
         "/static/first-assembly-preparation.js",
+        "/static/first-assembly-join.js",
         "/static/first-user-flow.js",
     ]
     for asset in [*page.stylesheets, *page.scripts]:

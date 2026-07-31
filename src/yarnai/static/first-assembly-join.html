@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="YarnAI помогает пошагово соединить два одинаковых прямых края и сохранить прогресс."
+    >
+    <title>Соединение первого края — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/first-assembly-join.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-assembly-preparation.js" defer></script>
+    <script src="/static/first-assembly-join.js" defer></script>
+    <script src="/static/first-assembly-join-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для помощника соединения нужен JavaScript. Включи JavaScript и перезагрузи страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/calculator">Калькулятор</a>
+      </nav>
+      <span class="version-badge">Stage 12B</span>
+    </header>
+
+    <main class="page-shell smart-start-shell assembly-join-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Первая сборочная операция</p>
+        <h1 id="page-title">Соединим два одинаковых прямых края</h1>
+        <p class="intro-copy">
+          Отмечай продвижение по одной петле края. Конец края, закрепление нити и завершение операции подтверждаются отдельно.
+        </p>
+      </section>
+
+      <section id="join-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось открыть помощник соединения</h2>
+        <p id="join-error-message"></p>
+        <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+      </section>
+
+      <div id="join-workflow" class="step-assistant-workflow" hidden>
+        <section class="card assistant-project-summary">
+          <p class="step-label">Текущий проект</p>
+          <h2 id="join-project-title">Сохранённый проект</h2>
+          <p id="join-status-message" role="status"></p>
+        </section>
+
+        <section id="join-source-panel" class="card join-source-card">
+          <p class="step-label">Источник Stage 12A</p>
+          <h2>Что соединяем</h2>
+          <p id="join-source-summary"></p>
+          <dl class="section-facts join-source-facts">
+            <div>
+              <dt>Операция</dt>
+              <dd id="join-operation-name">—</dd>
+            </div>
+            <div>
+              <dt>Участок</dt>
+              <dd id="join-section-name">—</dd>
+            </div>
+            <div>
+              <dt>Единица прогресса</dt>
+              <dd>1 петля края</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section id="join-blocked-panel" class="card smart-empty-state" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <h2>Соединение края заблокировано</h2>
+          <ul id="join-blockers" class="join-blockers"></ul>
+          <p>Рабочие действия отключены. Сохранённый снимок источника не изменён.</p>
+        </section>
+
+        <section id="join-checklist-panel" class="card join-checklist-card" hidden>
+          <p class="step-label">Перед началом</p>
+          <h2>Проверь подготовку края</h2>
+          <p>Два пункта проверены системой. Ещё три подтверди вручную.</p>
+          <div id="join-checklist" class="join-checklist"></div>
+          <p id="join-form-error" class="form-error" role="alert"></p>
+          <button id="join-start-button" class="primary-button" type="button">
+            Начать соединение
+          </button>
+        </section>
+
+        <section id="join-progress-panel" class="card assistant-row-card" hidden aria-live="polite">
+          <div class="assistant-row-heading">
+            <div>
+              <p class="step-label">Сохранённый прогресс</p>
+              <h2>Продвижение по краю</h2>
+            </div>
+            <span class="row-type-badge">Сохраняется</span>
+          </div>
+          <dl class="section-facts join-progress-facts">
+            <div>
+              <dt>Всего</dt>
+              <dd><span id="join-total-count">—</span> п.</dd>
+            </div>
+            <div>
+              <dt>Соединено</dt>
+              <dd><span id="join-completed-count">—</span> п.</dd>
+            </div>
+            <div>
+              <dt>Осталось</dt>
+              <dd><span id="join-remaining-count">—</span> п.</dd>
+            </div>
+          </dl>
+          <p id="join-progress-text" class="assistant-progress-text" tabindex="-1">0 из 0</p>
+          <progress
+            id="join-progress"
+            class="step-progress"
+            max="1"
+            value="0"
+            aria-label="Прогресс соединения края"
+          ></progress>
+          <div id="join-action-controls" class="join-action-controls">
+            <button id="join-next-button" class="primary-button" type="button">
+              Соединён следующий участок
+            </button>
+            <button id="join-undo-button" class="secondary-button" type="button">
+              Отменить последнее
+            </button>
+            <button id="join-repeat-button" class="secondary-button" type="button">
+              Повторить отменённое
+            </button>
+          </div>
+        </section>
+
+        <section id="join-edge-finished-panel" class="card completion-card" hidden aria-live="polite">
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Конец края достигнут</p>
+          <h2>Закрепи рабочую нить</h2>
+          <p>
+            Весь край пройден, но операция ещё не завершена. Сначала отдельно подтверди закрепление нити.
+          </p>
+          <button id="join-thread-button" class="secondary-button" type="button">
+            Подтвердить закрепление нити
+          </button>
+          <p id="join-thread-status" role="status"></p>
+          <div class="smart-actions assistant-actions">
+            <button id="join-finish-undo-button" class="secondary-button" type="button">
+              Вернуться к последнему участку
+            </button>
+            <button id="join-complete-button" class="primary-button" type="button">
+              Завершить соединение
+            </button>
+          </div>
+        </section>
+
+        <section id="join-completed-panel" class="card completion-card" hidden>
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Сохранено в проекте</p>
+          <h2>Первый край соединён</h2>
+          <p id="join-completed-summary"></p>
+          <p id="join-completed-date"></p>
+          <p>Следующий этап сборки не начат.</p>
+        </section>
+
+        <div class="smart-footer-actions">
+          <a class="link-button" href="/">Вернуться к проекту</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · соединение первого прямого края</span>
+      <span>Stage 12B</span>
+    </footer>
+  </body>
+</html>
