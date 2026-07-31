@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Текущее состояние анализа импортированных материалов YarnAI.">
+    <title>Анализ материалов — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-analysis.js" defer></script>
+    <script src="/static/pattern-analysis-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для просмотра состояния анализа нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/import-pattern">Импорт материалов</a>
+      </nav>
+      <span class="version-badge">Pattern Analysis</span>
+    </header>
+
+    <main class="page-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Stage 16</p>
+        <h1 id="page-title">Анализ материалов</h1>
+        <p class="intro-copy">Здесь отображается только состояние отдельной стадии анализа. Файлы не читаются и не обрабатываются.</p>
+      </section>
+
+      <section class="card smart-empty-state" aria-live="polite">
+        <span class="state-icon" aria-hidden="true">i</span>
+        <h2 id="pattern-analysis-project-title">Состояние анализа</h2>
+        <p id="pattern-analysis-status" role="status">Анализ материалов ещё не выполнялся.</p>
+        <p id="pattern-analysis-details"></p>
+        <a class="link-button" href="/">Вернуться к проектам</a>
+      </section>
+    </main>
+  </body>
+</html>

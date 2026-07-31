@@ -333,6 +333,15 @@ async def pattern_import(_request: Request) -> FileResponse:
     )
 
 
+async def pattern_analysis(_request: Request) -> FileResponse:
+    """Return the imported-material analysis lifecycle page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-analysis.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -461,6 +470,11 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/import-pattern",
             pattern_import,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-analysis",
+            pattern_analysis,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),

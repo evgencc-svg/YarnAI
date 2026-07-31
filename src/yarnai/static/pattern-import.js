@@ -1,6 +1,18 @@
 "use strict";
 
 (function exposePatternImport(globalObject) {
+  let patternAnalysisApi = globalObject.YarnAIPatternAnalysis;
+  if (
+    !patternAnalysisApi &&
+    typeof module !== "undefined" &&
+    module.exports &&
+    typeof require === "function"
+  ) {
+    patternAnalysisApi = require("./pattern-analysis.js");
+  }
+  if (!patternAnalysisApi) {
+    throw new Error("Pattern Analysis intake is unavailable.");
+  }
   const VERSION = 1;
   const PROGRESS_KIND = "PATTERN_IMPORT";
   const SOURCE_PROGRESS_KIND = "FIRST_BLOCKING";
@@ -561,12 +573,16 @@
   }
 
   async function completeForProject(repository, projectId, confirmed) {
-    return mutateForProject(
+    const completed = await mutateForProject(
       repository,
       projectId,
       (state) => completeImport(state, confirmed),
       "PATTERN_IMPORT_COMPLETED",
     );
+    if (completed.patternImport?.status === "completed") {
+      await patternAnalysisApi.ensureForCompletedImport(repository, projectId);
+    }
+    return inspectAggregate(await repository.getProject(projectId));
   }
 
   async function persist(repository, result, state, operationKind) {

@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/static/pattern-import.css">
     <script src="/static/project-system.js" defer></script>
     <script src="/static/first-blocking.js" defer></script>
+    <script src="/static/pattern-analysis.js" defer></script>
     <script src="/static/pattern-import.js" defer></script>
     <script src="/static/pattern-import-assistant.js" defer></script>
   </head>
@@ -93,14 +94,15 @@
             Я проверил(а) список и подтверждаю, что все материалы относятся к одному будущему проекту
           </label>
           <button id="pattern-import-continue" class="link-button link-button-primary" type="button" disabled>Продолжить</button>
-          <p class="pattern-import-safety">Продолжение только завершит intake. Никакая обработка или следующий этап не запустятся.</p>
+          <p class="pattern-import-safety">Продолжение завершит intake и создаст ожидающую запуска запись анализа. Содержимое файлов обрабатываться не будет.</p>
         </section>
 
         <section id="pattern-import-completed" class="card completed-card" hidden>
           <p class="step-label">Import Pattern подтверждён</p>
           <h2>Материалы сохранены</h2>
           <p id="pattern-import-completed-summary"></p>
-          <p>Содержимое не обрабатывалось. Следующая стадия отсутствует и ничего не запускается автоматически.</p>
+          <p>Содержимое не обрабатывалось. Анализ ожидает запуска и ничего не выполняет автоматически.</p>
+          <a id="pattern-analysis-link" class="link-button link-button-primary" href="/pattern-analysis">Открыть состояние анализа</a>
           <a class="link-button" href="/">Вернуться к проектам</a>
         </section>
       </div>

@@ -58,6 +58,7 @@ def test_pattern_import_assets_are_local_and_available() -> None:
         "/static/pattern-import.css",
         "/static/project-system.js",
         "/static/first-blocking.js",
+        "/static/pattern-analysis.js",
         "/static/pattern-import.js",
         "/static/pattern-import-assistant.js",
         "/static/favicon.png",
@@ -166,5 +167,6 @@ def test_existing_routes_remain_available_with_pattern_import() -> None:
         "/first-tail-securing",
         "/first-blocking",
         "/import-pattern",
+        "/pattern-analysis",
     ):
         assert client.get(route).status_code == 200, route

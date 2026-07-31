@@ -385,7 +385,7 @@ test("ProjectRepository persists one isolated PATTERN_IMPORT across reload", asy
   );
 });
 
-test("repository completion is explicit, durable and does not add Stage 16", async () => {
+test("repository completion is explicit, durable and creates waiting analysis", async () => {
   const { repository, project } = await repositoryWithCompletedStage14();
   await patternImport.ensureForProject(repository, project.project_id);
   await patternImport.addMaterialsForProject(
@@ -403,19 +403,27 @@ test("repository completion is explicit, durable and does not add Stage 16", asy
     true,
   );
   assert.equal(completed.patternImport.status, "completed");
-  assert.equal(completed.project.current_stage, "pattern_import_completed");
+  assert.equal(completed.project.current_stage, "pattern_analysis_waiting");
   const aggregate = await repository.getProject(project.project_id);
   assert.deepEqual(
     aggregate.progress.map((entry) => entry.kind).sort(),
-    ["FIRST_BLOCKING", "PATTERN_IMPORT", "SMART_START", "STEP_ASSISTANT"],
+    [
+      "FIRST_BLOCKING",
+      "PATTERN_ANALYSIS",
+      "PATTERN_IMPORT",
+      "SMART_START",
+      "STEP_ASSISTANT",
+    ],
   );
-  assert.equal(
-    aggregate.operations.some((entry) => /STAGE_?16|TECHNOLOGY/i.test(entry.kind)),
-    false,
+  const analysis = aggregate.progress.find(
+    (entry) => entry.kind === "PATTERN_ANALYSIS",
   );
+  assert.equal(analysis.state.status, "waiting");
+  assert.equal(analysis.state.sourceImportRevision, completed.patternImport.revision);
+  assert.equal(analysis.state.filesCount, descriptors().length);
 });
 
-test("project export and import retain Stage 14 and PATTERN_IMPORT", async () => {
+test("project export and import retain Stage 14, import and analysis", async () => {
   const { repository, project } = await repositoryWithCompletedStage14();
   await patternImport.ensureForProject(repository, project.project_id);
   await patternImport.addMaterialsForProject(
@@ -423,6 +431,7 @@ test("project export and import retain Stage 14 and PATTERN_IMPORT", async () =>
     project.project_id,
     descriptors(),
   );
+  await patternImport.completeForProject(repository, project.project_id, true);
   const exported = await repository.exportProject(project.project_id);
   const imported = await repository.importProject(exported.json);
   const aggregate = await repository.getProject(imported.project_id);
@@ -431,5 +440,8 @@ test("project export and import retain Stage 14 and PATTERN_IMPORT", async () =>
   );
   assert.ok(
     aggregate.progress.some((entry) => entry.kind === "PATTERN_IMPORT"),
+  );
+  assert.ok(
+    aggregate.progress.some((entry) => entry.kind === "PATTERN_ANALYSIS"),
   );
 });

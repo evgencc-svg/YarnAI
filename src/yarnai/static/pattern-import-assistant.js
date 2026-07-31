@@ -27,6 +27,7 @@ const ui = {
   continueButton: $("#pattern-import-continue"),
   completed: $("#pattern-import-completed"),
   completedSummary: $("#pattern-import-completed-summary"),
+  analysisLink: $("#pattern-analysis-link"),
 };
 
 let repository;
@@ -136,6 +137,7 @@ function render() {
   setStatus(statusLabel(state.status), patternImport.progressSummary(state));
   if (state.status === "completed") {
     ui.completed.hidden = false;
+    ui.analysisLink.href = `/pattern-analysis?project=${encodeURIComponent(projectId)}`;
     ui.completedSummary.textContent = `${state.materials.length} ${materialLabel(
       state.materials.length,
     )} подтверждено ${formatDate(state.completedAt)}.`;

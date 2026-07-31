@@ -2,7 +2,7 @@
 
 (function initializeProjectSystem(global) {
   const DB_NAME = "yarnai-local";
-  const DB_VERSION = 2;
+  const DB_VERSION = 3;
   const RECORD_SCHEMA_VERSION = 1;
   const EXPORT_SCHEMA_VERSION = 1;
   const EXPORT_FORMAT = "yarnai-project";
@@ -32,6 +32,7 @@
     "FIRST_TAIL_SECURING",
     "FIRST_BLOCKING",
     "PATTERN_IMPORT",
+    "PATTERN_ANALYSIS",
   ]);
   const ALL_STATUSES = new Set([...ACTIVE_STATUSES, "ARCHIVED", "DELETED"]);
   const RESTORABLE_STATUSES = new Set([
@@ -74,6 +75,7 @@
       ["by_scope_epoch", ["project_id", "calculation_id", "kind", "epoch"], { unique: true }],
       ["by_project_updated", ["project_id", "updated_at"]],
       ["by_calculation_kind", ["calculation_id", "kind"]],
+      ["by_kind_updated", ["kind", "updated_at"]],
       ["by_purge_after", "purge_after"],
     ],
     operations: [
@@ -388,6 +390,89 @@
           (operation.sync_status === "SYNCED" ? "uploaded" : "pending");
         cursor.update(operation);
         cursor.continue();
+      };
+    }
+    if (oldVersion < 3) {
+      const progress = transaction.objectStore("progress");
+      ensureIndexes(progress, [
+        ["by_kind_updated", ["kind", "updated_at"]],
+      ]);
+      const timestamp = utcNow();
+      const cursorRequest = progress.openCursor();
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) return;
+        const source = cursor.value;
+        if (
+          source.kind === "PATTERN_IMPORT" &&
+          source.state?.status === "completed" &&
+          Number.isInteger(source.state?.revision) &&
+          source.state.revision > 0 &&
+          Array.isArray(source.state?.materials) &&
+          source.state.materials.length > 0
+        ) {
+          const existingRequest = progress
+            .index("by_scope_epoch")
+            .get([
+              source.project_id,
+              source.calculation_id,
+              "PATTERN_ANALYSIS",
+              1,
+            ]);
+          existingRequest.onsuccess = () => {
+            if (!existingRequest.result) {
+              progress.add({
+                schema_version: RECORD_SCHEMA_VERSION,
+                progress_id: uuidv7(),
+                project_id: source.project_id,
+                calculation_id: source.calculation_id,
+                partition_key: source.partition_key ?? PARTITION_KEY,
+                kind: "PATTERN_ANALYSIS",
+                epoch: 1,
+                state: {
+                  projectId: source.project_id,
+                  revision: 1,
+                  status: "waiting",
+                  createdAt: timestamp,
+                  updatedAt: timestamp,
+                  sourceImportRevision: source.state.revision,
+                  filesCount: source.state.materials.length,
+                  analysisVersion: 1,
+                  result: {
+                    patternDetected: false,
+                    garmentType: null,
+                    construction: null,
+                    confidence: 0,
+                    missingInformation: [],
+                    notes: [],
+                  },
+                  warnings: [],
+                  errors: [],
+                },
+                created_at: timestamp,
+                updated_at: timestamp,
+                revision: 1,
+                deleted_at: null,
+                purge_after: null,
+                sync_status: "LOCAL_ONLY",
+                server_version: null,
+                last_synced_at: null,
+                conflict_id: null,
+              });
+            }
+          };
+        }
+        cursor.continue();
+      };
+      const meta = transaction.objectStore("meta");
+      const manifestRequest = meta.get("database_manifest");
+      manifestRequest.onsuccess = () => {
+        const manifest = manifestRequest.result;
+        if (manifest) {
+          manifest.indexeddb_version = DB_VERSION;
+          manifest.updated_at = timestamp;
+          meta.put(manifest);
+        }
       };
     }
   }
@@ -1163,6 +1248,9 @@
         );
         progress.state = clone(initialState);
         const nextProject = clone(before);
+        if (typeof options.projectStage === "string") {
+          nextProject.current_stage = options.projectStage;
+        }
         nextProject.updated_at = timestamp;
         nextProject.revision = before.revision + 1;
         nextProject.materialized_checksum = await checksumPayload(
@@ -2473,6 +2561,13 @@
         }
         const progressId = collision ? uuidv7() : entry.progress_id;
         progressMap.set(entry.progress_id, progressId);
+        const importedState = clone(entry.state);
+        if (
+          collision &&
+          importedState?.projectId === sourceProjectId
+        ) {
+          importedState.projectId = projectId;
+        }
         return {
           ...entry,
           progress_id: progressId,
@@ -2481,6 +2576,7 @@
             ? calculationMap.get(entry.calculation_id)
             : entry.calculation_id,
           partition_key: PARTITION_KEY,
+          state: importedState,
         };
       });
       const timestamp = utcNow();
