@@ -42,6 +42,7 @@ const acknowledgeButton = element("#tail-acknowledge-button");
 const resolvedButton = element("#tail-resolved-button");
 const reworkError = element("#tail-rework-error");
 const completedDate = element("#tail-completed-date");
+const firstBlockingLink = element("#tail-first-blocking-link");
 
 let repository = null;
 let result = null;
@@ -219,6 +220,7 @@ function render() {
   }
   statusMessage.textContent =
     "Хвост закреплён. Stage 13 завершена и неизменяема.";
+  firstBlockingLink.href = `/first-blocking?project=${encodeURIComponent(projectId)}`;
   completedDate.textContent = `Подтверждено ${new Intl.DateTimeFormat(
     "ru",
     { dateStyle: "medium", timeStyle: "short" },

@@ -53,6 +53,7 @@
     globalObject.YarnAIFirstAssemblyInspection;
   const firstTailSecuring =
     globalObject.YarnAIFirstTailSecuring;
+  const firstBlocking = globalObject.YarnAIFirstBlocking;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -568,6 +569,7 @@
             let assemblyJoinInspection = null;
             let assemblyQualityInspection = null;
             let tailSecuringInspection = null;
+            let blockingInspection = null;
             if (
               firstFabricSection &&
               stepInspection?.state === "ready" &&
@@ -701,6 +703,23 @@
                   firstTailSecuring.inspectAggregate(aggregate);
               }
             }
+            if (
+              firstBlocking &&
+              (tailSecuringInspection?.securing?.status === "completed" ||
+                String(aggregate.project.current_stage || "").startsWith(
+                  "first_blocking_",
+                ))
+            ) {
+              try {
+                blockingInspection = await firstBlocking.ensureForProject(
+                  repository,
+                  project.project_id,
+                );
+                aggregate = await repository.getProject(project.project_id);
+              } catch {
+                blockingInspection = firstBlocking.inspectAggregate(aggregate);
+              }
+            }
             return {
               project,
               inspection: calculatedProjects.inspectAggregate(aggregate),
@@ -713,6 +732,7 @@
               assemblyJoinInspection,
               assemblyQualityInspection,
               tailSecuringInspection,
+              blockingInspection,
             };
           } catch (error) {
             return {
@@ -732,6 +752,7 @@
               assemblyJoinInspection: null,
               assemblyQualityInspection: null,
               tailSecuringInspection: null,
+              blockingInspection: null,
             };
           }
         }),
@@ -767,6 +788,7 @@
           assemblyJoinInspection,
           assemblyQualityInspection,
           tailSecuringInspection,
+          blockingInspection,
         }) => {
           const card = document.createElement("article");
           card.className = "saved-project-card";
@@ -827,8 +849,14 @@
             tailSecuringInspection,
             project.project_id,
           );
+          const blockingHome = firstBlocking?.homeState(
+            blockingInspection,
+            project.project_id,
+          );
           const stage =
-            tailSecuringHome
+            blockingHome
+              ? blockingHome.stage
+              : tailSecuringHome
               ? tailSecuringHome.stage
               : assemblyQualityHome
               ? assemblyQualityHome.stage
@@ -858,7 +886,9 @@
 
           const summary = document.createElement("p");
           summary.className = "saved-project-summary";
-          if (tailSecuringHome) {
+          if (blockingHome) {
+            summary.textContent = blockingHome.summary;
+          } else if (tailSecuringHome) {
             summary.textContent = tailSecuringHome.summary;
           } else if (assemblyQualityHome) {
             summary.textContent = assemblyQualityHome.summary;
@@ -887,6 +917,7 @@
           content.append(title, meta, summary);
 
           const link = document.createElement(
+            blockingHome ||
             tailSecuringHome ||
             assemblyQualityHome ||
             assemblyJoinHome
@@ -896,7 +927,9 @@
                 : "a",
           );
           link.className = "saved-project-continue";
-          if (tailSecuringHome) {
+          if (blockingHome) {
+            link.href = blockingHome.href;
+          } else if (tailSecuringHome) {
             link.href = tailSecuringHome.href;
           } else if (assemblyQualityHome) {
             link.href = assemblyQualityHome.href;
@@ -919,6 +952,7 @@
             link.disabled = true;
           }
           link.textContent =
+            blockingHome?.label ??
             tailSecuringHome?.label ??
             assemblyQualityHome?.label ??
             assemblyJoinHome?.label ??

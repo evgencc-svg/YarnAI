@@ -315,6 +315,15 @@ async def first_tail_securing(_request: Request) -> FileResponse:
     )
 
 
+async def first_blocking(_request: Request) -> FileResponse:
+    """Return the first safe blocking assistant page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "first-blocking.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -433,6 +442,11 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/first-tail-securing",
             first_tail_securing,
+            methods=["GET"],
+        ),
+        Route(
+            "/first-blocking",
+            first_blocking,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),

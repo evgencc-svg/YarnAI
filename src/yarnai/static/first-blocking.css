@@ -1,0 +1,162 @@
+.blocking-shell {
+  max-width: 900px;
+}
+
+#blocking-workflow {
+  display: grid;
+  gap: 1rem;
+}
+
+.blocking-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 0.75rem;
+}
+
+.blocking-summary > p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.blocking-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  color: #174536;
+  background: #dff4e8;
+  font-weight: 700;
+}
+
+.action-card,
+.warning-card,
+.danger-card,
+.drying-card,
+.completed-card {
+  border-left: 0.35rem solid #408b70;
+}
+
+.warning-card {
+  border-left-color: #c58a27;
+  background: #fffaf0;
+}
+
+.danger-card {
+  border-left-color: #b64a4a;
+}
+
+.drying-card {
+  border-left-color: #4d7fa8;
+}
+
+.completed-card {
+  border-left-color: #2b8a5d;
+  background: #f4fbf7;
+}
+
+.blocking-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.blocking-shell label,
+.blocking-shell fieldset {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.8rem 0;
+}
+
+.blocking-shell input,
+.blocking-shell select,
+.blocking-shell textarea {
+  max-width: 100%;
+}
+
+.blocking-shell fieldset label,
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.blocking-checklist {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.blocking-checklist label {
+  margin: 0;
+  padding: 0.65rem;
+  border-radius: 0.6rem;
+  background: #f5f6f3;
+}
+
+.blocking-checklist small {
+  color: #64685f;
+}
+
+.measurement-form {
+  display: grid;
+  grid-template-columns: 1.2fr 1.5fr 1fr 0.8fr;
+  gap: 0.55rem;
+  align-items: end;
+}
+
+.measurement-form .check-row,
+.measurement-form button {
+  grid-column: span 2;
+}
+
+.measurement-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid #e2e5df;
+}
+
+.measurement-source {
+  color: #64685f;
+  font-size: 0.9rem;
+}
+
+.form-error {
+  min-height: 1.3em;
+  color: #a13838;
+}
+
+#blocking-step-instructions ul {
+  padding-left: 1.2rem;
+}
+
+@media (max-width: 650px) {
+  .blocking-summary,
+  .blocking-form-grid,
+  .measurement-form {
+    grid-template-columns: 1fr;
+  }
+
+  .blocking-summary > p,
+  .measurement-form .check-row,
+  .measurement-form button {
+    grid-column: 1;
+  }
+
+  .blocking-status {
+    justify-self: start;
+  }
+
+  .measurement-row {
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .blocking-shell .link-button,
+  .blocking-shell button {
+    width: 100%;
+    justify-content: center;
+  }
+}

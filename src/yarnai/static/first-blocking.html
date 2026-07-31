@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="YarnAI проводит первую безопасную блокировку изделия от проверки состава до полного высыхания.">
+    <title>Первая блокировка — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/first-blocking.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-blocking.js" defer></script>
+    <script src="/static/first-blocking-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для сохранения блокировки нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/calculator">Калькулятор</a>
+      </nav>
+      <span class="version-badge">Stage 14</span>
+    </header>
+
+    <main class="page-shell blocking-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">После сборки</p>
+        <h1 id="page-title">Придадим изделию правильную форму</h1>
+        <p class="intro-copy">Проверим состав, выберем безопасный способ и разложим изделие по размерам. Завершение станет доступно только после полного высыхания.</p>
+      </section>
+
+      <section id="blocking-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось открыть Stage 14</h2>
+        <p id="blocking-error-message"></p>
+        <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+      </section>
+
+      <div id="blocking-workflow" hidden>
+        <section class="card blocking-summary">
+          <div>
+            <p class="step-label">Текущий проект</p>
+            <h2 id="blocking-project-title">Сохранённый проект</h2>
+          </div>
+          <span id="blocking-status" class="blocking-status" role="status">Загрузка</span>
+          <p id="blocking-status-message"></p>
+        </section>
+
+        <section id="blocking-corrupted" class="card danger-card" hidden>
+          <h2>Запись Stage 14 повреждена</h2>
+          <p id="blocking-diagnostic"></p>
+          <p>Остальные данные проекта не изменены. Можно явно создать Stage 14 заново.</p>
+          <button id="blocking-reset" class="link-button link-button-primary" type="button">Начать Stage 14 заново</button>
+        </section>
+
+        <section id="blocking-blocked" class="card danger-card" hidden>
+          <p class="step-label">Безопасная остановка</p>
+          <h2>Блокировку пока нельзя продолжить</h2>
+          <ul id="blocking-blockers"></ul>
+          <a class="link-button" href="/">Вернуться к проекту</a>
+        </section>
+
+        <section id="blocking-collecting" class="card action-card" hidden>
+          <p class="step-label">Шаг 1 из 7 · проверка готовности</p>
+          <h2>Что и из какой пряжи блокируем?</h2>
+          <p>Состав определяете вы по этикетке — YarnAI не угадывает его.</p>
+          <div class="blocking-form-grid">
+            <label>Изделие или деталь
+              <input id="blocking-item-kind" type="text" maxlength="120" placeholder="Например, собранный джемпер">
+            </label>
+            <label>Состав пряжи
+              <select id="blocking-fiber">
+                <option value="unknown">Неизвестен</option>
+                <option value="wool">Шерсть</option>
+                <option value="superwash_wool">Superwash-шерсть</option>
+                <option value="alpaca">Альпака</option>
+                <option value="cotton">Хлопок</option>
+                <option value="linen">Лён</option>
+                <option value="acrylic">Акрил</option>
+                <option value="silk">Шёлк</option>
+                <option value="blend">Смесь</option>
+              </select>
+            </label>
+          </div>
+          <label class="check-row"><input id="blocking-fiber-confirmed" type="checkbox"> Я проверил(а) состав или подтверждаю, что он неизвестен</label>
+          <fieldset>
+            <legend>Инструкция по уходу</legend>
+            <label><input type="radio" name="care-label" value="yes"> Найдена</label>
+            <label><input type="radio" name="care-label" value="no"> Не найдена</label>
+          </fieldset>
+          <label>Что написано на этикетке (необязательно)
+            <textarea id="blocking-care-text" rows="2"></textarea>
+          </label>
+          <label class="check-row"><input id="blocking-item-ready" type="checkbox"> Изделие связано, собрано и готово к обработке</label>
+          <button id="blocking-save-details" class="link-button link-button-primary" type="button">Сохранить и выбрать способ</button>
+          <p id="blocking-form-error" class="form-error" role="alert"></p>
+        </section>
+
+        <section id="blocking-method-panel" class="card action-card" hidden>
+          <p class="step-label">Шаг 2 из 7 · безопасный способ</p>
+          <h2 id="blocking-recommendation-title">Рекомендуемый способ</h2>
+          <p id="blocking-recommendation-reason"></p>
+          <label>Способ блокировки
+            <select id="blocking-method">
+              <option value="unknown">Выберите способ</option>
+              <option value="wet_blocking">Влажная блокировка</option>
+              <option value="spray_blocking">Равномерное увлажнение</option>
+              <option value="steam_blocking">Паровая блокировка</option>
+              <option value="gentle_shaping">Щадящее формование</option>
+            </select>
+          </label>
+          <label id="blocking-nonstandard-row" class="check-row" hidden><input id="blocking-nonstandard" type="checkbox"> Я понимаю, что выбор отличается от рекомендации</label>
+          <label id="blocking-steam-row" class="check-row" hidden><input id="blocking-steam-compatible" type="checkbox"> Этикетка явно разрешает пар для этой пряжи</label>
+          <button id="blocking-save-method" class="link-button link-button-primary" type="button">Проверить способ</button>
+          <details>
+            <summary>Чего нельзя делать</summary>
+            <ul>
+              <li>Не выкручивать изделие и не подвешивать тяжёлое мокрое полотно.</li>
+              <li>Не касаться полотна горячим утюгом и не применять пар без совместимости.</li>
+              <li>Не растягивать сильнее целевых размеров.</li>
+            </ul>
+          </details>
+        </section>
+
+        <section id="blocking-warning-panel" class="card warning-card" hidden>
+          <h2>Важно для этой пряжи</h2>
+          <ul id="blocking-warnings"></ul>
+        </section>
+
+        <section id="blocking-measurements-panel" class="card" hidden>
+          <p class="step-label">Целевые размеры</p>
+          <h2>Сохраним форму, а не растянем полотно</h2>
+          <div id="blocking-measurements"></div>
+          <form id="blocking-measurement-form" class="measurement-form">
+            <select id="measurement-key" aria-label="Тип размера">
+              <option value="width">Ширина</option>
+              <option value="length">Длина</option>
+              <option value="sleeveLength">Длина рукава</option>
+              <option value="chestWidth">Ширина груди</option>
+              <option value="hemWidth">Ширина низа</option>
+              <option value="customMeasurements">Другой размер</option>
+            </select>
+            <input id="measurement-label" type="text" placeholder="Название" required>
+            <input id="measurement-value" type="number" min="0.1" step="0.1" placeholder="Значение">
+            <select id="measurement-unit" aria-label="Единица"><option value="cm">см</option><option value="in">дюймы</option></select>
+            <label class="check-row"><input id="measurement-na" type="checkbox"> Не применяется</label>
+            <button class="link-button" type="submit">Сохранить размер</button>
+          </form>
+        </section>
+
+        <section id="blocking-checklist-panel" class="card" hidden>
+          <p class="step-label">Подготовка</p>
+          <h2>Всё под рукой?</h2>
+          <div id="blocking-checklist" class="blocking-checklist"></div>
+          <button id="blocking-start" class="link-button link-button-primary" type="button">Начать блокировку</button>
+        </section>
+
+        <section id="blocking-step-panel" class="card action-card" hidden>
+          <p id="blocking-step-label" class="step-label"></p>
+          <h2 id="blocking-step-title"></h2>
+          <div id="blocking-step-instructions"></div>
+          <div id="blocking-layout-checks" hidden>
+            <label class="check-row"><input data-layout="flatSurface" type="checkbox"> Изделие лежит на ровной поверхности</label>
+            <label class="check-row"><input data-layout="sidesAligned" type="checkbox"> Стороны выровнены</label>
+            <label class="check-row"><input data-layout="seamsStraight" type="checkbox"> Швы не перекручены</label>
+            <label class="check-row"><input data-layout="measurementsChecked" type="checkbox"> Размеры проверены</label>
+            <label class="check-row"><input data-layout="notOverstretched" type="checkbox"> Полотно не растянуто сверх цели</label>
+            <label class="check-row"><input data-layout="pinsOnlyIfNeeded" type="checkbox"> Булавки установлены только при необходимости</label>
+          </div>
+          <button id="blocking-confirm-step" class="link-button link-button-primary" type="button">Шаг выполнен</button>
+          <button id="blocking-back" class="link-button" type="button">Вернуться к проекту</button>
+        </section>
+
+        <section id="blocking-drying-panel" class="card action-card drying-card" hidden>
+          <p class="step-label">Шаг 6 из 7 · сушка</p>
+          <h2>Оставьте изделие лежать до полного высыхания</h2>
+          <ul>
+            <li>Не переносите без необходимости и не сушите на горячей батарее.</li>
+            <li>Не подвешивайте тяжёлое мокрое изделие.</li>
+            <li>YarnAI не определяет фактическую влажность — проверьте её сами.</li>
+          </ul>
+          <div id="blocking-drying-measurements"></div>
+          <label>Заметка во время сушки
+            <textarea id="blocking-note" rows="2"></textarea>
+          </label>
+          <button id="blocking-save-note" class="link-button" type="button">Сохранить заметку</button>
+          <hr>
+          <h3>Проверка после высыхания</h3>
+          <div id="blocking-dry-checks">
+            <label class="check-row"><input data-dry="fullyDry" type="checkbox"> Изделие полностью высохло</label>
+            <label class="check-row"><input data-dry="measurementsChecked" type="checkbox"> Размеры проверены</label>
+            <label class="check-row"><input data-dry="shapeAccepted" type="checkbox"> Форма устраивает</label>
+            <label class="check-row"><input data-dry="seamsCorrect" type="checkbox"> Швы лежат правильно</label>
+            <label class="check-row"><input data-dry="notDeformed" type="checkbox"> Полотно не деформировано</label>
+          </div>
+          <label>Результат
+            <select id="blocking-result">
+              <option value="">Выберите результат</option>
+              <option value="all_good">Всё хорошо</option>
+              <option value="slight_size_difference">Размер немного отличается</option>
+              <option value="stretched">Изделие растянулось</option>
+              <option value="curling_edges">Края заворачиваются</option>
+              <option value="skewed">Форма перекошена</option>
+              <option value="other">Есть другая проблема</option>
+            </select>
+          </label>
+          <button id="blocking-record-result" class="link-button link-button-primary" type="button">Сохранить результат</button>
+          <button id="blocking-complete" class="link-button link-button-primary" type="button" hidden>Явно завершить Stage 14</button>
+        </section>
+
+        <section id="blocking-correction-panel" class="card warning-card" hidden>
+          <p class="step-label">Нужна корректировка</p>
+          <h2>Повторим безопасный участок блокировки</h2>
+          <p id="blocking-correction-message"></p>
+          <button id="blocking-restart-correction" class="link-button link-button-primary" type="button">Начать повторную блокировку</button>
+        </section>
+
+        <section id="blocking-completed" class="card completed-card" hidden>
+          <p class="step-label">Stage 14 завершена</p>
+          <h2>Изделие высохло и сохранило форму</h2>
+          <p id="blocking-completed-date"></p>
+          <p>Размеры и швы проверены. Следующий этап не создаётся и не запускается.</p>
+          <a class="link-button" href="/">Вернуться к проекту</a>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
