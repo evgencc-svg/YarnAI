@@ -116,6 +116,7 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
         "/static/swatch-assistant.js",
         "/static/project-system.js",
         "/static/calculated-project.js",
+        "/static/first-knitting-step.js",
         "/static/first-user-flow.js",
     ]
     for asset in [*page.stylesheets, *page.scripts]:

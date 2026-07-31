@@ -18,6 +18,7 @@
     <script src="/static/sync-service.js" defer></script>
     <script src="/static/calculator-result.js" defer></script>
     <script src="/static/calculated-project.js" defer></script>
+    <script src="/static/first-knitting-step.js" defer></script>
     <script src="/static/app.js" defer></script>
   </head>
   <body>
@@ -760,6 +761,55 @@
               class="project-save-status result-save-status"
               role="status"
             ></p>
+            <section
+              id="first-step-panel"
+              class="first-step-panel"
+              aria-labelledby="first-step-heading"
+              hidden
+            >
+              <p class="feedback-kicker">Первый рабочий шаг</p>
+              <h2 id="first-step-heading">Первый шаг</h2>
+              <h3 id="first-step-title"></h3>
+              <p id="first-step-instruction" class="first-step-instruction"></p>
+              <dl class="result-facts first-step-facts">
+                <div>
+                  <dt>Набрать</dt>
+                  <dd id="first-step-stitch-count">—</dd>
+                </div>
+                <div>
+                  <dt>Рабочая ширина</dt>
+                  <dd id="first-step-working-width">—</dd>
+                </div>
+                <div>
+                  <dt>Фактическая плотность</dt>
+                  <dd id="first-step-gauge">—</dd>
+                </div>
+                <div id="first-step-row-gauge-row" hidden>
+                  <dt>Плотность рядов</dt>
+                  <dd id="first-step-row-gauge">—</dd>
+                </div>
+              </dl>
+              <p id="first-step-explanation" class="first-step-explanation"></p>
+              <div id="first-step-warnings" class="first-step-warnings" hidden>
+                <h3>Перед началом обрати внимание</h3>
+                <ul id="first-step-warnings-list"></ul>
+              </div>
+              <fieldset class="first-step-checklist">
+                <legend>Что подготовить</legend>
+                <p>
+                  Отметь важные проверки. Маркеры и счётчик необязательны.
+                </p>
+                <div id="first-step-checklist"></div>
+              </fieldset>
+              <button
+                id="start-first-step-button"
+                class="primary-button result-save-button"
+                type="button"
+              >
+                Начать вязание
+              </button>
+              <p id="first-step-status" role="status"></p>
+            </section>
             <a
               id="start-knitting-link"
               class="link-button result-primary-link"

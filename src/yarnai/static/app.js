@@ -30,6 +30,20 @@ const statusLabelElement = document.querySelector("#status-label");
 const startKnittingLink = document.querySelector("#start-knitting-link");
 const saveProjectButton = document.querySelector("#save-project-button");
 const saveProjectStatus = document.querySelector("#save-project-status");
+const firstStepPanel = document.querySelector("#first-step-panel");
+const firstStepTitle = document.querySelector("#first-step-title");
+const firstStepInstruction = document.querySelector("#first-step-instruction");
+const firstStepStitchCount = document.querySelector("#first-step-stitch-count");
+const firstStepWorkingWidth = document.querySelector("#first-step-working-width");
+const firstStepGauge = document.querySelector("#first-step-gauge");
+const firstStepRowGaugeRow = document.querySelector("#first-step-row-gauge-row");
+const firstStepRowGauge = document.querySelector("#first-step-row-gauge");
+const firstStepExplanation = document.querySelector("#first-step-explanation");
+const firstStepWarnings = document.querySelector("#first-step-warnings");
+const firstStepWarningsList = document.querySelector("#first-step-warnings-list");
+const firstStepChecklist = document.querySelector("#first-step-checklist");
+const startFirstStepButton = document.querySelector("#start-first-step-button");
+const firstStepStatus = document.querySelector("#first-step-status");
 const errorTitleElement = document.querySelector("#error-title");
 const errorContentElement = document.querySelector("#error-content");
 const warningsContentElement = document.querySelector("#warnings-content");
@@ -53,6 +67,7 @@ const cloudSystem = window.YarnAICloudAccounts;
 const syncSystem = window.YarnAISync;
 const calculatorResult = window.YarnAICalculatorResult;
 const calculatedProjects = window.YarnAICalculatedProjects;
+const firstKnittingStep = window.YarnAIFirstKnittingStep;
 const accountGuest = document.querySelector("#account-guest");
 const accountUser = document.querySelector("#account-user");
 const accountUserEmail = document.querySelector("#account-user-email");
@@ -81,6 +96,7 @@ let syncService = null;
 let currentProjectIntent = null;
 let currentStructuredInput = null;
 let currentSuccessfulCalculation = null;
+let currentFirstStepInspection = null;
 
 const statusLabels = {
   READY: "Расчёт готов",
@@ -104,6 +120,7 @@ document
   .querySelector("#error-recalculate-button")
   .addEventListener("click", focusForm);
 saveProjectButton.addEventListener("click", saveCalculatedProject);
+startFirstStepButton.addEventListener("click", startFirstStep);
 
 form.addEventListener("input", (event) => {
   if (event.target instanceof HTMLElement) {
@@ -549,6 +566,8 @@ function buildPayload() {
 
 async function showDomainResponse(data, requestPayload = null) {
   currentSuccessfulCalculation = null;
+  currentFirstStepInspection = null;
+  firstStepPanel.hidden = true;
   if (!isRecord(data) || typeof data.status !== "string") {
     throw new UnexpectedResponseError();
   }
@@ -679,6 +698,7 @@ function markProjectUnsaved() {
   saveProjectStatus.textContent = currentProjectAggregate
     ? "Новый результат ещё не сохранён в проекте."
     : "";
+  firstStepPanel.hidden = true;
 }
 
 function markProjectSaved() {
@@ -687,6 +707,126 @@ function markProjectSaved() {
   saveProjectStatus.dataset.state = "SAVED_LOCAL";
   saveProjectStatus.textContent =
     "Сохранено на этом устройстве. Проект доступен на главном экране.";
+}
+
+function renderFirstStep(inspection) {
+  currentFirstStepInspection = inspection;
+  const step = inspection?.step;
+  if (!step) {
+    firstStepPanel.hidden = true;
+    return;
+  }
+  firstStepTitle.textContent = step.title;
+  firstStepInstruction.textContent = step.instruction;
+  firstStepStitchCount.textContent =
+    `${step.stitch_count} ${pluralizeStitches(step.stitch_count)}`;
+  firstStepWorkingWidth.textContent =
+    `${formatResultNumber(step.working_width.value)} ` +
+    `${step.working_width.unit === "cm" ? "см" : step.working_width.unit}`;
+  firstStepGauge.textContent =
+    `${formatResultNumber(step.stitch_gauge.stitches)} п. на ` +
+    `${formatResultNumber(step.stitch_gauge.width_cm)} см ` +
+    `(${formatResultNumber(step.stitch_gauge.density_per_cm)} п./см)`;
+  if (step.row_gauge) {
+    firstStepRowGauge.textContent =
+      `${formatResultNumber(step.row_gauge.rows)} р. на ` +
+      `${formatResultNumber(step.row_gauge.height_cm)} см`;
+    firstStepRowGaugeRow.hidden = false;
+  } else {
+    firstStepRowGauge.textContent = "—";
+    firstStepRowGaugeRow.hidden = true;
+  }
+  firstStepExplanation.textContent = step.explanation;
+  firstStepWarningsList.replaceChildren(
+    ...step.warnings.map((warning) => {
+      const item = document.createElement("li");
+      const reason =
+        typeof warning.reason === "string"
+          ? warning.reason
+          : "Проверьте предупреждение сохранённого расчёта.";
+      const action =
+        typeof warning.next_action === "string" && warning.next_action
+          ? ` ${warning.next_action}`
+          : "";
+      item.textContent = `${reason}${action}`;
+      return item;
+    }),
+  );
+  firstStepWarnings.hidden = step.warnings.length === 0;
+  firstStepChecklist.replaceChildren(
+    ...step.preparation_checklist.map((item) => {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      const text = document.createElement("span");
+      input.type = "checkbox";
+      input.dataset.checklistId = item.id;
+      input.checked = item.checked;
+      input.disabled = step.status !== "not_started";
+      text.textContent = `${item.label}${item.required ? "" : " (необязательно)"}`;
+      label.append(input, text);
+      return label;
+    }),
+  );
+  startFirstStepButton.textContent =
+    step.status === "not_started"
+      ? "Начать вязание"
+      : step.status === "in_progress"
+        ? "Продолжить вязание"
+        : "Открыть итог первого шага";
+  startFirstStepButton.disabled = step.status === "blocked";
+  firstStepStatus.textContent =
+    step.status === "in_progress"
+      ? `Сохранено: ${step.current_stitch_count} из ${step.target_stitch_count} петель.`
+      : step.status === "completed"
+        ? "Набор петель завершён. Сохранённый результат можно открыть без сброса."
+        : "";
+  startKnittingLink.hidden = true;
+  firstStepPanel.hidden = false;
+}
+
+function renderFirstStepProblem(message) {
+  currentFirstStepInspection = null;
+  firstStepPanel.hidden = false;
+  firstStepTitle.textContent = "Первый шаг пока недоступен";
+  firstStepInstruction.textContent = message;
+  firstStepExplanation.textContent =
+    "Сохранённые данные не изменены. Вернитесь к результату расчёта или выполните новый расчёт.";
+  firstStepWarnings.hidden = true;
+  firstStepChecklist.replaceChildren();
+  firstStepRowGaugeRow.hidden = true;
+  startFirstStepButton.disabled = true;
+  firstStepStatus.textContent = "";
+  startKnittingLink.hidden = true;
+}
+
+async function startFirstStep() {
+  const projectId = currentProjectAggregate?.project?.project_id;
+  if (!projectId || !firstKnittingStep || !projectRepository) {
+    firstStepStatus.textContent =
+      "Не удалось определить сохранённый проект. Обновите страницу результата.";
+    return;
+  }
+  const checkedIds = [...firstStepChecklist.querySelectorAll("input:checked")]
+    .map((input) => input.dataset.checklistId)
+    .filter(Boolean);
+  startFirstStepButton.disabled = true;
+  firstStepStatus.textContent = "Сохраняем начало первого шага…";
+  try {
+    const inspection = await firstKnittingStep.startForProject(
+      projectRepository,
+      projectId,
+      checkedIds,
+    );
+    renderFirstStep(inspection);
+    const destination = new URL("/step-assistant", window.location.origin);
+    destination.searchParams.set("project", projectId);
+    window.location.assign(`${destination.pathname}${destination.search}`);
+  } catch (error) {
+    startFirstStepButton.disabled = false;
+    firstStepStatus.textContent =
+      error?.userMessage ||
+      "Не удалось начать первый шаг. Сохранённый прогресс не изменён.";
+  }
 }
 
 function renderSwatchMeasurements() {
@@ -1444,9 +1584,29 @@ async function handleProjectListAction(event) {
 async function openProjectInWorkspace(projectId) {
   await projectAutosave?.destroy().catch(() => undefined);
   projectAutosave = null;
-  const aggregate = await projectRepository.openProject(projectId, {
+  let aggregate = await projectRepository.openProject(projectId, {
     includeDeleted: false,
   });
+  let firstStepInspection = null;
+  let firstStepProblem = "";
+  const initialInspection = calculatedProjects?.inspectAggregate(aggregate);
+  if (
+    firstKnittingStep &&
+    (initialInspection?.state === "ready" ||
+      initialInspection?.state === "legacy")
+  ) {
+    try {
+      firstStepInspection = await firstKnittingStep.ensureForProject(
+        projectRepository,
+        projectId,
+      );
+      aggregate = await projectRepository.getProject(projectId);
+    } catch (error) {
+      firstStepProblem =
+        error?.userMessage ||
+        "Первый шаг сохранённого проекта временно недоступен.";
+    }
+  }
   currentProjectAggregate = aggregate;
   currentProjectPanel.hidden = false;
   saveCloudCopyButton.disabled = !cloudClient?.user;
@@ -1476,6 +1636,11 @@ async function openProjectInWorkspace(projectId) {
     );
     renderSwatchMeasurements();
     markProjectSaved();
+    if (firstStepInspection) {
+      renderFirstStep(firstStepInspection);
+    } else if (firstStepProblem) {
+      renderFirstStepProblem(firstStepProblem);
+    }
   } else if (
     inspection?.state === "invalid" ||
     inspection?.state === "unsupported"

@@ -33,7 +33,8 @@ def test_home_screen_keeps_empty_state_and_renders_saved_projects() -> None:
     ):
         assert f'id="{element_id}"' in html
     assert "Сохранённых проектов пока нет" in html
-    assert 'link.textContent = "Продолжить"' in script
+    assert "firstKnittingStep.progressSummary" in script
+    assert "firstKnittingStep?.continueDestination" in script
     assert 'listProjects({ section: "active" })' in script
     assert "resultSummary" in script
 

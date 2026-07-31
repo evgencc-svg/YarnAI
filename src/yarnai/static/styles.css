@@ -693,6 +693,79 @@ select[aria-invalid="true"] {
   background: rgb(255 255 255 / 20%);
 }
 
+.first-step-panel {
+  position: relative;
+  z-index: 1;
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border-radius: 14px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.first-step-panel[hidden] {
+  display: none;
+}
+
+.first-step-panel h2,
+.first-step-panel h3 {
+  margin-bottom: 0.55rem;
+}
+
+.first-step-instruction {
+  font-size: 1.08rem;
+  line-height: 1.6;
+}
+
+.first-step-facts {
+  margin-block: 1rem;
+}
+
+.first-step-explanation {
+  color: var(--muted);
+}
+
+.first-step-warnings {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid #e2c979;
+  border-radius: 12px;
+  background: var(--warning-light);
+}
+
+.first-step-warnings ul {
+  margin-bottom: 0;
+}
+
+.first-step-checklist {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.first-step-checklist legend {
+  padding-inline: 0.35rem;
+  font-weight: 700;
+}
+
+.first-step-checklist > p {
+  margin-top: 0;
+  color: var(--muted);
+}
+
+.first-step-checklist label {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  margin-top: 0.65rem;
+  line-height: 1.45;
+}
+
+.first-step-checklist input {
+  margin-top: 0.2rem;
+}
+
 .result-primary-link {
   margin-right: 8px;
   position: relative;

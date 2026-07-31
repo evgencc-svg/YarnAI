@@ -13,6 +13,8 @@
     <script src="/static/smart-start-state.js" defer></script>
     <script src="/static/step-assistant-state.js" defer></script>
     <script src="/static/tester-mode.js" defer></script>
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-knitting-step.js" defer></script>
     <script src="/static/step-assistant.js" defer></script>
   </head>
   <body>
@@ -65,12 +67,27 @@
         </a>
       </section>
 
+      <section id="step-assistant-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось продолжить первый шаг</h2>
+        <p id="step-assistant-error-message"></p>
+        <a
+          id="step-assistant-error-return"
+          class="link-button link-button-primary"
+          href="/calculator"
+        >
+          Вернуться к результату расчёта
+        </a>
+      </section>
+
       <div id="step-assistant-workflow" class="step-assistant-workflow" hidden>
         <section class="card assistant-project-summary">
           <p class="step-label">Текущий проект</p>
+          <h2 id="assistant-project-title">Сохранённый расчёт</h2>
+          <p id="assistant-step-instruction"></p>
           <p class="assistant-project-count">
             <strong id="project-stitch-count">—</strong>
-            <span>петель в ряду</span>
+            <span id="project-target-label">петель в ряду</span>
           </p>
         </section>
 
@@ -82,19 +99,21 @@
         >
           <div class="assistant-row-heading">
             <div>
-              <p class="step-label">Текущий ряд</p>
-              <h2>Ряд <span id="row-number">1</span></h2>
+              <p id="assistant-current-label" class="step-label">Текущий ряд</p>
+              <h2 id="assistant-current-title">
+                Ряд <span id="row-number">1</span>
+              </h2>
             </div>
             <span id="row-type" class="row-type-badge">Нечётный</span>
           </div>
 
           <dl class="assistant-counts">
             <div>
-              <dt>Нужно провязать</dt>
+              <dt id="assistant-target-count-label">Нужно провязать</dt>
               <dd id="stitch-target">—</dd>
             </div>
             <div>
-              <dt>Уже выполнено</dt>
+              <dt id="assistant-completed-count-label">Уже выполнено</dt>
               <dd id="stitch-completed">0</dd>
             </div>
             <div>
@@ -145,11 +164,14 @@
           hidden
         >
           <span class="completion-mark" aria-hidden="true">✓</span>
-          <p class="step-label">
+          <p id="assistant-completion-label" class="step-label">
             Ряд <span id="completed-row-number">1</span>
           </p>
           <h2 id="row-completion-title" tabindex="-1">Ряд завершён.</h2>
           <p id="completed-row-summary"></p>
+          <p id="next-technology-message" hidden>
+            Набор завершён. Следующий этап технологии пока не сформирован.
+          </p>
           <div class="smart-actions assistant-actions">
             <button
               id="completion-back-button"
@@ -169,8 +191,13 @@
         </section>
 
         <div class="smart-footer-actions">
-          <a class="link-button" href="/smart-start">Вернуться в Smart Start</a>
-          <a class="link-button" href="/">Вернуться к расчёту</a>
+          <a id="assistant-smart-start-link" class="link-button" href="/smart-start">
+            Вернуться в Smart Start
+          </a>
+          <a id="assistant-project-link" class="link-button" href="/">
+            Вернуться к проекту
+          </a>
+          <a class="link-button" href="/">На главную</a>
         </div>
       </div>
     </main>

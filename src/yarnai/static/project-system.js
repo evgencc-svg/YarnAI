@@ -446,6 +446,7 @@
       status_before_archive: null,
       status_before_delete: null,
       active_calculation_id: null,
+      current_stage: null,
       draft_input: null,
       has_unfinished_calculation: false,
       created_at: timestamp,
@@ -531,6 +532,32 @@
         "Сохранённый расчёт проекта повреждён.",
       );
     }
+  }
+
+  function validateProgressRecord(progress, projectId, calculationId, kind) {
+    if (
+      !progress ||
+      progress.schema_version !== RECORD_SCHEMA_VERSION ||
+      !isUuidv7(progress.progress_id) ||
+      progress.project_id !== projectId ||
+      progress.calculation_id !== calculationId ||
+      progress.kind !== kind ||
+      !Number.isInteger(progress.epoch) ||
+      progress.epoch < 1 ||
+      !progress.state ||
+      typeof progress.state !== "object" ||
+      Array.isArray(progress.state) ||
+      !Number.isInteger(progress.revision) ||
+      progress.revision < 1 ||
+      !isTimestamp(progress.created_at) ||
+      !isTimestamp(progress.updated_at)
+    ) {
+      throw new ProjectRepositoryError(
+        "INVALID_PROGRESS",
+        "Сохранённый прогресс проекта повреждён. Исходная запись не изменена.",
+      );
+    }
+    return progress;
   }
 
   function createOperation(project, kind, payload, timestamp, baseRevision, resultRevision) {
@@ -1030,6 +1057,170 @@
         photos: clone(photos),
         recovery_draft: stagedDraft,
       };
+    }
+
+    async getCalculationProgress(projectId, calculationId, kind) {
+      if (!isUuidv7(projectId) || !isUuidv7(calculationId)) {
+        throw new ProjectRepositoryError(
+          "INVALID_PROGRESS_SCOPE",
+          "Ссылка на прогресс проекта повреждена.",
+        );
+      }
+      if (typeof kind !== "string" || !kind.trim()) {
+        throw new ProjectRepositoryError(
+          "INVALID_PROGRESS_KIND",
+          "Тип прогресса проекта не указан.",
+        );
+      }
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const record = await requestResult(
+        transaction
+          .objectStore("progress")
+          .index("by_scope_epoch")
+          .get([projectId, calculationId, kind, 1]),
+      );
+      await transactionComplete(transaction);
+      if (!record) {
+        return null;
+      }
+      validateProgressRecord(record, projectId, calculationId, kind);
+      return clone(record);
+    }
+
+    async updateCalculationProgress(
+      projectId,
+      calculationId,
+      kind,
+      state,
+      options = {},
+    ) {
+      if (!state || typeof state !== "object" || Array.isArray(state)) {
+        throw new ProjectRepositoryError(
+          "INVALID_PROGRESS_STATE",
+          "Новое состояние прогресса имеет неверный формат.",
+        );
+      }
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.workspace_status === "DELETED") {
+          throw new ProjectRepositoryError(
+            "INVALID_LIFECYCLE_TRANSITION",
+            "Нельзя изменять прогресс проекта из корзины.",
+          );
+        }
+        if (before.active_calculation_id !== calculationId) {
+          throw new ProjectRepositoryError(
+            "CALCULATION_MISMATCH",
+            "Прогресс относится не к активному расчёту проекта.",
+          );
+        }
+        const database = await this._database();
+        const readTransaction = database.transaction("progress", "readonly");
+        const currentProgress = await requestResult(
+          readTransaction
+            .objectStore("progress")
+            .index("by_scope_epoch")
+            .get([projectId, calculationId, kind, 1]),
+        );
+        await transactionComplete(readTransaction);
+        if (!currentProgress) {
+          throw new ProjectRepositoryError(
+            "PROGRESS_NOT_FOUND",
+            "Запись прогресса проекта не найдена.",
+          );
+        }
+        validateProgressRecord(
+          currentProgress,
+          projectId,
+          calculationId,
+          kind,
+        );
+        if (
+          options.baseProgressRevision !== undefined &&
+          currentProgress.revision !== options.baseProgressRevision
+        ) {
+          throw new ProjectRepositoryError(
+            "PROGRESS_REVISION_CONFLICT",
+            "Прогресс изменён в другой вкладке. Обновите страницу.",
+          );
+        }
+
+        const timestamp = options.timestamp ?? utcNow();
+        const nextProgress = clone(currentProgress);
+        nextProgress.state = clone(state);
+        nextProgress.updated_at = timestamp;
+        nextProgress.revision = currentProgress.revision + 1;
+
+        const nextProject = clone(before);
+        if (typeof options.projectStage === "string") {
+          nextProject.current_stage = options.projectStage;
+        }
+        nextProject.updated_at = timestamp;
+        nextProject.revision = before.revision + 1;
+        nextProject.materialized_checksum = await checksumPayload(
+          projectChecksumPayload(nextProject),
+        );
+        validateProjectRecord(nextProject);
+
+        const operation = createOperation(
+          nextProject,
+          options.operationKind ?? "PROGRESS_UPDATED",
+          {
+            calculation_id: calculationId,
+            progress_id: nextProgress.progress_id,
+            progress_kind: kind,
+            progress_revision: nextProgress.revision,
+            progress_state: clone(nextProgress.state),
+          },
+          timestamp,
+          before.revision,
+          nextProject.revision,
+        );
+        const checkpoint = createCheckpoint(
+          nextProject,
+          nextProject.materialized_checksum,
+          nextProject.revision,
+          timestamp,
+        );
+        const transaction = database.transaction(
+          ["projects", "progress", "operations", "checkpoints", "meta"],
+          "readwrite",
+        );
+        try {
+          const storedProject = await requestResult(
+            transaction.objectStore("projects").get(projectId),
+          );
+          const storedProgress = await requestResult(
+            transaction.objectStore("progress").get(nextProgress.progress_id),
+          );
+          if (
+            !storedProject ||
+            storedProject.revision !== before.revision ||
+            !storedProgress ||
+            storedProgress.revision !== currentProgress.revision
+          ) {
+            transaction.abort();
+            throw new ProjectRepositoryError(
+              "PROGRESS_REVISION_CONFLICT",
+              "Прогресс изменён параллельно и не был перезаписан.",
+            );
+          }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").put(nextProgress);
+          transaction.objectStore("projects").put(nextProject);
+          transaction.objectStore("operations").add(operation);
+          transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) {
+          throw mapStorageError(error);
+        }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return {
+          project: clone(nextProject),
+          progress: clone(nextProgress),
+        };
+      });
     }
 
     async openProject(projectId, options = {}) {

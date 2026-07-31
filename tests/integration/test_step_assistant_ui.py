@@ -54,6 +54,8 @@ def test_step_assistant_route_assets_and_required_controls(
         "/static/smart-start-state.js",
         "/static/step-assistant-state.js",
         "/static/tester-mode.js",
+        "/static/project-system.js",
+        "/static/first-knitting-step.js",
         "/static/step-assistant.js",
     ]
     for asset in parser.scripts:
@@ -86,7 +88,7 @@ def test_step_assistant_route_assets_and_required_controls(
     assert 'name="viewport"' in response.text
 
 
-def test_step_assistant_requires_completed_smart_start_and_uses_no_url_data(
+def test_step_assistant_supports_project_mode_and_keeps_standalone_guard(
 ) -> None:
     smart_html = (STATIC / "smart-start.html").read_text(encoding="utf-8")
     script = (STATIC / "step-assistant.js").read_text(encoding="utf-8")
@@ -95,8 +97,8 @@ def test_step_assistant_requires_completed_smart_start_and_uses_no_url_data(
     assert 'href="/step-assistant"' in smart_html
     assert "smartStartProgress.completed" in script
     assert "calculationState.readCurrentCalculation(storage)" in script
-    assert "window.location.search" not in script
-    assert "URLSearchParams" not in script
+    assert 'new URLSearchParams(window.location.search).get("project")' in script
+    assert "firstKnittingStep.loadForProject" in script
     assert "showEmptyState()" in script
 
 

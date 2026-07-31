@@ -39,6 +39,7 @@
   }
   const projectSystem = globalObject.YarnAIProjectSystem;
   const calculatedProjects = globalObject.YarnAICalculatedProjects;
+  const firstKnittingStep = globalObject.YarnAIFirstKnittingStep;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -545,7 +546,11 @@
         projects.map(async (project) => {
           try {
             const aggregate = await repository.getProject(project.project_id);
-            return { project, inspection: calculatedProjects.inspectAggregate(aggregate) };
+            return {
+              project,
+              inspection: calculatedProjects.inspectAggregate(aggregate),
+              stepInspection: firstKnittingStep?.inspectAggregate(aggregate),
+            };
           } catch (error) {
             return {
               project,
@@ -555,6 +560,7 @@
                   error?.userMessage ||
                   "Запись проекта повреждена. Она не была удалена.",
               },
+              stepInspection: null,
             };
           }
         }),
@@ -577,7 +583,7 @@
       timeStyle: "short",
     });
     savedProjectsList.replaceChildren(
-      ...entries.map(({ project, inspection }) => {
+      ...entries.map(({ project, inspection, stepInspection }) => {
         const card = document.createElement("article");
         card.className = "saved-project-card";
         card.dataset.projectId = project.project_id;
@@ -591,28 +597,53 @@
           inspection.garmentType ||
           inspection.structured?.garment_type ||
           "тип изделия не указан";
+        const stepStages = {
+          not_started: "Первый шаг готов",
+          in_progress: "Набор петель в работе",
+          completed: "Набор петель завершён",
+          blocked: "Первый шаг заблокирован",
+        };
         const stage =
-          inspection.state === "ready" || inspection.state === "legacy"
-            ? calculatedProjects.stageLabel(inspection.stage)
-            : inspection.state === "draft"
-              ? "Черновик"
-              : "Требуется восстановление";
+          stepInspection?.state === "ready"
+            ? stepStages[stepInspection.step.status]
+            : inspection.state === "ready" || inspection.state === "legacy"
+              ? calculatedProjects.stageLabel(inspection.stage)
+              : inspection.state === "draft"
+                ? "Черновик"
+                : "Требуется восстановление";
         meta.textContent =
           `${garment} · ${stage} · изменён ` +
           formatter.format(new Date(project.updated_at));
 
         const summary = document.createElement("p");
         summary.className = "saved-project-summary";
-        summary.textContent =
-          inspection.state === "ready" || inspection.state === "legacy"
-            ? calculatedProjects.resultSummary(inspection.result)
-            : inspection.message;
+        if (stepInspection?.state === "ready") {
+          summary.textContent = firstKnittingStep.progressSummary(
+            stepInspection.step,
+          );
+        } else {
+          summary.textContent =
+            inspection.state === "ready" || inspection.state === "legacy"
+              ? calculatedProjects.resultSummary(inspection.result)
+              : inspection.message;
+        }
         content.append(title, meta, summary);
 
         const link = document.createElement("a");
         link.className = "saved-project-continue";
-        link.href = `/calculator?project=${encodeURIComponent(project.project_id)}`;
-        link.textContent = "Продолжить";
+        link.href = firstKnittingStep?.continueDestination(
+          inspection,
+          stepInspection,
+          project.project_id,
+        ) ?? `/calculator?project=${encodeURIComponent(project.project_id)}`;
+        link.textContent =
+          stepInspection?.state === "ready" &&
+          stepInspection.step.status === "not_started"
+            ? "Начать"
+            : stepInspection?.state === "ready" &&
+                stepInspection.step.status === "completed"
+              ? "Открыть итог"
+              : "Продолжить";
         card.append(content, link);
         return card;
       }),
