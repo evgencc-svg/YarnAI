@@ -190,6 +190,44 @@ a:focus-visible {
   text-decoration: none;
 }
 
+.assembly-preparation {
+  grid-column: 1 / -1;
+  padding: 1rem;
+  border: 1px solid var(--line, #d8d2c7);
+  border-radius: 0.8rem;
+  background: #fffdf8;
+}
+
+.assembly-preparation h4,
+.assembly-source-summary,
+.assembly-next-stage {
+  margin: 0;
+}
+
+.assembly-source-summary,
+.assembly-next-stage {
+  margin-top: 0.55rem;
+}
+
+.assembly-checklist {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.8rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.assembly-checklist li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.assembly-checklist button {
+  flex: 0 0 auto;
+}
+
 .saved-project-continue:hover {
   background: var(--flow-accent-dark);
 }

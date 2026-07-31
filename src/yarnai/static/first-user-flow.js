@@ -45,6 +45,8 @@
   const firstBindOff = globalObject.YarnAIFirstBindOff;
   const secondIdenticalPiece =
     globalObject.YarnAISecondIdenticalPiece;
+  const firstAssemblyPreparation =
+    globalObject.YarnAIFirstAssemblyPreparation;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -556,6 +558,7 @@
             let shapingInspection = firstSimpleShaping?.inspectAggregate(aggregate);
             let bindOffInspection = null;
             let secondPieceInspection = null;
+            let assemblyInspection = null;
             if (
               firstFabricSection &&
               stepInspection?.state === "ready" &&
@@ -612,6 +615,25 @@
               secondPieceInspection =
                 secondIdenticalPiece.inspectAggregate(aggregate);
             }
+            if (
+              firstAssemblyPreparation &&
+              (secondPieceInspection?.secondPiece?.status === "completed" ||
+                String(aggregate.project.current_stage || "").startsWith(
+                  "assembly_preparation_",
+                ))
+            ) {
+              try {
+                assemblyInspection =
+                  await firstAssemblyPreparation.ensureForProject(
+                    repository,
+                    project.project_id,
+                  );
+                aggregate = await repository.getProject(project.project_id);
+              } catch {
+                assemblyInspection =
+                  firstAssemblyPreparation.inspectAggregate(aggregate);
+              }
+            }
             return {
               project,
               inspection: calculatedProjects.inspectAggregate(aggregate),
@@ -620,6 +642,7 @@
               shapingInspection: firstSimpleShaping?.inspectAggregate(aggregate),
               bindOffInspection,
               secondPieceInspection,
+              assemblyInspection,
             };
           } catch (error) {
             return {
@@ -635,6 +658,7 @@
               shapingInspection: null,
               bindOffInspection: null,
               secondPieceInspection: null,
+              assemblyInspection: null,
             };
           }
         }),
@@ -666,6 +690,7 @@
           shapingInspection,
           bindOffInspection,
           secondPieceInspection,
+          assemblyInspection,
         }) => {
           const card = document.createElement("article");
           card.className = "saved-project-card";
@@ -709,8 +734,14 @@
             secondPieceInspection,
             project.project_id,
           );
+          const assemblyHome = firstAssemblyPreparation?.homeState(
+            assemblyInspection,
+            project.project_id,
+          );
           const stage =
-            secondPieceHome
+            assemblyHome
+              ? assemblyHome.stage
+              : secondPieceHome
               ? secondPieceHome.stage
               : bindOffHome
               ? bindOffHome.stage
@@ -732,7 +763,9 @@
 
           const summary = document.createElement("p");
           summary.className = "saved-project-summary";
-          if (secondPieceHome) {
+          if (assemblyHome) {
+            summary.textContent = assemblyHome.summary;
+          } else if (secondPieceHome) {
             summary.textContent = secondPieceHome.summary;
           } else if (bindOffHome) {
             summary.textContent = bindOffHome.summary;
@@ -752,20 +785,28 @@
           }
           content.append(title, meta, summary);
 
-          const link = document.createElement("a");
+          const link = document.createElement(
+            assemblyHome ? "button" : "a",
+          );
           link.className = "saved-project-continue";
-          link.href =
-            secondPieceHome?.href ??
-            bindOffHome?.href ??
-            shapingHome?.href ??
-            sectionHome?.href ??
-            firstKnittingStep?.continueDestination(
-              inspection,
-              stepInspection,
-              project.project_id,
-            ) ??
-            `/calculator?project=${encodeURIComponent(project.project_id)}`;
+          if (!assemblyHome) {
+            link.href =
+              secondPieceHome?.href ??
+              bindOffHome?.href ??
+              shapingHome?.href ??
+              sectionHome?.href ??
+              firstKnittingStep?.continueDestination(
+                inspection,
+                stepInspection,
+                project.project_id,
+              ) ??
+              `/calculator?project=${encodeURIComponent(project.project_id)}`;
+          } else {
+            link.type = "button";
+            link.disabled = true;
+          }
           link.textContent =
+            assemblyHome?.label ??
             secondPieceHome?.label ??
             bindOffHome?.label ??
             shapingHome?.label ??
@@ -777,11 +818,85 @@
                   stepInspection.step.status === "completed"
                 ? "Уточнить следующий участок"
                 : "Продолжить");
-          card.append(content, link);
+          card.append(content);
+          if (assemblyHome?.preparation) {
+            card.append(
+              renderAssemblyChecklist(
+                assemblyHome.preparation,
+                project.project_id,
+              ),
+            );
+          }
+          card.append(link);
           return card;
         },
       ),
     );
+  }
+
+  function renderAssemblyChecklist(preparation, projectId) {
+    const panel = document.createElement("section");
+    panel.className = "assembly-preparation";
+    panel.dataset.assemblyStatus = preparation.status;
+
+    const title = document.createElement("h4");
+    title.textContent = "Подготовить соединение деталей";
+    const source = document.createElement("p");
+    source.className = "assembly-source-summary";
+    source.textContent =
+      firstAssemblyPreparation.sourceSummary(preparation);
+    const list = document.createElement("ul");
+    list.className = "assembly-checklist";
+
+    for (const item of preparation.checklist) {
+      const row = document.createElement("li");
+      row.dataset.checklistId = item.id;
+      const label = document.createElement("span");
+      label.textContent = `${item.confirmed ? "✓" : "○"} ${item.label}`;
+      row.append(label);
+      if (
+        item.source === "user" &&
+        !item.confirmed &&
+        preparation.status !== "blocked"
+      ) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Подтвердить";
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            const repository =
+              new projectSystem.ProjectRepository();
+            await repository.initialize();
+            await firstAssemblyPreparation.confirmForProject(
+              repository,
+              projectId,
+              item.id,
+            );
+            await repository.close();
+            globalObject.location.reload();
+          } catch (error) {
+            label.textContent =
+              error?.userMessage ||
+              "Не удалось сохранить подтверждение.";
+            button.disabled = false;
+          }
+        });
+        row.append(button);
+      }
+      list.append(row);
+    }
+    const next = document.createElement("p");
+    next.className = "assembly-next-stage";
+    next.textContent =
+      preparation.status === "ready"
+        ? "Следующий этап: соединение деталей (Stage 12B, пока не реализован)."
+        : preparation.status === "blocked"
+          ? preparation.blockers[0]?.message ||
+            "Подготовка заблокирована."
+          : "Подтвердите три пункта, проверяемые пользователем.";
+    panel.append(title, source, list, next);
+    return panel;
   }
 
   function showSavedProjectsError(message) {
