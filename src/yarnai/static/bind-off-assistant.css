@@ -1,0 +1,105 @@
+.bind-off-shell {
+  max-width: 920px;
+}
+
+.bind-off-preparation-card h2 {
+  margin-bottom: 0.75rem;
+}
+
+.bind-off-checklist {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1.2rem 0;
+}
+
+.bind-off-checklist label {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border, #ded7cb);
+  border-radius: 0.8rem;
+  background: var(--surface-soft, #f5f1e9);
+  line-height: 1.45;
+}
+
+.bind-off-checklist input {
+  margin-top: 0.2rem;
+}
+
+.bind-off-instructions {
+  display: grid;
+  gap: 0.65rem;
+  padding-left: 1.5rem;
+  line-height: 1.55;
+}
+
+.bind-off-other-method {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #ded7cb);
+}
+
+.bind-off-other-method summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.bind-off-other-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.bind-off-facts {
+  margin: 1rem 0;
+}
+
+.bind-off-action-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-top: 1rem;
+}
+
+.bind-off-custom-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.bind-off-custom-form label {
+  width: 100%;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.bind-off-custom-form input {
+  width: 8rem;
+}
+
+.bind-off-undo {
+  margin-top: 1rem;
+}
+
+#bind-off-blockers {
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .bind-off-facts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .bind-off-action-controls,
+  .bind-off-action-controls > button,
+  .bind-off-custom-form {
+    width: 100%;
+  }
+
+  .bind-off-custom-form input {
+    flex: 1;
+  }
+}

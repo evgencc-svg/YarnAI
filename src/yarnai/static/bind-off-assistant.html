@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="YarnAI проводит через обычное закрытие всех оставшихся петель и сохраняет первую завершённую деталь."
+    >
+    <title>Закрытие петель первой детали — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/bind-off-assistant.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-knitting-step.js" defer></script>
+    <script src="/static/first-fabric-section.js" defer></script>
+    <script src="/static/first-simple-shaping.js" defer></script>
+    <script src="/static/first-bind-off.js" defer></script>
+    <script src="/static/bind-off-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для ассистента закрытия петель нужен JavaScript. Включи JavaScript и перезагрузи страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/calculator">Калькулятор</a>
+      </nav>
+      <span class="version-badge">Демо 0.1.0</span>
+    </header>
+
+    <main class="page-shell smart-start-shell bind-off-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Завершаем первую деталь</p>
+        <h1 id="page-title">Закроем все оставшиеся петли</h1>
+        <p class="intro-copy">
+          Это инструкция для обычного последовательного закрытия в полотне, связанном поворотными рядами.
+        </p>
+      </section>
+
+      <section id="bind-off-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось открыть закрытие петель</h2>
+        <p id="bind-off-error-message"></p>
+        <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+      </section>
+
+      <div id="bind-off-workflow" class="step-assistant-workflow" hidden>
+        <section class="card assistant-project-summary">
+          <p class="step-label">Текущий проект</p>
+          <h2 id="bind-off-project-title">Сохранённый проект</h2>
+          <p id="bind-off-status-message" role="status"></p>
+        </section>
+
+        <section id="bind-off-blocked-panel" class="card smart-empty-state" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <h2>Закрытие петель пока недоступно</h2>
+          <ul id="bind-off-blockers"></ul>
+          <p>YarnAI не будет подменять нужную сложную технику обычным закрытием.</p>
+        </section>
+
+        <section id="bind-off-warnings-panel" class="card warning-panel" hidden>
+          <h2>Обрати внимание</h2>
+          <ul id="bind-off-warnings"></ul>
+        </section>
+
+        <section id="bind-off-preparation-panel" class="card bind-off-preparation-card" hidden>
+          <p class="step-label">Перед началом</p>
+          <h2>
+            Предстоит закрыть
+            <span id="bind-off-preparation-count">—</span> петель
+          </h2>
+          <p>Спокойно проверь подготовку. Отметки сохранятся вместе с началом работы.</p>
+          <form id="bind-off-checklist-form">
+            <div id="bind-off-checklist" class="bind-off-checklist"></div>
+            <p id="bind-off-form-error" class="form-error" role="alert"></p>
+            <button id="bind-off-start-button" class="primary-button" type="submit">
+              Всё готово — начать
+            </button>
+          </form>
+          <details class="bind-off-other-method">
+            <summary>В проекте указан другой способ закрытия</summary>
+            <p>
+              Не начинай обычное закрытие, если нужно закрыть только часть петель,
+              сделать ступени или применить специальную технику.
+            </p>
+            <div class="bind-off-other-actions">
+              <button id="bind-off-partial-button" class="quiet-button" type="button">
+                Нужно частичное закрытие
+              </button>
+              <button id="bind-off-stepped-button" class="quiet-button" type="button">
+                Нужно ступенчатое закрытие
+              </button>
+              <button id="bind-off-special-button" class="quiet-button" type="button">
+                Нужен специальный способ
+              </button>
+            </div>
+          </details>
+        </section>
+
+        <section id="bind-off-instruction-panel" class="card" hidden>
+          <p class="step-label">Обычное последовательное закрытие</p>
+          <h2>Как закрывать петли</h2>
+          <ol id="bind-off-instructions" class="bind-off-instructions"></ol>
+        </section>
+
+        <section id="bind-off-progress-panel" class="card assistant-row-card" hidden aria-live="polite">
+          <div class="assistant-row-heading">
+            <div>
+              <p class="step-label">Сохранённый прогресс</p>
+              <h2>Закрытие петель</h2>
+            </div>
+            <span id="bind-off-saved-status" class="row-type-badge">Сохранено</span>
+          </div>
+          <dl class="section-facts bind-off-facts">
+            <div><dt>Исходно</dt><dd><span id="bind-off-initial-count">—</span> п.</dd></div>
+            <div><dt>Закрыто</dt><dd><span id="bind-off-bound-count">—</span> п.</dd></div>
+            <div><dt>Осталось</dt><dd><span id="bind-off-remaining-count">—</span> п.</dd></div>
+          </dl>
+          <p id="bind-off-progress-text" tabindex="-1">0 из 0 петель</p>
+          <progress
+            id="bind-off-progress"
+            class="step-progress"
+            max="1"
+            value="0"
+            aria-label="Прогресс закрытия петель"
+          ></progress>
+          <div id="bind-off-action-controls" class="bind-off-action-controls">
+            <button id="bind-off-one-button" class="primary-button" type="button">
+              Закрыта 1 петля
+            </button>
+            <button id="bind-off-five-button" class="secondary-button" type="button">
+              Закрыто 5 петель
+            </button>
+            <form id="bind-off-custom-form" class="bind-off-custom-form">
+              <label for="bind-off-custom-amount">Своё количество</label>
+              <input
+                id="bind-off-custom-amount"
+                type="number"
+                min="1"
+                step="1"
+                inputmode="numeric"
+                required
+              >
+              <button id="bind-off-custom-button" class="secondary-button" type="submit">
+                Сохранить
+              </button>
+            </form>
+          </div>
+          <button id="bind-off-undo-button" class="quiet-button bind-off-undo" type="button">
+            Исправить последнее действие
+          </button>
+        </section>
+
+        <section id="bind-off-finish-panel" class="card completion-card" hidden aria-live="polite">
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Все петли отмечены как закрытые</p>
+          <h2>Обрежь и закрепи нить</h2>
+          <p>
+            Обрежь нить, оставив хвост, протяни его через последнюю петлю и затяни.
+            Этап ещё не завершён автоматически.
+          </p>
+          <p><strong>Все петли закрыты и последняя петля закреплена?</strong></p>
+          <div class="smart-actions assistant-actions">
+            <button id="bind-off-finish-undo-button" class="secondary-button" type="button">
+              Исправить последнее действие
+            </button>
+            <button id="bind-off-complete-button" class="primary-button" type="button">
+              Да, первая деталь завершена
+            </button>
+          </div>
+        </section>
+
+        <section id="bind-off-completed-panel" class="card completion-card" hidden>
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Сохранено в проекте</p>
+          <h2>Первая деталь завершена</h2>
+          <p id="bind-off-completed-summary"></p>
+          <p id="bind-off-completed-date"></p>
+        </section>
+
+        <div class="smart-footer-actions">
+          <a id="bind-off-project-link" class="link-button" href="/">Вернуться к проекту</a>
+          <a id="bind-off-shaping-link" class="link-button" href="/">Открыть формирование</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · закрытие петель первой детали</span>
+      <span>Версия приложения 0.1.0</span>
+    </footer>
+  </body>
+</html>

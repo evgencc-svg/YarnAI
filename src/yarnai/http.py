@@ -270,6 +270,15 @@ async def shaping_assistant(_request: Request) -> FileResponse:
     )
 
 
+async def bind_off_assistant(_request: Request) -> FileResponse:
+    """Return the first bind-off and piece completion assistant page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "bind-off-assistant.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -369,6 +378,7 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route("/step-assistant", step_assistant, methods=["GET"]),
         Route("/section-assistant", section_assistant, methods=["GET"]),
         Route("/shaping-assistant", shaping_assistant, methods=["GET"]),
+        Route("/bind-off-assistant", bind_off_assistant, methods=["GET"]),
         Route("/test", tester_start, methods=["GET"]),
         Route("/feedback", feedback, methods=["GET"]),
         Route("/health", health, methods=["GET"]),

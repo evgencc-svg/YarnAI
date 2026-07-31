@@ -42,6 +42,7 @@
   const firstKnittingStep = globalObject.YarnAIFirstKnittingStep;
   const firstFabricSection = globalObject.YarnAIFirstFabricSection;
   const firstSimpleShaping = globalObject.YarnAIFirstSimpleShaping;
+  const firstBindOff = globalObject.YarnAIFirstBindOff;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -551,6 +552,7 @@
             const stepInspection = firstKnittingStep?.inspectAggregate(aggregate);
             let sectionInspection = firstFabricSection?.inspectAggregate(aggregate);
             let shapingInspection = firstSimpleShaping?.inspectAggregate(aggregate);
+            let bindOffInspection = null;
             if (
               firstFabricSection &&
               stepInspection?.state === "ready" &&
@@ -582,12 +584,28 @@
                   firstSimpleShaping.inspectAggregate(aggregate);
               }
             }
+            if (
+              firstBindOff &&
+              shapingInspection?.state === "ready" &&
+              shapingInspection.shaping.status === "completed"
+            ) {
+              try {
+                bindOffInspection = await firstBindOff.ensureForProject(
+                  repository,
+                  project.project_id,
+                );
+                aggregate = await repository.getProject(project.project_id);
+              } catch {
+                bindOffInspection = firstBindOff.inspectAggregate(aggregate);
+              }
+            }
             return {
               project,
               inspection: calculatedProjects.inspectAggregate(aggregate),
               stepInspection: firstKnittingStep?.inspectAggregate(aggregate),
               sectionInspection: firstFabricSection?.inspectAggregate(aggregate),
-              shapingInspection,
+              shapingInspection: firstSimpleShaping?.inspectAggregate(aggregate),
+              bindOffInspection,
             };
           } catch (error) {
             return {
@@ -601,6 +619,7 @@
               stepInspection: null,
               sectionInspection: null,
               shapingInspection: null,
+              bindOffInspection: null,
             };
           }
         }),
@@ -630,6 +649,7 @@
           stepInspection,
           sectionInspection,
           shapingInspection,
+          bindOffInspection,
         }) => {
           const card = document.createElement("article");
           card.className = "saved-project-card";
@@ -665,8 +685,14 @@
             shapingInspection,
             project.project_id,
           );
+          const bindOffHome = firstBindOff?.homeState(
+            bindOffInspection,
+            project.project_id,
+          );
           const stage =
-            shapingHome
+            bindOffHome
+              ? bindOffHome.stage
+              : shapingHome
               ? shapingHome.stage
               : sectionInspection?.state === "ready"
               ? sectionStages[sectionInspection.section.status]
@@ -684,7 +710,9 @@
 
           const summary = document.createElement("p");
           summary.className = "saved-project-summary";
-          if (shapingHome) {
+          if (bindOffHome) {
+            summary.textContent = bindOffHome.summary;
+          } else if (shapingHome) {
             summary.textContent = shapingHome.summary;
           } else if (sectionHome) {
             summary.textContent = sectionHome.summary;
@@ -703,6 +731,7 @@
           const link = document.createElement("a");
           link.className = "saved-project-continue";
           link.href =
+            bindOffHome?.href ??
             shapingHome?.href ??
             sectionHome?.href ??
             firstKnittingStep?.continueDestination(
@@ -712,6 +741,7 @@
             ) ??
             `/calculator?project=${encodeURIComponent(project.project_id)}`;
           link.textContent =
+            bindOffHome?.label ??
             shapingHome?.label ??
             sectionHome?.label ??
             (stepInspection?.state === "ready" &&

@@ -43,6 +43,7 @@ const targetBackButton = document.querySelector("#shaping-target-back-button");
 const completeButton = document.querySelector("#shaping-complete-button");
 const completedPanel = document.querySelector("#shaping-completed-panel");
 const completedSummary = document.querySelector("#shaping-completed-summary");
+const bindOffLink = document.querySelector("#shaping-bind-off-link");
 const editPanel = document.querySelector("#shaping-edit-panel");
 const editField = document.querySelector("#shaping-edit-field");
 const editButton = document.querySelector("#shaping-edit-button");
@@ -102,6 +103,8 @@ function render(moveFocus) {
     inspection.source?.project?.title || "Сохранённый проект";
   sectionLink.href =
     `/section-assistant?project=${encodeURIComponent(projectId)}`;
+  bindOffLink.href =
+    `/bind-off-assistant?project=${encodeURIComponent(projectId)}`;
 
   const state = inspection.state;
   const shaping = inspection.shaping;
