@@ -306,6 +306,15 @@ async def first_assembly_inspection(_request: Request) -> FileResponse:
     )
 
 
+async def first_tail_securing(_request: Request) -> FileResponse:
+    """Return the first working-tail securing assistant page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "first-tail-securing.html",
+        media_type="text/html",
+    )
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -419,6 +428,11 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/first-assembly-inspection",
             first_assembly_inspection,
+            methods=["GET"],
+        ),
+        Route(
+            "/first-tail-securing",
+            first_tail_securing,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),

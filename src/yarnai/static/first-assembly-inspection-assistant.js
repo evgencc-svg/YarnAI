@@ -76,6 +76,9 @@ const completedPanel = document.querySelector(
 const completedDate = document.querySelector(
   "#inspection-completed-date",
 );
+const tailSecuringLink = document.querySelector(
+  "#inspection-tail-securing-link",
+);
 
 let repository = null;
 let result = null;
@@ -105,6 +108,8 @@ async function initialize() {
     return;
   }
   repository = new projectSystem.ProjectRepository();
+  tailSecuringLink.href =
+    `/first-tail-securing?project=${encodeURIComponent(projectId)}`;
   await repository.initialize();
   result = await inspectionEngine.revalidateForProject(
     repository,

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="YarnAI помогает надёжно закрепить хвост рабочей нити после первой сборочной операции."
+    >
+    <title>Первое закрепление хвоста — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/first-tail-securing.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/first-assembly-preparation.js" defer></script>
+    <script src="/static/first-assembly-join.js" defer></script>
+    <script src="/static/first-assembly-inspection.js" defer></script>
+    <script src="/static/first-tail-securing.js" defer></script>
+    <script src="/static/first-tail-securing-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript>
+      <div class="noscript-message" role="alert">
+        Для закрепления хвоста нужен JavaScript. Включите его и перезагрузите страницу.
+      </div>
+    </noscript>
+
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная">
+        <img class="brand-mark" src="/static/favicon.png" alt="">
+        <span>YarnAI</span>
+      </a>
+      <nav class="site-nav" aria-label="Основная навигация">
+        <a href="/">Главная</a>
+        <a href="/calculator">Калькулятор</a>
+      </nav>
+      <span class="version-badge">Stage 13</span>
+    </header>
+
+    <main class="page-shell smart-start-shell inspection-shell tail-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Первая сборочная операция</p>
+        <h1 id="page-title">Закрепим хвост рабочей нити</h1>
+        <p class="intro-copy">
+          Закрепление удерживает соединение после обрезания нити. Мы проверим,
+          где проходит хвост, сколько закреплений выполнено и не тянет ли он полотно.
+        </p>
+      </section>
+
+      <section id="tail-error" class="card smart-empty-state" hidden>
+        <span class="state-icon" aria-hidden="true">!</span>
+        <h2>Не удалось открыть закрепление хвоста</h2>
+        <p id="tail-error-message"></p>
+        <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+      </section>
+
+      <div id="tail-workflow" class="step-assistant-workflow" hidden>
+        <section class="card assistant-project-summary">
+          <p class="step-label">Текущий проект</p>
+          <h2 id="tail-project-title">Сохранённый проект</h2>
+          <p id="tail-status-message" role="status"></p>
+        </section>
+
+        <section class="card inspection-source-card" aria-labelledby="tail-source-title">
+          <p class="step-label">Неизменяемый источник Stage 12C</p>
+          <h2 id="tail-source-title">Проверенная сборочная операция</h2>
+          <p id="tail-source-summary"></p>
+          <dl class="section-facts inspection-source-facts">
+            <div>
+              <dt>Проверка</dt>
+              <dd id="tail-inspection-reference">—</dd>
+            </div>
+            <div>
+              <dt>Ревизия</dt>
+              <dd id="tail-inspection-revision">—</dd>
+            </div>
+            <div>
+              <dt>Источник Stage 12C</dt>
+              <dd id="tail-stage12-fingerprint">—</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section id="tail-blocked-panel" class="card smart-empty-state" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <h2>Закрепление хвоста заблокировано</h2>
+          <ul id="tail-blockers" class="inspection-blockers"></ul>
+          <p>
+            Блокировка сохраняется. История и snapshot не сбрасываются и не
+            исправляются автоматически.
+          </p>
+          <a class="link-button" href="/">Вернуться к проекту</a>
+        </section>
+
+        <section id="tail-ready-panel" class="card inspection-guide-card" hidden>
+          <p class="step-label">Перед началом</p>
+          <h2>Почему хвост нужно закрепить</h2>
+          <ol>
+            <li>Незакреплённая нить может вытянуться и ослабить соединение.</li>
+            <li>Слишком короткий хвост трудно спрятать и надёжно удержать.</li>
+            <li>Слишком тугое закрепление стягивает полотно.</li>
+          </ol>
+          <p>
+            Работайте на изнаночной стороне и не обрезайте хвост до завершения checklist.
+          </p>
+          <button id="tail-start-button" class="primary-button" type="button">
+            Начать закрепление
+          </button>
+        </section>
+
+        <section id="tail-securing-panel" class="card inspection-check-card" hidden>
+          <p class="step-label">Пошаговое закрепление</p>
+          <h2>Проведите хвост и зафиксируйте его</h2>
+
+          <div class="tail-count-grid">
+            <label for="tail-recommended-count">
+              Рекомендовано закреплений
+              <input id="tail-recommended-count" type="number" min="1" max="9" value="3">
+            </label>
+            <label for="tail-completed-count">
+              Выполнено закреплений
+              <input id="tail-completed-count" type="number" min="0" max="99" value="0">
+            </label>
+            <label for="tail-user-confidence">
+              Насколько вы уверены
+              <select id="tail-user-confidence">
+                <option value="">Выберите</option>
+                <option value="low">Нужна помощь</option>
+                <option value="medium">Скорее уверен(а)</option>
+                <option value="high">Уверен(а)</option>
+              </select>
+            </label>
+          </div>
+          <button id="tail-save-information-button" class="secondary-button" type="button">
+            Сохранить сведения о закреплении
+          </button>
+
+          <h3>Контрольный список</h3>
+          <div id="tail-checklist" class="inspection-checklist"></div>
+
+          <fieldset class="inspection-result-choice">
+            <legend>Есть ли проблема?</legend>
+            <button id="tail-good-button" class="secondary-button" type="button">
+              Проблем нет
+            </button>
+            <button id="tail-problem-button" class="secondary-button" type="button">
+              Есть проблема
+            </button>
+            <p id="tail-choice-status" role="status"></p>
+          </fieldset>
+
+          <div id="tail-issue-form" class="inspection-issue-form" hidden>
+            <label for="tail-issue-code">Что заметили?</label>
+            <select id="tail-issue-code">
+              <option value="">Выберите проблему</option>
+              <option value="tail_too_short">Хвост слишком короткий</option>
+              <option value="tail_visible">Хвост виден с лицевой стороны</option>
+              <option value="tail_not_secured">Хвост закреплён ненадёжно</option>
+              <option value="fabric_distorted">Полотно деформировано</option>
+              <option value="tail_pulled">Хвост натягивает полотно</option>
+              <option value="other">Другая проблема</option>
+            </select>
+            <label id="tail-issue-note-label" for="tail-issue-note" hidden>
+              Кратко опишите проблему
+            </label>
+            <textarea id="tail-issue-note" rows="3" maxlength="240" hidden></textarea>
+            <button id="tail-mark-issue-button" class="primary-button" type="button">
+              Сохранить проблему
+            </button>
+          </div>
+
+          <p id="tail-form-error" class="form-error" role="alert"></p>
+          <button id="tail-complete-button" class="primary-button" type="button">
+            Подтвердить закрепление хвоста
+          </button>
+          <p class="inspection-explicit-note">
+            Checklist не завершает Stage 13 автоматически. Нужна отдельная кнопка подтверждения.
+          </p>
+        </section>
+
+        <section id="tail-rework-panel" class="card inspection-correction-card" hidden>
+          <span class="state-icon" aria-hidden="true">!</span>
+          <p class="step-label">Нужно ручное исправление</p>
+          <h2 id="tail-issue-title">Проблема сохранена</h2>
+          <p id="tail-rework-instruction"></p>
+          <label class="inspection-acknowledgement">
+            <input id="tail-acknowledge-checkbox" type="checkbox">
+            <span>Я понимаю, что проблему нужно исправить вручную.</span>
+          </label>
+          <button id="tail-acknowledge-button" class="secondary-button" type="button">
+            Подтвердить понимание
+          </button>
+          <button id="tail-resolved-button" class="primary-button" type="button">
+            Я исправил(а) проблему
+          </button>
+          <p>
+            После исправления весь пользовательский checklist будет пройден заново.
+            Предыдущие действия останутся в истории.
+          </p>
+          <p id="tail-rework-error" class="form-error" role="alert"></p>
+        </section>
+
+        <section id="tail-completed-panel" class="card completion-card" hidden>
+          <span class="completion-mark" aria-hidden="true">✓</span>
+          <p class="step-label">Сохранено в проекте</p>
+          <h2>Хвост рабочей нити закреплён</h2>
+          <p>
+            Хвост спрятан, выполнено достаточно закреплений, соединение не должно
+            распуститься и полотно не натянуто.
+          </p>
+          <p id="tail-completed-date"></p>
+          <p>Следующий этап не начат автоматически.</p>
+          <a class="link-button link-button-primary" href="/">Вернуться к проекту</a>
+        </section>
+
+        <div class="smart-footer-actions">
+          <a class="link-button" href="/">Вернуться к проекту</a>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <span>YarnAI · первое закрепление хвоста</span>
+      <span>Stage 13</span>
+    </footer>
+  </body>
+</html>

@@ -51,6 +51,8 @@
     globalObject.YarnAIFirstAssemblyJoin;
   const firstAssemblyInspection =
     globalObject.YarnAIFirstAssemblyInspection;
+  const firstTailSecuring =
+    globalObject.YarnAIFirstTailSecuring;
   globalObject.YarnAIFirstUserFlow = engineApi;
 
   if (typeof document === "undefined") {
@@ -565,6 +567,7 @@
             let assemblyInspection = null;
             let assemblyJoinInspection = null;
             let assemblyQualityInspection = null;
+            let tailSecuringInspection = null;
             if (
               firstFabricSection &&
               stepInspection?.state === "ready" &&
@@ -678,6 +681,26 @@
                   firstAssemblyInspection.inspectAggregate(aggregate);
               }
             }
+            if (
+              firstTailSecuring &&
+              (assemblyQualityInspection?.inspection?.status ===
+                "completed" ||
+                String(aggregate.project.current_stage || "").startsWith(
+                  "tail_securing_",
+                ))
+            ) {
+              try {
+                tailSecuringInspection =
+                  await firstTailSecuring.ensureForProject(
+                    repository,
+                    project.project_id,
+                  );
+                aggregate = await repository.getProject(project.project_id);
+              } catch {
+                tailSecuringInspection =
+                  firstTailSecuring.inspectAggregate(aggregate);
+              }
+            }
             return {
               project,
               inspection: calculatedProjects.inspectAggregate(aggregate),
@@ -689,6 +712,7 @@
               assemblyInspection,
               assemblyJoinInspection,
               assemblyQualityInspection,
+              tailSecuringInspection,
             };
           } catch (error) {
             return {
@@ -707,6 +731,7 @@
               assemblyInspection: null,
               assemblyJoinInspection: null,
               assemblyQualityInspection: null,
+              tailSecuringInspection: null,
             };
           }
         }),
@@ -741,6 +766,7 @@
           assemblyInspection,
           assemblyJoinInspection,
           assemblyQualityInspection,
+          tailSecuringInspection,
         }) => {
           const card = document.createElement("article");
           card.className = "saved-project-card";
@@ -797,8 +823,14 @@
               assemblyQualityInspection,
               project.project_id,
             );
+          const tailSecuringHome = firstTailSecuring?.homeState(
+            tailSecuringInspection,
+            project.project_id,
+          );
           const stage =
-            assemblyQualityHome
+            tailSecuringHome
+              ? tailSecuringHome.stage
+              : assemblyQualityHome
               ? assemblyQualityHome.stage
               : assemblyJoinHome
               ? assemblyJoinHome.stage
@@ -826,7 +858,9 @@
 
           const summary = document.createElement("p");
           summary.className = "saved-project-summary";
-          if (assemblyQualityHome) {
+          if (tailSecuringHome) {
+            summary.textContent = tailSecuringHome.summary;
+          } else if (assemblyQualityHome) {
             summary.textContent = assemblyQualityHome.summary;
           } else if (assemblyJoinHome) {
             summary.textContent = assemblyJoinHome.summary;
@@ -853,14 +887,18 @@
           content.append(title, meta, summary);
 
           const link = document.createElement(
-            assemblyQualityHome || assemblyJoinHome
+            tailSecuringHome ||
+            assemblyQualityHome ||
+            assemblyJoinHome
               ? "a"
               : assemblyHome
                 ? "button"
                 : "a",
           );
           link.className = "saved-project-continue";
-          if (assemblyQualityHome) {
+          if (tailSecuringHome) {
+            link.href = tailSecuringHome.href;
+          } else if (assemblyQualityHome) {
             link.href = assemblyQualityHome.href;
           } else if (assemblyJoinHome) {
             link.href = assemblyJoinHome.href;
@@ -881,6 +919,7 @@
             link.disabled = true;
           }
           link.textContent =
+            tailSecuringHome?.label ??
             assemblyQualityHome?.label ??
             assemblyJoinHome?.label ??
             assemblyHome?.label ??
