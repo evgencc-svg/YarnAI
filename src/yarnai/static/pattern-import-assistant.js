@@ -70,7 +70,7 @@ function bindActions() {
         patternImport.addMaterialsForProject(
           repository,
           projectId,
-          files.map((file) => patternImport.materialFromFile(file)),
+          files,
         ),
       "Проверьте тип и размер выбранных файлов.",
     ).finally(() => {

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Локальное детерминированное чтение импортированных материалов YarnAI.">
+    <title>Извлечение содержимого — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-content-extraction.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-analysis.js" defer></script>
+    <script src="/static/pattern-content-extraction.js" defer></script>
+    <script src="/static/pattern-content-extraction-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для локального чтения материалов нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
+      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a href="/pattern-analysis">Анализ материалов</a></nav>
+      <span class="version-badge">Stage 17</span>
+    </header>
+    <main class="page-shell extraction-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Stage 17</p>
+        <h1 id="page-title">Извлечение содержимого</h1>
+        <p class="intro-copy">YarnAI читает только доступный текст и технические метаданные локальных файлов. Это не анализ схемы и не технология вязания.</p>
+      </section>
+      <section id="pattern-content-extraction-error" class="card" hidden role="alert"><h2>Не удалось открыть этап</h2><p id="pattern-content-extraction-error-message"></p></section>
+      <section id="pattern-content-extraction-workflow" class="card" aria-live="polite">
+        <p class="eyebrow">Текущий проект</p>
+        <h2 id="pattern-content-extraction-project-title">Извлечение материалов</h2>
+        <p id="pattern-content-extraction-status" role="status">Извлечение содержимого ещё не подготовлено.</p>
+        <p id="pattern-content-extraction-summary"></p>
+        <div class="extraction-actions">
+          <button id="pattern-content-extraction-start" class="link-button link-button-primary" type="button" hidden>Начать извлечение</button>
+          <button id="pattern-content-extraction-retry" class="link-button" type="button" hidden>Повторить извлечение</button>
+          <button id="pattern-content-extraction-view" class="link-button" type="button" hidden>Просмотреть извлечённый текст</button>
+        </div>
+        <p id="pattern-content-extraction-diagnostic" class="form-error" role="alert"></p>
+      </section>
+      <section id="pattern-content-extraction-results" class="card" hidden>
+        <h2>Файлы</h2>
+        <ul id="pattern-content-extraction-files" class="extraction-files"></ul>
+        <div id="pattern-content-extraction-text" class="extraction-text-panel" hidden>
+          <h3>Объединённый текст</h3>
+          <pre id="pattern-content-extraction-combined"></pre>
+          <div id="pattern-content-extraction-file-texts"></div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

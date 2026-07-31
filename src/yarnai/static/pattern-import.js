@@ -532,21 +532,41 @@
   }
 
   async function addMaterialsForProject(repository, projectId, inputs) {
-    return mutateForProject(
-      repository,
-      projectId,
-      (state) => addMaterials(state, inputs),
-      "PATTERN_IMPORT_MATERIALS_ADDED",
-    );
+    const result = await ensureForProject(repository, projectId);
+    if (result.state === "corrupted" || result.state === "blocked") {
+      throw errorFromResult(result);
+    }
+    const next = addMaterials(result.patternImport, inputs);
+    const added = next.materials.slice(result.patternImport.materials.length);
+    const stored = [];
+    try {
+      for (let index = 0; index < inputs.length; index += 1) {
+        if (inputs[index] instanceof Blob) {
+          await repository.savePatternFile(projectId, added[index].id, inputs[index], {
+            displayName: added[index].displayName,
+            mediaType: inputs[index].type,
+          });
+          stored.push(added[index].id);
+        }
+      }
+      return await persist(repository, result, next, "PATTERN_IMPORT_MATERIALS_ADDED");
+    } catch (error) {
+      await Promise.allSettled(
+        stored.map((materialId) => repository.deletePatternFile(projectId, materialId)),
+      );
+      throw error;
+    }
   }
 
   async function removeMaterialForProject(repository, projectId, materialId) {
-    return mutateForProject(
+    const result = await mutateForProject(
       repository,
       projectId,
       (state) => removeMaterial(state, materialId),
       "PATTERN_IMPORT_MATERIAL_REMOVED",
     );
+    await repository.deletePatternFile(projectId, materialId);
+    return result;
   }
 
   async function moveMaterialForProject(

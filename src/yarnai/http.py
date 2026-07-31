@@ -31,6 +31,11 @@ from yarnai.config import RuntimeSettings
 from yarnai.cloud_api import CloudApi
 from yarnai.database import create_database_engine, create_session_factory
 from yarnai.security import uuid7
+from yarnai.pattern_content_extraction import (
+    MAX_PDF_BYTES,
+    PdfExtractionError,
+    extract_pdf_text,
+)
 
 
 TECHNICAL_ERROR_MESSAGE = (
@@ -159,10 +164,15 @@ class RequestBodyLimitMiddleware:
             await self.application(scope, receive, send)
             return
         headers = dict(scope.get("headers", []))
+        request_limit = (
+            MAX_PDF_BYTES
+            if scope.get("path") == "/api/v1/pattern-content-extraction/pdf"
+            else self.maximum_bytes
+        )
         raw_length = headers.get(b"content-length")
         if raw_length:
             try:
-                too_large = int(raw_length) > self.maximum_bytes
+                too_large = int(raw_length) > request_limit
             except ValueError:
                 too_large = True
             if too_large:
@@ -181,7 +191,7 @@ class RequestBodyLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > self.maximum_bytes:
+                if received > request_limit:
                     scope.setdefault("state", {})["body_too_large"] = True
                     return {
                         "type": "http.request",
@@ -342,6 +352,31 @@ async def pattern_analysis(_request: Request) -> FileResponse:
     )
 
 
+async def pattern_content_extraction(_request: Request) -> FileResponse:
+    """Return the deterministic imported-content extraction page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-content-extraction.html",
+        media_type="text/html",
+    )
+
+
+async def extract_pattern_pdf(request: Request) -> JSONResponse:
+    """Extract only the local text layer of one PDF."""
+
+    payload = await request.body()
+    if getattr(request.state, "body_too_large", False) or len(payload) > MAX_PDF_BYTES:
+        return _error_response(
+            413,
+            code="file_too_large",
+            message="PDF exceeds the safe local extraction size limit.",
+        )
+    try:
+        return JSONResponse(extract_pdf_text(payload))
+    except PdfExtractionError as error:
+        return _error_response(422, code=error.code, message=error.message)
+
+
 async def tester_start(_request: Request) -> FileResponse:
     """Return the entry page for local user testing."""
 
@@ -477,12 +512,22 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
             pattern_analysis,
             methods=["GET"],
         ),
+        Route(
+            "/pattern-content-extraction",
+            pattern_content_extraction,
+            methods=["GET"],
+        ),
         Route("/test", tester_start, methods=["GET"]),
         Route("/feedback", feedback, methods=["GET"]),
         Route("/health", health, methods=["GET"]),
         Route(
             "/api/v1/calculate",
             calculate_first_function,
+            methods=["POST"],
+        ),
+        Route(
+            "/api/v1/pattern-content-extraction/pdf",
+            extract_pattern_pdf,
             methods=["POST"],
         ),
     ]

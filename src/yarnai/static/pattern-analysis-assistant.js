@@ -6,6 +6,7 @@
   const status = document.querySelector("#pattern-analysis-status");
   const details = document.querySelector("#pattern-analysis-details");
   const title = document.querySelector("#pattern-analysis-project-title");
+  const extractionLink = document.querySelector("#pattern-content-extraction-link");
 
   initialize().catch(() => {
     status.textContent = "Анализ материалов ещё не выполнялся.";
@@ -31,6 +32,7 @@
         await repository.getProject(projectId),
       );
       title.textContent = result.project?.title || "Состояние анализа";
+      extractionLink.href = `/pattern-content-extraction?project=${encodeURIComponent(projectId)}`;
       render(result);
     } finally {
       await repository.close();

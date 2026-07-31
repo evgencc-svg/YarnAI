@@ -1,0 +1,17 @@
+.extraction-shell { max-width: 980px; }
+.extraction-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.extraction-files { display: grid; gap: .75rem; padding: 0; list-style: none; }
+.extraction-file { padding: .9rem 1rem; border: 1px solid var(--border-color, #d9d2c3); border-radius: 12px; background: #fffdf8; }
+.extraction-file-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; }
+.extraction-file-name { overflow-wrap: anywhere; font-weight: 700; }
+.extraction-file-meta { color: #655f55; font-size: .9rem; }
+.extraction-warning-list { margin: .5rem 0 0; }
+.extraction-text-panel { margin-top: 1.25rem; }
+.extraction-text-panel pre { max-height: 28rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 1rem; border-radius: 12px; background: #171612; color: #f9f3e7; }
+.extraction-file-text details { margin-top: .75rem; }
+.extraction-file-text pre { max-height: 20rem; }
+@media (max-width: 560px) {
+  .extraction-actions { align-items: stretch; flex-direction: column; }
+  .extraction-actions .link-button { width: 100%; text-align: center; }
+  .extraction-file-header { flex-direction: column; }
+}

@@ -2,7 +2,7 @@
 
 (function initializeProjectSystem(global) {
   const DB_NAME = "yarnai-local";
-  const DB_VERSION = 3;
+  const DB_VERSION = 4;
   const RECORD_SCHEMA_VERSION = 1;
   const EXPORT_SCHEMA_VERSION = 1;
   const EXPORT_FORMAT = "yarnai-project";
@@ -33,6 +33,7 @@
     "FIRST_BLOCKING",
     "PATTERN_IMPORT",
     "PATTERN_ANALYSIS",
+    "PATTERN_CONTENT_EXTRACTION",
   ]);
   const ALL_STATUSES = new Set([...ACTIVE_STATUSES, "ARCHIVED", "DELETED"]);
   const RESTORABLE_STATUSES = new Set([
@@ -51,6 +52,8 @@
     "checkpoints",
     "photos",
     "photo_blobs",
+    "pattern_files",
+    "pattern_file_blobs",
     "settings",
     "cache",
     "sync_state",
@@ -101,6 +104,13 @@
       ["by_photo_variant", ["photo_id", "variant_kind"], { unique: true }],
       ["by_state_accessed", ["storage_state", "last_accessed_at"]],
       ["by_purge_after", "purge_after"],
+    ],
+    pattern_files: [
+      ["by_project_material", ["project_id", "material_id"], { unique: true }],
+      ["by_project_created", ["project_id", "created_at"]],
+    ],
+    pattern_file_blobs: [
+      ["by_pattern_file", "pattern_file_id", { unique: true }],
     ],
     settings: [
       ["by_partition_key", ["partition_key", "setting_key"], { unique: true }],
@@ -352,6 +362,8 @@
         checkpoints: createStore(database, "checkpoints", "checkpoint_id"),
         photos: createStore(database, "photos", "photo_id"),
         photo_blobs: createStore(database, "photo_blobs", "blob_id"),
+        pattern_files: createStore(database, "pattern_files", "pattern_file_id"),
+        pattern_file_blobs: createStore(database, "pattern_file_blobs", "blob_id"),
         settings: createStore(database, "settings", "setting_id"),
         cache: createStore(database, "cache", "cache_key"),
         sync_state: createStore(database, "sync_state", "partition_key"),
@@ -464,6 +476,23 @@
         }
         cursor.continue();
       };
+      const meta = transaction.objectStore("meta");
+      const manifestRequest = meta.get("database_manifest");
+      manifestRequest.onsuccess = () => {
+        const manifest = manifestRequest.result;
+        if (manifest) {
+          manifest.indexeddb_version = DB_VERSION;
+          manifest.updated_at = timestamp;
+          meta.put(manifest);
+        }
+      };
+    }
+    if (oldVersion < 4) {
+      const patternFiles = createStore(database, "pattern_files", "pattern_file_id");
+      const patternFileBlobs = createStore(database, "pattern_file_blobs", "blob_id");
+      ensureIndexes(patternFiles, INDEX_MANIFEST.pattern_files);
+      ensureIndexes(patternFileBlobs, INDEX_MANIFEST.pattern_file_blobs);
+      const timestamp = utcNow();
       const meta = transaction.objectStore("meta");
       const manifestRequest = meta.get("database_manifest");
       manifestRequest.onsuccess = () => {
@@ -1788,13 +1817,14 @@
           );
         }
         const database = await this._database();
-        const [calculations, progress, operations, checkpoints, photos] =
+        const [calculations, progress, operations, checkpoints, photos, patternFiles] =
           await Promise.all([
             readByProject(database, "calculations", "by_project_created", projectId),
             readByProject(database, "progress", "by_project_updated", projectId),
             readByProject(database, "operations", "by_project_time", projectId),
             readByProject(database, "checkpoints", "by_project_created", projectId),
             readByProject(database, "photos", "by_project_created", projectId),
+            readByProject(database, "pattern_files", "by_project_created", projectId),
           ]);
         const photoBlobs = [];
         for (const photo of photos) {
@@ -1813,6 +1843,15 @@
           await transactionComplete(tx);
           photoBlobs.push(...blobs);
         }
+        const patternFileBlobs = [];
+        for (const file of patternFiles) {
+          const tx = database.transaction("pattern_file_blobs", "readonly");
+          const blob = await requestResult(
+            tx.objectStore("pattern_file_blobs").index("by_pattern_file").get(file.pattern_file_id),
+          );
+          await transactionComplete(tx);
+          if (blob) patternFileBlobs.push(blob);
+        }
         const transaction = database.transaction(
           [
             "projects",
@@ -1822,6 +1861,8 @@
             "checkpoints",
             "photos",
             "photo_blobs",
+            "pattern_files",
+            "pattern_file_blobs",
             "meta",
           ],
           "readwrite",
@@ -1846,6 +1887,12 @@
           photoBlobs.forEach((entry) =>
             transaction.objectStore("photo_blobs").delete(entry.blob_id),
           );
+          patternFiles.forEach((entry) =>
+            transaction.objectStore("pattern_files").delete(entry.pattern_file_id),
+          );
+          patternFileBlobs.forEach((entry) =>
+            transaction.objectStore("pattern_file_blobs").delete(entry.blob_id),
+          );
           transaction.objectStore("meta").put({
             key: `project_tombstone:${projectId}`,
             project_id: projectId,
@@ -1867,6 +1914,8 @@
             checkpoints: checkpoints.length,
             photos: photos.length,
             photo_blobs: photoBlobs.length,
+            pattern_files: patternFiles.length,
+            pattern_file_blobs: patternFileBlobs.length,
           },
         };
       });
@@ -2243,6 +2292,198 @@
       }
     }
 
+    async savePatternFile(projectId, materialId, blob, metadata = {}) {
+      if (!isUuidv7(projectId) || typeof materialId !== "string" || !materialId.trim()) {
+        throw new ProjectRepositoryError(
+          "INVALID_PATTERN_FILE_SCOPE",
+          "Не удалось связать файл с импортом материалов.",
+        );
+      }
+      if (!(blob instanceof Blob) || blob.size <= 0 || blob.size > 50 * 1024 * 1024) {
+        throw new ProjectRepositoryError(
+          "INVALID_PATTERN_FILE",
+          "Файл пуст или превышает безопасный лимит 50 МБ.",
+        );
+      }
+      await this._validatedCurrentProject(projectId);
+      const database = await this._database();
+      const existingTx = database.transaction("pattern_files", "readonly");
+      const existing = await requestResult(
+        existingTx.objectStore("pattern_files").index("by_project_material").get([projectId, materialId]),
+      );
+      await transactionComplete(existingTx);
+      if (existing) return clone(existing);
+      const timestamp = utcNow();
+      const bytes = await blob.arrayBuffer();
+      const hash = await global.crypto.subtle.digest("SHA-256", bytes);
+      const checksum = [...new Uint8Array(hash)]
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+      const patternFileId = uuidv7();
+      const record = {
+        schema_version: 1,
+        pattern_file_id: patternFileId,
+        project_id: projectId,
+        material_id: materialId,
+        display_name: String(metadata.displayName ?? "material").slice(0, 200),
+        media_type: String(metadata.mediaType ?? blob.type ?? "application/octet-stream").slice(0, 120),
+        byte_size: blob.size,
+        checksum,
+        created_at: timestamp,
+        updated_at: timestamp,
+      };
+      const blobRecord = {
+        blob_id: uuidv7(),
+        pattern_file_id: patternFileId,
+        blob,
+        byte_size: blob.size,
+        checksum,
+        created_at: timestamp,
+      };
+      const transaction = database.transaction(
+        ["pattern_files", "pattern_file_blobs"],
+        "readwrite",
+      );
+      try {
+        transaction.objectStore("pattern_files").add(record);
+        transaction.objectStore("pattern_file_blobs").add(blobRecord);
+        await transactionComplete(transaction);
+      } catch (error) {
+        throw mapStorageError(error);
+      }
+      return clone(record);
+    }
+
+    async getPatternFile(projectId, materialId) {
+      const database = await this._database();
+      const metadataTx = database.transaction("pattern_files", "readonly");
+      const metadata = await requestResult(
+        metadataTx.objectStore("pattern_files").index("by_project_material").get([projectId, materialId]),
+      );
+      await transactionComplete(metadataTx);
+      if (!metadata) return null;
+      const blobTx = database.transaction("pattern_file_blobs", "readonly");
+      const blobRecord = await requestResult(
+        blobTx.objectStore("pattern_file_blobs").index("by_pattern_file").get(metadata.pattern_file_id),
+      );
+      await transactionComplete(blobTx);
+      if (!blobRecord) return null;
+      return { metadata: clone(metadata), blob: blobRecord.blob };
+    }
+
+    async deletePatternFile(projectId, materialId) {
+      const database = await this._database();
+      const readTx = database.transaction("pattern_files", "readonly");
+      const metadata = await requestResult(
+        readTx.objectStore("pattern_files").index("by_project_material").get([projectId, materialId]),
+      );
+      await transactionComplete(readTx);
+      if (!metadata) return false;
+      const blobReadTx = database.transaction("pattern_file_blobs", "readonly");
+      const blobRecord = await requestResult(
+        blobReadTx.objectStore("pattern_file_blobs").index("by_pattern_file").get(metadata.pattern_file_id),
+      );
+      await transactionComplete(blobReadTx);
+      const transaction = database.transaction(
+        ["pattern_files", "pattern_file_blobs"],
+        "readwrite",
+      );
+      transaction.objectStore("pattern_files").delete(metadata.pattern_file_id);
+      if (blobRecord) transaction.objectStore("pattern_file_blobs").delete(blobRecord.blob_id);
+      await transactionComplete(transaction);
+      return true;
+    }
+
+    async getPatternContentExtraction(projectId, calculationId) {
+      return this.getCalculationProgress(
+        projectId,
+        calculationId,
+        "PATTERN_CONTENT_EXTRACTION",
+      );
+    }
+
+    async ensurePatternContentExtraction(projectId, calculationId, state, options = {}) {
+      if (state?.status !== "waiting") {
+        throw new ProjectRepositoryError(
+          "INVALID_EXTRACTION_INITIAL_STATE",
+          "Начальная запись извлечения должна ожидать запуска.",
+        );
+      }
+      return this.ensureCalculationProgress(
+        projectId,
+        calculationId,
+        "PATTERN_CONTENT_EXTRACTION",
+        state,
+        options,
+      );
+    }
+
+    async _transitionPatternContentExtraction(
+      projectId,
+      calculationId,
+      state,
+      allowedFrom,
+      allowedTo,
+      options = {},
+    ) {
+      const current = await this.getPatternContentExtraction(projectId, calculationId);
+      if (!current || !allowedFrom.includes(current.state?.status) || !allowedTo.includes(state?.status)) {
+        throw new ProjectRepositoryError(
+          "PATTERN_CONTENT_EXTRACTION_TRANSITION_INVALID",
+          "Недопустимый переход состояния извлечения содержимого.",
+        );
+      }
+      if (
+        state.projectId !== projectId ||
+        state.kind !== "PATTERN_CONTENT_EXTRACTION" ||
+        state.revision !== current.state.revision + 1 ||
+        state.filesCount !== current.state.filesCount
+      ) {
+        throw new ProjectRepositoryError(
+          "PATTERN_CONTENT_EXTRACTION_REVISION_INVALID",
+          "Ревизия записи извлечения содержимого недопустима.",
+        );
+      }
+      for (const field of ["sourceImportId", "sourceImportRevision", "sourceAnalysisId", "sourceAnalysisRevision"]) {
+        if (current.state[field] !== state[field]) {
+          throw new ProjectRepositoryError(
+            "SOURCE_REVISION_MISMATCH",
+            "Связи исходного импорта или анализа изменились.",
+          );
+        }
+      }
+      return this.updateCalculationProgress(
+        projectId,
+        calculationId,
+        "PATTERN_CONTENT_EXTRACTION",
+        state,
+        { ...options, baseProgressRevision: current.revision },
+      );
+    }
+
+    async startPatternContentExtraction(projectId, calculationId, state, options = {}) {
+      return this._transitionPatternContentExtraction(
+        projectId, calculationId, state,
+        ["waiting", "partial", "failed", "completed"], ["extracting"], options,
+      );
+    }
+
+    async completePatternContentExtraction(projectId, calculationId, state, options = {}) {
+      return this._transitionPatternContentExtraction(
+        projectId, calculationId, state, ["extracting"], ["completed", "partial"], options,
+      );
+    }
+
+    async failPatternContentExtraction(projectId, calculationId, state, options = {}) {
+      return this._transitionPatternContentExtraction(
+        projectId, calculationId, state, ["waiting", "extracting"], ["failed"], options,
+      );
+    }
+
+    async retryPatternContentExtraction(projectId, calculationId, state, options = {}) {
+      return this.startPatternContentExtraction(projectId, calculationId, state, options);
+    }
+
     async addPhoto(projectId, blob, metadata = {}) {
       if (!(blob instanceof Blob) || !blob.type.startsWith("image/")) {
         throw new ProjectRepositoryError(
@@ -2580,6 +2821,43 @@
         };
       });
       const timestamp = utcNow();
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_CONTENT_EXTRACTION") return;
+        const sourceImportId = progressMap.get(entry.state?.sourceImportId);
+        const sourceAnalysisId = progressMap.get(entry.state?.sourceAnalysisId);
+        if (!sourceImportId || !sourceAnalysisId) {
+          throw new ProjectRepositoryError(
+            "INVALID_IMPORT_REFERENCE",
+            "Запись извлечения ссылается на отсутствующий импорт или анализ.",
+          );
+        }
+        entry.state.sourceImportId = sourceImportId;
+        entry.state.sourceAnalysisId = sourceAnalysisId;
+        entry.state.status = "failed";
+        entry.state.revision = Math.max(1, Number(entry.state.revision) || 1) + 1;
+        entry.state.updatedAt = timestamp;
+        entry.state.startedAt = entry.state.startedAt || timestamp;
+        entry.state.completedAt = timestamp;
+        entry.state.processedFilesCount = 0;
+        entry.state.successfulFilesCount = 0;
+        entry.state.unsupportedFilesCount = 0;
+        entry.state.failedFilesCount = 0;
+        entry.state.error = {
+          code: "file_blob_missing",
+          message: "Бинарные материалы не входят в экспорт; добавьте исходные файлы локально и повторите извлечение.",
+        };
+        entry.state.result = {
+          schemaVersion: 1,
+          files: [],
+          combinedText: "",
+          warnings: [
+            {
+              code: "file_blob_missing",
+              message: "Бинарные материалы не были перенесены вместе с проектом.",
+            },
+          ],
+        };
+      });
       const importedEvents = events.map((entry) => ({
         ...entry,
         operation_id: collision ? uuidv7() : entry.operation_id,
