@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проверка результата — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-checkpoint.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-plan.js" defer></script>
+  <script src="/static/pattern-execution-session.js" defer></script>
+  <script src="/static/pattern-execution-step.js" defer></script>
+  <script src="/static/pattern-execution-checkpoint.js" defer></script>
+  <script src="/static/pattern-execution-checkpoint-assistant.js" defer></script>
+</head>
+<body>
+  <main class="checkpoint-shell">
+    <header class="page-header">
+      <p class="eyebrow">Проверка результата</p>
+      <h1 id="execution-checkpoint-project-title">Checkpoint</h1>
+      <p id="execution-checkpoint-message" class="lead">Проверьте только то, что предусмотрено подтверждённой технологией.</p>
+    </header>
+
+    <section id="execution-checkpoint-fatal" class="panel fatal" hidden>
+      <h2>Проверка недоступна</h2>
+      <p id="execution-checkpoint-fatal-message"></p>
+    </section>
+
+    <div id="execution-checkpoint-workflow">
+      <section class="panel result-card">
+        <div class="status-row">
+          <span id="execution-checkpoint-status" class="status-chip" data-status="waiting">Ожидание</span>
+          <span id="execution-checkpoint-revision" class="revision">Revision —</span>
+        </div>
+        <p class="context-line"><span id="execution-checkpoint-component">Компонент не указан</span> · <span id="execution-checkpoint-phase">Фаза не указана</span></p>
+        <p id="execution-checkpoint-action" class="action-title">Action не указан</p>
+        <h2 id="execution-checkpoint-label">Что проверить</h2>
+        <dl class="result-facts">
+          <div><dt>Ожидаемый результат</dt><dd id="execution-checkpoint-expected">—</dd></div>
+          <div><dt>Тип проверки</dt><dd id="execution-checkpoint-type">—</dd></div>
+          <div><dt>Единица</dt><dd id="execution-checkpoint-unit">—</dd></div>
+        </dl>
+      </section>
+
+      <section id="execution-checkpoint-observations" class="panel" hidden>
+        <h2>Наблюдения</h2>
+        <p>Поля ниже заданы immutable snapshot технологии.</p>
+        <div id="execution-checkpoint-observation-list" class="observation-list"></div>
+      </section>
+
+      <section id="execution-checkpoint-actions-panel" class="panel actions-panel">
+        <div class="action-bar">
+          <button id="execution-checkpoint-start" type="button" hidden>Начать проверку</button>
+          <button id="execution-checkpoint-defer" type="button" hidden>Отложить</button>
+          <button id="execution-checkpoint-resume" type="button" hidden>Вернуться к проверке</button>
+          <button id="execution-checkpoint-reject" type="button" hidden>Результат не соответствует</button>
+          <button id="execution-checkpoint-confirm" class="primary" type="button" hidden>Подтвердить результат</button>
+          <button id="execution-checkpoint-recover" type="button" hidden>Восстановить синхронизацию</button>
+          <button id="execution-checkpoint-rebuild" type="button" hidden>Перестроить checkpoint</button>
+        </div>
+        <p id="execution-checkpoint-error" class="error" role="alert"></p>
+      </section>
+
+      <section id="execution-checkpoint-reason-panel" class="panel warning-panel" hidden>
+        <h2>Причина состояния</h2>
+        <p id="execution-checkpoint-reason">—</p>
+      </section>
+
+      <details class="panel diagnostics">
+        <summary>Техническая диагностика</summary>
+        <dl>
+          <div><dt>Lifecycle</dt><dd id="execution-checkpoint-lifecycle">—</dd></div>
+          <div><dt>Checkpoint ID</dt><dd id="execution-checkpoint-source-id">—</dd></div>
+          <div><dt>Decision</dt><dd id="execution-checkpoint-decision">—</dd></div>
+          <div><dt>Synchronization</dt><dd id="execution-checkpoint-sync">—</dd></div>
+        </dl>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация проверки">
+        <a id="execution-checkpoint-back" href="/pattern-execution-step">Вернуться к связанному шагу</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

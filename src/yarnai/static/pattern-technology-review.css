@@ -1,0 +1,45 @@
+.review-shell { display: grid; gap: 1rem; min-width: 0; }
+.review-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.review-heading-row h2 { margin-bottom: 0; }
+.review-status { padding: .35rem .7rem; border-radius: 999px; background: var(--color-surface-muted, #f1eee8); font-weight: 700; overflow-wrap: anywhere; }
+.review-status[data-status="confirmed"] { color: #175a3a; background: #e5f5ec; }
+.review-status[data-status="needs_attention"], .review-status[data-status="stale"] { color: #7b3517; background: #fff0e7; }
+.review-source-grid, .review-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
+.review-source-grid div, .review-summary-grid div { min-width: 0; padding: .75rem; border-radius: .75rem; background: var(--color-surface-muted, #f7f4ef); }
+.review-source-grid dt, .review-summary-grid dt { font-size: .8rem; color: var(--color-text-muted, #666); }
+.review-source-grid dd, .review-summary-grid dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+.review-actions { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.review-actions > * { max-width: 100%; }
+.review-disclosure { min-width: 0; }
+.review-disclosure > summary { cursor: pointer; font-size: 1.05rem; font-weight: 750; }
+.review-disclosure[open] > summary { margin-bottom: 1rem; }
+.review-attention { border-color: #dbad8f; }
+.review-item-list { display: grid; gap: .75rem; min-width: 0; }
+.review-item { min-width: 0; padding: .9rem; border: 1px solid var(--color-border, #d9d3ca); border-radius: .75rem; background: #fff; }
+.review-item[data-decision="accepted"], .review-item[data-decision="corrected"] { border-color: #75ad8e; }
+.review-item[data-blocking="true"] { box-shadow: inset 3px 0 #b85c32; }
+.review-item h3 { margin: 0 0 .45rem; font-size: 1rem; overflow-wrap: anywhere; }
+.review-item p { margin: .35rem 0; overflow-wrap: anywhere; white-space: normal; }
+.review-value { padding: .55rem; border-radius: .55rem; background: var(--color-surface-muted, #f7f4ef); }
+.review-provenance { color: var(--color-text-muted, #666); font-size: .86rem; }
+.review-decision { font-weight: 700; }
+.review-item-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .7rem; }
+.review-item-actions button { min-height: 2.6rem; }
+.review-conflict-select, .review-note { width: 100%; max-width: 100%; margin-top: .5rem; }
+.review-note { min-height: 4rem; resize: vertical; }
+.review-validation-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; min-width: 0; }
+.review-validation-grid li, .review-provenance-list p { overflow-wrap: anywhere; }
+.review-correction-form { width: min(32rem, calc(100vw - 2rem)); display: grid; gap: .65rem; }
+.review-correction-form input, .review-correction-form select { width: 100%; min-width: 0; }
+dialog { max-width: calc(100vw - 1rem); border: 0; border-radius: 1rem; padding: 1.25rem; box-shadow: 0 1rem 3rem rgb(0 0 0 / .25); }
+dialog::backdrop { background: rgb(30 25 20 / .5); }
+.review-shell button:focus-visible, .review-shell a:focus-visible, .review-shell summary:focus-visible, dialog :focus-visible { outline: 3px solid #6b4eff; outline-offset: 2px; }
+@media (max-width: 700px) { .review-validation-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) {
+  .review-heading-row { display: grid; }
+  .review-source-grid, .review-summary-grid { grid-template-columns: 1fr; }
+  .review-actions { display: grid; grid-template-columns: 1fr; }
+  .review-actions > *, .review-item-actions button { width: 100%; }
+  .review-item-actions { display: grid; grid-template-columns: 1fr; }
+  .review-item { padding: .75rem; }
+}

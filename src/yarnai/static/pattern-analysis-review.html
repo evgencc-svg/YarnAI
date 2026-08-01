@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Проверка и явное подтверждение результата семантического анализа YarnAI.">
+    <title>Проверка результата анализа — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-analysis-review.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-analysis-review.js" defer></script>
+    <script src="/static/pattern-technology-draft.js" defer></script>
+    <script src="/static/pattern-analysis-review-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для проверки результата нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
+      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a href="/pattern-semantic-analysis">Семантический анализ</a></nav>
+      <span class="version-badge">Stage 19</span>
+    </header>
+    <main class="page-shell review-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Stage 19</p>
+        <h1 id="page-title">Проверка результата анализа</h1>
+        <p class="intro-copy">Проверьте машинный результат, исправьте неточности и подтвердите его явно. Этот этап не выполняет расчёты и не создаёт технологию вязания.</p>
+      </section>
+
+      <section id="pattern-analysis-review-fatal" class="card" hidden role="alert">
+        <h2>Запись повреждена</h2><p id="pattern-analysis-review-fatal-message"></p>
+      </section>
+
+      <section id="pattern-analysis-review-workflow" class="card" aria-live="polite">
+        <p class="eyebrow">Текущий проект</p>
+        <h2 id="pattern-analysis-review-project-title">Проверка данных</h2>
+        <p id="pattern-analysis-review-status" role="status">Подготовка проверки.</p>
+        <p id="pattern-analysis-review-summary"></p>
+        <dl class="review-source">
+          <div><dt>Источник</dt><dd id="pattern-analysis-review-source">—</dd></div>
+          <div><dt>Актуальность</dt><dd id="pattern-analysis-review-freshness">—</dd></div>
+        </dl>
+        <div class="review-actions">
+          <button id="pattern-analysis-review-save" class="link-button" type="button" hidden>Сохранить изменения</button>
+          <button id="pattern-analysis-review-validate" class="link-button" type="button" hidden>Повторно проверить</button>
+          <button id="pattern-analysis-review-rebase" class="link-button" type="button" hidden>Обновить по новому анализу</button>
+          <button id="pattern-analysis-review-confirm" class="link-button link-button-primary" type="button" hidden>Подтвердить результат</button>
+          <a id="pattern-analysis-review-technology" class="link-button link-button-primary" href="/pattern-technology-draft" hidden>Создать черновик технологии</a>
+          <a id="pattern-analysis-review-back" class="link-button" href="/pattern-semantic-analysis">Вернуться к семантическому анализу</a>
+        </div>
+        <p id="pattern-analysis-review-operation-error" class="form-error" role="alert"></p>
+      </section>
+
+      <section id="pattern-analysis-review-validation" class="card" hidden>
+        <h2>Проверки и нерешённые пункты</h2>
+        <p id="pattern-analysis-review-counts"></p>
+        <div class="review-validation-columns">
+          <div><h3>Ошибки</h3><ul id="pattern-analysis-review-errors"></ul></div>
+          <div><h3>Предупреждения</h3><ul id="pattern-analysis-review-warnings"></ul></div>
+        </div>
+      </section>
+
+      <section id="pattern-analysis-review-conflicts" class="card" hidden>
+        <h2>Конфликты</h2>
+        <div id="pattern-analysis-review-conflict-list" class="review-conflict-list"></div>
+      </section>
+
+      <section id="pattern-analysis-review-categories" class="review-categories" hidden aria-label="Категории результатов"></section>
+
+      <section id="pattern-analysis-review-confirmed" class="card review-confirmed" hidden>
+        <h2>Результат анализа подтверждён.</h2>
+        <p>Подтверждённые значения можно преобразовать в отдельный проверяемый черновик технологии.</p>
+      </section>
+    </main>
+  </body>
+</html>

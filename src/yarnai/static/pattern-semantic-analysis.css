@@ -1,0 +1,16 @@
+.semantic-shell { max-width: 980px; }
+.semantic-actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
+.semantic-fields { display: grid; grid-template-columns: minmax(10rem, .7fr) minmax(0, 1.3fr); gap: .65rem 1rem; margin: 0; }
+.semantic-fields div { display: contents; }
+.semantic-fields dt { color: #655f55; font-weight: 700; }
+.semantic-fields dd { margin: 0; overflow-wrap: anywhere; }
+.semantic-notice { border-color: #ba842d; background: #fff8e7; }
+.semantic-diagnostics { display: grid; gap: .55rem; margin: 0; padding-left: 1.25rem; }
+.semantic-diagnostics li { overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .semantic-actions { align-items: stretch; flex-direction: column; }
+  .semantic-actions .link-button { width: 100%; text-align: center; }
+  .semantic-fields { grid-template-columns: 1fr; }
+  .semantic-fields div { display: block; padding-bottom: .75rem; border-bottom: 1px solid var(--border-color, #d9d2c3); }
+  .semantic-fields dd { margin-top: .2rem; }
+}

@@ -1,0 +1,25 @@
+.session-shell { display: grid; gap: 1rem; min-width: 0; }
+.session-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; min-width: 0; }
+.session-heading h2 { margin-bottom: 0; overflow-wrap: anywhere; }
+.session-status { max-width: 100%; padding: .35rem .7rem; border-radius: 999px; background: #f1eee8; font-weight: 700; overflow-wrap: anywhere; }
+.session-status[data-status="active"], .session-status[data-status="completed"] { color: #175a3a; background: #e5f5ec; }
+.session-status[data-status="paused"], .session-status[data-status="blocked"], .session-status[data-status="stale"] { color: #7b3517; background: #fff0e7; }
+.session-status[data-status="failed"] { color: #7f1d1d; background: #fee2e2; }
+.session-source-grid, .session-progress-grid, .session-current-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; min-width: 0; }
+.session-source-grid div, .session-progress-grid div, .session-current-grid div { min-width: 0; padding: .75rem; border-radius: .75rem; background: var(--color-surface-muted, #f7f4ef); }
+.session-source-grid dt, .session-progress-grid dt, .session-current-grid dt { font-size: .8rem; color: var(--color-text-muted, #666); }
+.session-source-grid dd, .session-progress-grid dd, .session-current-grid dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+.session-actions { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; min-width: 0; }
+.session-actions > * { max-width: 100%; }
+.session-message, .session-list li, #execution-session-current-instruction { overflow-wrap: anywhere; }
+.session-attention { border-color: #dbad8f; }
+.session-list { padding-left: 1.25rem; }
+#execution-session-progress-meter { display: block; width: 100%; max-width: 100%; }
+.session-shell :focus-visible { outline: 3px solid #6b4eff; outline-offset: 2px; }
+@media (max-width: 560px) {
+  .session-heading { display: grid; }
+  .session-source-grid, .session-progress-grid, .session-current-grid { grid-template-columns: 1fr; }
+  .session-actions { display: grid; grid-template-columns: 1fr; }
+  .session-actions > * { width: 100%; }
+  .session-shell, .session-shell > *, .session-current-grid > *, .session-source-grid > * { min-width: 0; max-width: 100%; }
+}

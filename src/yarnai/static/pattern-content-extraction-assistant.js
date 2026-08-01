@@ -7,7 +7,7 @@
   const ui = {
     error: get("#pattern-content-extraction-error"), errorMessage: get("#pattern-content-extraction-error-message"), workflow: get("#pattern-content-extraction-workflow"),
     title: get("#pattern-content-extraction-project-title"), status: get("#pattern-content-extraction-status"), summary: get("#pattern-content-extraction-summary"), diagnostic: get("#pattern-content-extraction-diagnostic"),
-    start: get("#pattern-content-extraction-start"), retry: get("#pattern-content-extraction-retry"), view: get("#pattern-content-extraction-view"), results: get("#pattern-content-extraction-results"),
+    start: get("#pattern-content-extraction-start"), retry: get("#pattern-content-extraction-retry"), view: get("#pattern-content-extraction-view"), semantic: get("#pattern-semantic-analysis-link"), results: get("#pattern-content-extraction-results"),
     files: get("#pattern-content-extraction-files"), textPanel: get("#pattern-content-extraction-text"), combined: get("#pattern-content-extraction-combined"), fileTexts: get("#pattern-content-extraction-file-texts"),
   };
   let repository;
@@ -28,6 +28,7 @@
     repository = new system.ProjectRepository();
     await repository.initialize();
     result = await extractionApi.ensureForProject(repository, projectId);
+    ui.semantic.href = `/pattern-semantic-analysis?project=${encodeURIComponent(projectId)}`;
     ui.start.addEventListener("click", run);
     ui.retry.addEventListener("click", run);
     ui.view.addEventListener("click", () => {
@@ -47,7 +48,7 @@
 
   function render() {
     ui.error.hidden = true; ui.workflow.hidden = false; ui.title.textContent = result.project?.title || "Извлечение материалов";
-    ui.start.hidden = true; ui.retry.hidden = true; ui.view.hidden = true; ui.results.hidden = true; ui.textPanel.hidden = true; ui.diagnostic.textContent = "";
+    ui.start.hidden = true; ui.retry.hidden = true; ui.view.hidden = true; ui.semantic.hidden = true; ui.results.hidden = true; ui.textPanel.hidden = true; ui.diagnostic.textContent = "";
     const state = result.extraction;
     if (!state) { ui.status.textContent = "Извлечение содержимого ещё не подготовлено."; ui.summary.textContent = ""; return; }
     if (state.status === "waiting") { ui.status.textContent = "Материалы готовы к чтению."; ui.summary.textContent = `Файлов в подтверждённом импорте: ${state.filesCount}.`; ui.start.hidden = false; return; }
@@ -55,7 +56,7 @@
     const length = state.result.combinedText.length;
     ui.status.textContent = state.status === "completed" ? "Содержимое файлов извлечено." : state.status === "partial" ? "Часть материалов удалось прочитать." : "Содержимое материалов извлечь не удалось.";
     ui.summary.textContent = `Обработано: ${state.processedFilesCount} из ${state.filesCount}. Текст дали: ${state.successfulFilesCount}. Длина объединённого текста: ${length}.`;
-    ui.retry.hidden = state.status === "completed"; ui.view.hidden = length === 0 && state.result.files.every((file) => !file.text); ui.results.hidden = false; ui.diagnostic.textContent = state.error?.message || "";
+    ui.retry.hidden = state.status === "completed"; ui.view.hidden = length === 0 && state.result.files.every((file) => !file.text); ui.semantic.hidden = !["completed", "partial"].includes(state.status); ui.results.hidden = false; ui.diagnostic.textContent = state.error?.message || "";
     renderFiles(state.result.files); renderText(state.result);
   }
 

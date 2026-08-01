@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Локальная детерминированная сессия выполнения готового плана YarnAI.">
+    <title>Выполнение проекта — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-execution-session.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-execution-plan.js" defer></script>
+    <script src="/static/pattern-execution-session.js" defer></script>
+    <script src="/static/pattern-execution-session-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для локального выполнения плана нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
+      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a id="execution-session-nav-plan" href="/pattern-execution-plan">Stage 22</a></nav>
+      <span class="version-badge">Stage 23</span>
+    </header>
+
+    <main class="page-shell session-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Stage 23</p>
+        <h1 id="page-title">Выполнение проекта</h1>
+        <p class="intro-copy">Сессия следует неизменяемому snapshot готового плана Stage 22. Прогресс сохраняется локально и не изменяет исходный план.</p>
+      </section>
+
+      <section id="execution-session-fatal" class="card" hidden role="alert">
+        <h2>Сессия недоступна</h2>
+        <p id="execution-session-fatal-message"></p>
+      </section>
+
+      <section id="execution-session-workflow" class="card" aria-live="polite">
+        <div class="session-heading">
+          <div><p class="eyebrow">Текущий проект</p><h2 id="execution-session-project-title">Выполнение проекта</h2></div>
+          <span id="execution-session-status" class="session-status" role="status">Проверка проекта</span>
+        </div>
+        <dl class="session-source-grid">
+          <div><dt>Состояние Stage 22</dt><dd id="execution-session-plan-status">план отсутствует</dd></div>
+          <div><dt>Состояние сессии</dt><dd id="execution-session-state">выполнение ещё не начато</dd></div>
+          <div><dt>Plan fingerprint</dt><dd id="execution-session-plan-fingerprint">—</dd></div>
+          <div><dt>Session fingerprint</dt><dd id="execution-session-fingerprint">—</dd></div>
+        </dl>
+        <p id="execution-session-message" class="session-message"></p>
+        <div class="session-actions" aria-label="Действия сессии">
+          <button id="execution-session-start" class="link-button link-button-primary" type="button" hidden>Начать выполнение</button>
+          <button id="execution-session-start-action" class="link-button link-button-primary" type="button" hidden>Начать действие</button>
+          <button id="execution-session-complete-action" class="link-button link-button-primary" type="button" hidden>Действие выполнено</button>
+          <button id="execution-session-skip-action" class="link-button" type="button" hidden>Пропустить</button>
+          <button id="execution-session-pause" class="link-button" type="button" hidden>Приостановить</button>
+          <button id="execution-session-resume" class="link-button link-button-primary" type="button" hidden>Продолжить</button>
+          <button id="execution-session-rebuild" class="link-button" type="button" hidden>Перестроить сессию</button>
+          <a id="execution-session-step" class="link-button link-button-primary" href="/pattern-execution-step" hidden>Открыть текущий шаг</a>
+          <a id="execution-session-back" class="link-button" href="/pattern-execution-plan">Вернуться к Stage 22</a>
+        </div>
+        <p id="execution-session-error" class="form-error" role="alert"></p>
+      </section>
+
+      <section id="execution-session-progress" class="card" hidden>
+        <h2>Текущий прогресс</h2>
+        <dl class="session-progress-grid">
+          <div><dt>Фаза</dt><dd id="execution-session-phase">—</dd></div>
+          <div><dt>Компонент</dt><dd id="execution-session-component">—</dd></div>
+          <div><dt>Действие</dt><dd id="execution-session-action">—</dd></div>
+          <div><dt>Обязательные действия</dt><dd id="execution-session-count">0 из 0</dd></div>
+          <div><dt>Выполнено</dt><dd id="execution-session-percent">0%</dd></div>
+        </dl>
+        <progress id="execution-session-progress-meter" max="100" value="0">0%</progress>
+      </section>
+
+      <section id="execution-session-current" class="card" hidden>
+        <p class="eyebrow">Текущее действие</p>
+        <h2 id="execution-session-current-title"></h2>
+        <p id="execution-session-current-instruction"></p>
+        <dl class="session-current-grid">
+          <div><dt>Статус</dt><dd id="execution-session-current-status">—</dd></div>
+          <div><dt>Prerequisites</dt><dd id="execution-session-current-prerequisites">—</dd></div>
+          <div><dt>Checkpoints</dt><dd id="execution-session-current-checkpoints">—</dd></div>
+          <div><dt>Blockers</dt><dd id="execution-session-current-blockers">—</dd></div>
+        </dl>
+      </section>
+
+      <section id="execution-session-blockers" class="card session-attention" hidden>
+        <h2>Что мешает продолжить</h2>
+        <ul id="execution-session-blocker-list" class="session-list"></ul>
+      </section>
+    </main>
+  </body>
+</html>

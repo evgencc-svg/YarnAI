@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI — текущий исполняемый шаг</title>
+  <link rel="stylesheet" href="/static/pattern-execution-step.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-plan.js" defer></script>
+  <script src="/static/pattern-execution-session.js" defer></script>
+  <script src="/static/pattern-execution-step.js" defer></script>
+  <script src="/static/pattern-execution-step-assistant.js" defer></script>
+</head>
+<body>
+  <main class="step-shell">
+    <section id="execution-step-fatal" class="panel fatal" hidden aria-live="assertive">
+      <h1>Шаг недоступен</h1>
+      <p id="execution-step-fatal-message"></p>
+      <a href="/">К проектам</a>
+    </section>
+
+    <div id="execution-step-workflow">
+      <header class="page-header">
+        <p class="eyebrow">Stage 24 · PATTERN_EXECUTION_STEP</p>
+        <h1 id="execution-step-project-title">Текущий шаг</h1>
+        <p id="execution-step-message" class="lead" aria-live="polite"></p>
+      </header>
+
+      <section id="execution-step-current" class="panel current-action" aria-labelledby="execution-step-now">
+        <div class="status-row">
+          <span id="execution-step-status" class="status-chip" data-status="waiting">Ожидание</span>
+          <span id="execution-step-progress-label" class="progress-label">Прогресс не начат</span>
+        </div>
+        <p class="context-line"><span id="execution-step-component">—</span> · <span id="execution-step-phase">—</span></p>
+        <h2 id="execution-step-now">Сейчас сделайте: <span id="execution-step-action">—</span></h2>
+        <p id="execution-step-instruction" class="instruction">—</p>
+
+        <dl class="execution-facts">
+          <div><dt>Ожидаемый результат</dt><dd id="execution-step-expected">—</dd></div>
+          <div><dt>Сколько выполнить</dt><dd id="execution-step-quantity">—</dd></div>
+          <div><dt>Как понять, что готово</dt><dd id="execution-step-done-when">—</dd></div>
+        </dl>
+
+        <div id="execution-step-counter" class="counter-card" hidden>
+          <span id="execution-step-counter-value" class="counter-value">0</span>
+          <span id="execution-step-counter-target" class="counter-target"></span>
+        </div>
+
+        <form id="execution-step-measurement-form" class="measurement-form" hidden>
+          <label for="execution-step-measurement">Фактическое измерение</label>
+          <div class="input-row">
+            <input id="execution-step-measurement" inputmode="decimal" autocomplete="off">
+            <span id="execution-step-measurement-unit"></span>
+          </div>
+          <p id="execution-step-measurement-result" class="result-message"></p>
+        </form>
+
+        <section id="execution-step-checkpoints" hidden>
+          <h3>Обязательная проверка</h3>
+          <ul id="execution-step-checkpoint-list" class="criteria-list"></ul>
+        </section>
+
+        <div class="action-bar" aria-label="Действия текущего шага">
+          <button id="execution-step-start" type="button" hidden>Начать шаг</button>
+          <button id="execution-step-increment" type="button" hidden>+1</button>
+          <button id="execution-step-decrement" type="button" hidden>−1</button>
+          <button id="execution-step-set-value" type="button" hidden>Изменить значение</button>
+          <button id="execution-step-record-measurement" type="button" hidden>Записать измерение</button>
+          <button id="execution-step-check" type="button" hidden>Проверить</button>
+          <button id="execution-step-pause" type="button" hidden>Поставить на паузу</button>
+          <button id="execution-step-resume" type="button" hidden>Продолжить</button>
+          <button id="execution-step-complete" class="primary" type="button" hidden>Завершить шаг</button>
+          <a id="execution-step-open-checkpoint" class="button-link primary" href="/pattern-execution-checkpoint" hidden>Проверить результат</a>
+          <button id="execution-step-retry" type="button" hidden>Повторить сохранение</button>
+          <button id="execution-step-rebuild" type="button" hidden>Перестроить</button>
+        </div>
+        <p id="execution-step-error" class="error" role="alert"></p>
+      </section>
+
+      <section id="execution-step-prerequisites" class="panel" hidden>
+        <h2>Что должно быть готово</h2>
+        <ul id="execution-step-prerequisite-list"></ul>
+      </section>
+
+      <section id="execution-step-warnings" class="panel warning-panel" hidden>
+        <h2>Перед продолжением</h2>
+        <ul id="execution-step-warning-list"></ul>
+      </section>
+
+      <section id="execution-step-blockers" class="panel blocker-panel" hidden>
+        <h2>Переход заблокирован</h2>
+        <ul id="execution-step-blocker-list"></ul>
+      </section>
+
+      <details class="panel diagnostics">
+        <summary>Техническая диагностика</summary>
+        <dl>
+          <div><dt>Lifecycle</dt><dd id="execution-step-lifecycle">—</dd></div>
+          <div><dt>Revision</dt><dd id="execution-step-revision">—</dd></div>
+          <div><dt>Stale reason</dt><dd id="execution-step-stale-reason">—</dd></div>
+          <div><dt>Ошибка</dt><dd id="execution-step-failure">—</dd></div>
+        </dl>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация выполнения">
+        <a id="execution-step-back" href="/pattern-execution-session">Вернуться к сессии</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

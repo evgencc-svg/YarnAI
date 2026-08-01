@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Детерминированный черновик технологии вязания из подтверждённого анализа YarnAI.">
+    <title>Черновик технологии вязания — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-technology-draft.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-technology-draft.js" defer></script>
+    <script src="/static/pattern-technology-draft-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для работы с черновиком нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
+      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a href="/pattern-analysis-review">Проверка анализа</a></nav>
+      <span class="version-badge">Stage 20</span>
+    </header>
+    <main class="page-shell technology-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Stage 20</p>
+        <h1 id="page-title">Черновик технологии вязания</h1>
+        <p class="intro-copy">Структурируем только явно подтверждённые значения Stage 19. Пробелы и противоречия остаются видимыми и не заполняются автоматически.</p>
+      </section>
+
+      <section id="pattern-technology-draft-fatal" class="card" hidden role="alert">
+        <h2>Черновик недоступен</h2>
+        <p id="pattern-technology-draft-fatal-message"></p>
+      </section>
+
+      <section id="pattern-technology-draft-workflow" class="card" aria-live="polite">
+        <p class="eyebrow">Текущий проект</p>
+        <h2 id="pattern-technology-draft-project-title">Черновик технологии</h2>
+        <p id="pattern-technology-draft-status" role="status">Проверка источника.</p>
+        <p id="pattern-technology-draft-summary"></p>
+        <dl class="technology-source">
+          <div><dt>Источник</dt><dd id="pattern-technology-draft-source">—</dd></div>
+          <div><dt>Актуальность</dt><dd id="pattern-technology-draft-freshness">—</dd></div>
+        </dl>
+        <div class="technology-actions">
+          <button id="pattern-technology-draft-build" class="link-button link-button-primary" type="button" hidden>Построить черновик</button>
+          <button id="pattern-technology-draft-rebuild" class="link-button link-button-primary" type="button" hidden>Перестроить из подтверждённого источника</button>
+          <button id="pattern-technology-draft-retry" class="link-button" type="button" hidden>Повторить построение</button>
+          <a id="pattern-technology-draft-review" class="link-button link-button-primary" href="/pattern-technology-review" hidden>Проверить технологию</a>
+          <a id="pattern-technology-draft-back" class="link-button" href="/pattern-analysis-review">Вернуться к проверке анализа</a>
+        </div>
+        <p id="pattern-technology-draft-operation-error" class="form-error" role="alert"></p>
+      </section>
+
+      <section id="pattern-technology-draft-issues" class="card" hidden>
+        <h2>Проверка исполнимости</h2>
+        <div class="technology-issue-columns">
+          <div><h3>Критические проблемы</h3><ul id="pattern-technology-draft-critical"></ul></div>
+          <div><h3>Предупреждения</h3><ul id="pattern-technology-draft-warnings"></ul></div>
+        </div>
+        <div class="technology-issue-columns">
+          <div><h3>Недостающие сведения</h3><ul id="pattern-technology-draft-missing"></ul></div>
+          <div><h3>Противоречия</h3><ul id="pattern-technology-draft-conflicts"></ul></div>
+        </div>
+      </section>
+
+      <section id="pattern-technology-draft-result" hidden aria-label="Структурированный черновик технологии">
+        <div class="technology-grid">
+          <section class="card"><h2>Изделие и конструкция</h2><div id="pattern-technology-draft-product"></div></section>
+          <section class="card"><h2>Размеры и плотность</h2><div id="pattern-technology-draft-sizing"></div></section>
+          <section class="card"><h2>Материалы</h2><div id="pattern-technology-draft-materials"></div></section>
+          <section class="card"><h2>Инструменты</h2><div id="pattern-technology-draft-tools"></div></section>
+        </div>
+        <section class="card"><h2>Компоненты и секции</h2><div id="pattern-technology-draft-components"></div></section>
+        <section class="card"><h2>Операции, ряды и повторы</h2><div id="pattern-technology-draft-operations" class="technology-operation-list"></div></section>
+        <section class="card"><h2>Изменения количества петель</h2><div id="pattern-technology-draft-stitches"></div></section>
+        <section class="card"><h2>Сборка, отделка и сокращения</h2><div id="pattern-technology-draft-finishing"></div></section>
+        <details class="card technology-provenance">
+          <summary>Происхождение подтверждённых значений</summary>
+          <div id="pattern-technology-draft-provenance"></div>
+        </details>
+      </section>
+    </main>
+  </body>
+</html>

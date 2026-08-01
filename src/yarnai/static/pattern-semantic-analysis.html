@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Локальный детерминированный структурный анализ извлечённых материалов YarnAI.">
+    <title>Семантический анализ материалов — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-semantic-analysis.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-content-extraction.js" defer></script>
+    <script src="/static/pattern-semantic-rules.js" defer></script>
+    <script src="/static/pattern-semantic-analysis.js" defer></script>
+    <script src="/static/pattern-analysis-review.js" defer></script>
+    <script src="/static/pattern-semantic-analysis-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для локального структурного анализа нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
+      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a href="/pattern-content-extraction">Извлечение содержимого</a></nav>
+      <span class="version-badge">Stage 18</span>
+    </header>
+    <main class="page-shell semantic-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Stage 18</p>
+        <h1 id="page-title">Семантический анализ материалов</h1>
+        <p class="intro-copy">YarnAI локально фиксирует структуру исходного текста. Этап не создаёт технологию вязания, расчёты петель или инструкции по рядам и не обращается к внешним сервисам.</p>
+      </section>
+      <section id="pattern-semantic-analysis-error" class="card" hidden role="alert"><h2>Не удалось открыть этап</h2><p id="pattern-semantic-analysis-error-message"></p></section>
+      <section id="pattern-semantic-analysis-workflow" class="card" aria-live="polite">
+        <p class="eyebrow">Текущий проект</p>
+        <h2 id="pattern-semantic-analysis-project-title">Структурный анализ</h2>
+        <p id="pattern-semantic-analysis-status" role="status">Семантический анализ ещё не создан.</p>
+        <p id="pattern-semantic-analysis-summary"></p>
+        <div class="semantic-actions">
+          <button id="pattern-semantic-analysis-start" class="link-button link-button-primary" type="button" hidden>Начать анализ</button>
+          <button id="pattern-semantic-analysis-retry" class="link-button" type="button" hidden>Повторить анализ</button>
+          <a id="pattern-analysis-review-link" class="link-button link-button-primary" href="/pattern-analysis-review" hidden>Проверить результат анализа</a>
+          <a id="pattern-semantic-analysis-back" class="link-button" href="/pattern-content-extraction">Вернуться к извлечению содержимого</a>
+        </div>
+        <p id="pattern-semantic-analysis-error-detail" class="form-error" role="alert"></p>
+      </section>
+      <section id="pattern-semantic-analysis-results" class="card" hidden>
+        <h2>Структурированная сводка</h2>
+        <dl id="pattern-semantic-analysis-fields" class="semantic-fields"></dl>
+      </section>
+      <section id="pattern-semantic-analysis-partial" class="card semantic-notice" hidden>
+        <h2>Анализ завершён частично</h2>
+        <p>Часть исходных данных отсутствует, неоднозначна или не поддерживается на этом этапе.</p>
+      </section>
+      <section id="pattern-semantic-analysis-diagnostics" class="card" hidden>
+        <h2>Warnings и diagnostics</h2>
+        <ul id="pattern-semantic-analysis-diagnostic-list" class="semantic-diagnostics"></ul>
+      </section>
+    </main>
+  </body>
+</html>

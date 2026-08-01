@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Детерминированный план выполнения изделия из подтверждённой технологии YarnAI.">
+    <title>План выполнения изделия — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-execution-plan.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-execution-plan.js" defer></script>
+    <script src="/static/pattern-execution-plan-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для построения плана нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
+      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a id="execution-plan-nav-review" href="/pattern-technology-review">Stage 21</a></nav>
+      <span class="version-badge">Stage 22</span>
+    </header>
+
+    <main class="page-shell execution-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Stage 22</p>
+        <h1 id="page-title">План выполнения изделия</h1>
+        <p class="intro-copy">Порядок этапов, зависимости и условия начала — только из подтверждённого snapshot Stage 21. Здесь нельзя редактировать технологию или начинать фактическое вязание.</p>
+      </section>
+
+      <section id="execution-plan-fatal" class="card" hidden role="alert">
+        <h2>План недоступен</h2>
+        <p id="execution-plan-fatal-message"></p>
+      </section>
+
+      <section id="execution-plan-workflow" class="card" aria-live="polite">
+        <div class="execution-heading">
+          <div><p class="eyebrow">Текущий проект</p><h2 id="execution-plan-project-title">План выполнения</h2></div>
+          <span id="execution-plan-status" class="execution-status" role="status">Проверка Stage 21</span>
+        </div>
+        <dl class="execution-source-grid">
+          <div><dt>Stage 21</dt><dd id="execution-plan-source">—</dd></div>
+          <div><dt>Revision</dt><dd id="execution-plan-source-revision">—</dd></div>
+          <div><dt>Snapshot fingerprint</dt><dd id="execution-plan-source-fingerprint">—</dd></div>
+          <div><dt>Plan fingerprint</dt><dd id="execution-plan-fingerprint">—</dd></div>
+        </dl>
+        <p id="execution-plan-state-message" class="execution-state-message"></p>
+        <div class="execution-actions">
+          <button id="execution-plan-build" class="link-button link-button-primary" type="button">Построить план</button>
+          <button id="execution-plan-retry" class="link-button" type="button" hidden>Повторить</button>
+          <button id="execution-plan-rebuild" class="link-button link-button-primary" type="button" hidden>Перестроить явно</button>
+          <a id="execution-plan-session" class="link-button link-button-primary" href="/pattern-execution-session" hidden>Перейти к выполнению</a>
+          <a id="execution-plan-back" class="link-button" href="/pattern-technology-review">Вернуться к Stage 21</a>
+        </div>
+        <p id="execution-plan-error" class="form-error" role="alert"></p>
+      </section>
+
+      <section id="execution-plan-first" class="card" hidden>
+        <p class="eyebrow">Первое доступное действие</p>
+        <h2 id="execution-plan-first-title"></h2>
+        <p id="execution-plan-first-description"></p>
+        <p id="execution-plan-first-blocked" class="execution-blocked"></p>
+      </section>
+
+      <section id="execution-plan-summary" class="card" hidden>
+        <h2>Кратко об изделии</h2>
+        <dl id="execution-plan-summary-values" class="execution-summary-grid"></dl>
+      </section>
+
+      <section id="execution-plan-prerequisites" class="card" hidden>
+        <h2>Что подготовить до начала</h2>
+        <ul id="execution-plan-prerequisite-list" class="execution-list"></ul>
+      </section>
+
+      <section id="execution-plan-components" class="card" hidden>
+        <h2>Компоненты</h2>
+        <div id="execution-plan-component-list" class="execution-card-list"></div>
+      </section>
+
+      <section id="execution-plan-phases" class="card" hidden>
+        <h2>Фазы по порядку</h2>
+        <ol id="execution-plan-phase-list" class="execution-phase-list"></ol>
+      </section>
+
+      <section id="execution-plan-dependencies" class="card" hidden>
+        <h2>Зависимости</h2>
+        <ul id="execution-plan-dependency-list" class="execution-list"></ul>
+      </section>
+
+      <section id="execution-plan-checkpoints" class="card" hidden>
+        <h2>Контрольные точки</h2>
+        <ul id="execution-plan-checkpoint-list" class="execution-list"></ul>
+      </section>
+
+      <section id="execution-plan-blockers" class="card execution-attention" hidden>
+        <h2>Почему пока нельзя начать</h2>
+        <ul id="execution-plan-blocker-list" class="execution-list"></ul>
+      </section>
+
+      <section id="execution-plan-warnings" class="card" hidden>
+        <h2>Предупреждения и уточнения</h2>
+        <ul id="execution-plan-warning-list" class="execution-list"></ul>
+      </section>
+
+      <section id="execution-plan-validation" class="card" hidden>
+        <h2>Validation</h2>
+        <ul id="execution-plan-validation-list" class="execution-list"></ul>
+      </section>
+    </main>
+  </body>
+</html>

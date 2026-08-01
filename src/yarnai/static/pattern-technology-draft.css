@@ -1,0 +1,34 @@
+.technology-shell { max-width: 1120px; }
+.technology-shell > *, .technology-grid > *, .technology-issue-columns > * { min-width: 0; }
+.technology-source { display: grid; gap: .65rem; margin: 1rem 0; }
+.technology-source div { display: grid; grid-template-columns: minmax(7rem, .35fr) minmax(0, 1fr); gap: .75rem; }
+.technology-source dt { color: var(--color-text-muted, #635b52); font-weight: 700; }
+.technology-source dd { margin: 0; overflow-wrap: anywhere; }
+.technology-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+.technology-grid, .technology-issue-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.technology-grid { margin-block: 1rem; }
+.technology-issue-columns + .technology-issue-columns { margin-top: 1rem; }
+.technology-operation-list { display: grid; gap: .8rem; }
+.technology-operation { border: 1px solid rgba(78, 63, 45, .18); border-radius: .8rem; padding: .9rem; overflow-wrap: anywhere; }
+.technology-operation h3 { margin: 0 0 .4rem; font-size: 1rem; }
+.technology-operation p { margin: .25rem 0; }
+.technology-entity-list { display: grid; gap: .55rem; margin: 0; padding: 0; list-style: none; }
+.technology-entity { border-left: .2rem solid rgba(93, 121, 81, .45); padding-left: .7rem; overflow-wrap: anywhere; }
+.technology-empty { color: var(--color-text-muted, #635b52); }
+.technology-provenance summary { cursor: pointer; font-weight: 750; }
+.technology-provenance[open] summary { margin-bottom: 1rem; }
+.technology-code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+.technology-status-ready { color: #275b2d; }
+.technology-status-attention { color: #8a4b16; }
+.technology-status-failed { color: #8b2525; }
+.technology-actions button:focus-visible, .technology-actions a:focus-visible, .technology-provenance summary:focus-visible { outline: 3px solid #6c4d95; outline-offset: 3px; }
+@media (max-width: 700px) {
+  .technology-grid, .technology-issue-columns { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .technology-shell { width: 100%; padding-inline: .75rem; overflow-x: clip; }
+  .technology-source div { grid-template-columns: minmax(0, 1fr); gap: .15rem; }
+  .technology-actions, .technology-actions .link-button { width: 100%; }
+  .technology-actions .link-button { justify-content: center; text-align: center; white-space: normal; }
+  .technology-operation, .technology-entity { max-width: 100%; overflow-wrap: anywhere; word-break: break-word; }
+}

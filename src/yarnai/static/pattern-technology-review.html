@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Проверка структурированного черновика технологии вязания YarnAI.">
+    <title>Проверка технологии вязания — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-technology-review.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-technology-review.js" defer></script>
+    <script src="/static/pattern-technology-review-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для проверки технологии нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
+      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a id="pattern-technology-review-nav-back" href="/pattern-technology-draft">Черновик технологии</a></nav>
+      <a id="pattern-technology-review-nav-plan" class="link-button" href="/pattern-execution-plan">Stage 22</a>
+      <span class="version-badge">Stage 21</span>
+    </header>
+
+    <main class="page-shell review-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">Stage 21</p>
+        <h1 id="page-title">Проверка технологии вязания</h1>
+        <p class="intro-copy">Проверьте значения черновика, явно примите, исправьте, отклоните или оставьте нерешённым каждый обязательный пункт. Исходный snapshot Stage 20 остаётся неизменным.</p>
+      </section>
+
+      <section id="pattern-technology-review-fatal" class="card" hidden role="alert">
+        <h2>Проверка недоступна</h2>
+        <p id="pattern-technology-review-fatal-message"></p>
+      </section>
+
+      <section id="pattern-technology-review-workflow" class="card" aria-live="polite">
+        <div class="review-heading-row">
+          <div><p class="eyebrow">Текущий проект</p><h2 id="pattern-technology-review-project-title">Проверка технологии</h2></div>
+          <span id="pattern-technology-review-status" class="review-status" role="status">Проверка источника</span>
+        </div>
+        <dl class="review-source-grid">
+          <div><dt>Источник Stage 20</dt><dd id="pattern-technology-review-source">—</dd></div>
+          <div><dt>Revision</dt><dd id="pattern-technology-review-source-revision">—</dd></div>
+          <div><dt>Проверено</dt><dd id="pattern-technology-review-progress">—</dd></div>
+          <div><dt>Критические проблемы</dt><dd id="pattern-technology-review-critical-count">—</dd></div>
+        </dl>
+        <div class="review-actions" aria-label="Действия проверки">
+          <button id="pattern-technology-review-start" class="link-button link-button-primary" type="button">Начать проверку</button>
+          <button id="pattern-technology-review-validate" class="link-button" type="button">Проверить</button>
+          <button id="pattern-technology-review-confirm" class="link-button link-button-primary" type="button">Подтвердить snapshot</button>
+          <button id="pattern-technology-review-reopen" class="link-button" type="button" hidden>Открыть проверку заново</button>
+          <button id="pattern-technology-review-new" class="link-button link-button-primary" type="button" hidden>Начать новый review из актуального Stage 20</button>
+          <a id="pattern-technology-review-back" class="link-button" href="/pattern-technology-draft">Вернуться к Stage 20</a>
+        </div>
+        <p id="pattern-technology-review-operation-error" class="form-error" role="alert"></p>
+      </section>
+
+      <section id="pattern-technology-review-summary" class="card" hidden>
+        <h2>Сводка черновика</h2>
+        <dl id="pattern-technology-review-summary-values" class="review-summary-grid"></dl>
+      </section>
+
+      <section id="pattern-technology-review-items" hidden aria-label="Проверяемые разделы">
+        <details class="card review-disclosure" open><summary>Изделие, конструкция и размеры</summary><div id="pattern-technology-review-overview" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Материалы, пряжа, инструменты и плотность</summary><div id="pattern-technology-review-materials" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Компоненты</summary><div id="pattern-technology-review-components" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Секции</summary><div id="pattern-technology-review-sections" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Операции</summary><div id="pattern-technology-review-operations" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Ряды и диапазоны</summary><div id="pattern-technology-review-rows" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Повторы</summary><div id="pattern-technology-review-repeats" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Изменения количества петель</summary><div id="pattern-technology-review-stitches" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Сборка и отделка</summary><div id="pattern-technology-review-finishing" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Сокращения</summary><div id="pattern-technology-review-abbreviations" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Допущения</summary><div id="pattern-technology-review-assumptions" class="review-item-list"></div></details>
+        <details class="card review-disclosure review-attention" open><summary>Отсутствующие сведения</summary><div id="pattern-technology-review-missing" class="review-item-list"></div></details>
+        <details class="card review-disclosure review-attention" open><summary>Конфликты</summary><div id="pattern-technology-review-conflicts" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Предупреждения</summary><div id="pattern-technology-review-warnings" class="review-item-list"></div></details>
+        <details class="card review-disclosure"><summary>Provenance</summary><div id="pattern-technology-review-provenance" class="review-provenance-list"></div></details>
+      </section>
+
+      <section id="pattern-technology-review-validation" class="card" hidden>
+        <h2>Результаты validation</h2>
+        <div class="review-validation-grid">
+          <div><h3>Critical</h3><ul id="pattern-technology-review-validation-critical"></ul></div>
+          <div><h3>Non-critical</h3><ul id="pattern-technology-review-validation-noncritical"></ul></div>
+          <div><h3>Informational</h3><ul id="pattern-technology-review-validation-informational"></ul></div>
+        </div>
+      </section>
+
+      <section id="pattern-technology-review-confirmed" class="card" hidden>
+        <h2>Подтверждённый snapshot</h2>
+        <p id="pattern-technology-review-confirmed-summary"></p>
+      </section>
+    </main>
+
+    <dialog id="pattern-technology-review-correction-dialog" aria-labelledby="pattern-technology-review-correction-title">
+      <form id="pattern-technology-review-correction-form" method="dialog" class="review-correction-form">
+        <h2 id="pattern-technology-review-correction-title">Исправить значение</h2>
+        <p id="pattern-technology-review-correction-original"></p>
+        <label for="pattern-technology-review-correction-type">Тип исправления</label>
+        <select id="pattern-technology-review-correction-type" name="correction-type" required></select>
+        <label for="pattern-technology-review-correction-value">Исправленное значение</label>
+        <input id="pattern-technology-review-correction-value" name="correction-value" required maxlength="500">
+        <label for="pattern-technology-review-correction-unit">Единица измерения</label>
+        <input id="pattern-technology-review-correction-unit" name="correction-unit" maxlength="30">
+        <p id="pattern-technology-review-correction-error" class="form-error" role="alert"></p>
+        <div class="review-actions"><button class="link-button link-button-primary" type="submit">Сохранить исправление</button><button id="pattern-technology-review-correction-cancel" class="link-button" type="button">Отмена</button></div>
+      </form>
+    </dialog>
+  </body>
+</html>

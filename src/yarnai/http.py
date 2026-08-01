@@ -361,6 +361,78 @@ async def pattern_content_extraction(_request: Request) -> FileResponse:
     )
 
 
+async def pattern_semantic_analysis(_request: Request) -> FileResponse:
+    """Return the deterministic source-material semantic analysis page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-semantic-analysis.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_analysis_review(_request: Request) -> FileResponse:
+    """Return the human review and confirmation page for semantic analysis."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-analysis-review.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_technology_draft(_request: Request) -> FileResponse:
+    """Return the deterministic technology-draft page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-technology-draft.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_technology_review(_request: Request) -> FileResponse:
+    """Return the user review page for a structured technology draft."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-technology-review.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_plan(_request: Request) -> FileResponse:
+    """Return the deterministic execution-plan page for confirmed technology."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-plan.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_session(_request: Request) -> FileResponse:
+    """Return the deterministic execution-session page for a ready plan."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-session.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_step(_request: Request) -> FileResponse:
+    """Return one recoverable execution step from an active session."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-step.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_checkpoint(_request: Request) -> FileResponse:
+    """Return a source-proven verification checkpoint for an execution action."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-checkpoint.html",
+        media_type="text/html",
+    )
+
+
 async def extract_pattern_pdf(request: Request) -> JSONResponse:
     """Extract only the local text layer of one PDF."""
 
@@ -515,6 +587,46 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/pattern-content-extraction",
             pattern_content_extraction,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-semantic-analysis",
+            pattern_semantic_analysis,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-analysis-review",
+            pattern_analysis_review,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-technology-draft",
+            pattern_technology_draft,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-technology-review",
+            pattern_technology_review,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-plan",
+            pattern_execution_plan,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-session",
+            pattern_execution_session,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-step",
+            pattern_execution_step,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-checkpoint",
+            pattern_execution_checkpoint,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),
