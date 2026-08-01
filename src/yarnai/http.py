@@ -460,6 +460,78 @@ async def pattern_execution_result(_request: Request) -> FileResponse:
     )
 
 
+async def pattern_execution_runtime(_request: Request) -> FileResponse:
+    """Return the deterministic runtime for an approved execution result."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-runtime.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_monitoring(_request: Request) -> FileResponse:
+    """Return the deterministic projection of pattern execution runtime state."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-monitoring.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_intervention(_request: Request) -> FileResponse:
+    """Return the explicit intent-only intervention workflow."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-intervention.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_action(_request: Request) -> FileResponse:
+    """Return the explicit execution and verification workflow."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-action.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_evidence(_request: Request) -> FileResponse:
+    """Return the read-only-by-default execution evidence workflow."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-evidence.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_verification(_request: Request) -> FileResponse:
+    """Return deterministic verification of action execution evidence."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-verification.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_decision(_request: Request) -> FileResponse:
+    """Return the explicit deterministic decision over execution verification."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-decision.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_follow_up(_request: Request) -> FileResponse:
+    """Return the explicit deterministic route after an execution decision."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-follow-up.html",
+        media_type="text/html",
+    )
+
+
 async def extract_pattern_pdf(request: Request) -> JSONResponse:
     """Extract only the local text layer of one PDF."""
 
@@ -669,6 +741,46 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/pattern-execution-result",
             pattern_execution_result,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-runtime",
+            pattern_execution_runtime,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-monitoring",
+            pattern_execution_monitoring,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-intervention",
+            pattern_execution_intervention,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-action",
+            pattern_execution_action,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-evidence",
+            pattern_execution_evidence,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-verification",
+            pattern_execution_verification,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-decision",
+            pattern_execution_decision,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-follow-up",
+            pattern_execution_follow_up,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),

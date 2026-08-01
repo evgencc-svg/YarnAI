@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Решение о вмешательстве — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-intervention.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-runtime.js" defer></script>
+  <script src="/static/pattern-execution-monitoring.js" defer></script>
+  <script src="/static/pattern-execution-intervention.js" defer></script>
+  <script src="/static/pattern-execution-intervention-assistant.js" defer></script>
+</head>
+<body>
+  <main class="intervention-shell">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_INTERVENTION</p>
+      <h1 id="intervention-project-title">Решение о вмешательстве</h1>
+      <p id="intervention-project-context" class="lead" aria-live="polite">Проверяем контекст проекта…</p>
+    </header>
+
+    <section id="intervention-fatal" class="panel fatal" hidden>
+      <h2>Intervention недоступен</h2>
+      <p id="intervention-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="intervention-workflow">
+      <section class="panel overview" aria-labelledby="intervention-overview-heading">
+        <div class="status-row">
+          <span id="intervention-lifecycle" class="status-chip" data-status="waiting">Ожидание</span>
+          <span id="intervention-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="intervention-overview-heading">Оценка необходимости</h2>
+        <p><span>Monitoring:</span> <strong id="intervention-monitoring-status">—</strong></p>
+        <p id="intervention-assessment-reason">Intervention snapshot ещё не создан.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="intervention-observations-heading">
+        <h2 id="intervention-observations-heading">Основания Stage 30</h2>
+        <ul id="intervention-observations" class="item-list"></ul>
+      </section>
+
+      <section class="panel" aria-labelledby="intervention-issues-heading">
+        <h2 id="intervention-issues-heading">Blockers и warnings</h2>
+        <ul id="intervention-blockers" class="item-list"></ul>
+        <ul id="intervention-warnings" class="item-list warnings"></ul>
+      </section>
+
+      <section class="panel recommendation" aria-labelledby="intervention-recommendation-heading">
+        <h2 id="intervention-recommendation-heading">Детерминированная рекомендация</h2>
+        <p id="intervention-recommendation">Рекомендация отсутствует.</p>
+      </section>
+
+      <section class="panel actions-panel" aria-labelledby="intervention-actions-heading">
+        <h2 id="intervention-actions-heading">Допустимые и заблокированные actions</h2>
+        <fieldset id="intervention-actions" class="action-list">
+          <legend class="visually-hidden">Выберите intervention action</legend>
+        </fieldset>
+        <button id="intervention-select" type="button" disabled>Выбрать action</button>
+      </section>
+
+      <section id="intervention-confirmation-panel" class="panel confirmation" aria-labelledby="intervention-confirmation-heading" hidden>
+        <h2 id="intervention-confirmation-heading">Отдельное подтверждение</h2>
+        <p id="intervention-confirmation-summary"></p>
+        <button id="intervention-confirm" type="button">Подтвердить intent</button>
+      </section>
+
+      <section id="intervention-decision-panel" class="panel decision" aria-labelledby="intervention-decision-heading" hidden>
+        <h2 id="intervention-decision-heading">Immutable decision snapshot</h2>
+        <dl id="intervention-decision" class="detail-list"></dl>
+        <p class="muted">Decision фиксирует только намерение. Runtime action не исполнен.</p>
+      </section>
+
+      <section id="intervention-state-panel" class="panel state-panel" hidden>
+        <h2 id="intervention-state-heading">Состояние intervention</h2>
+        <p id="intervention-state-message"></p>
+      </section>
+
+      <section class="panel command-panel" aria-labelledby="intervention-commands-heading">
+        <h2 id="intervention-commands-heading">Явные команды</h2>
+        <div id="intervention-command-bar" class="command-bar">
+          <button type="button" data-command="create" hidden>Создать intervention</button>
+          <button type="button" data-command="check_identity" hidden>Проверить identity</button>
+          <button type="button" data-command="recover" hidden>Recover intervention</button>
+          <button type="button" data-command="rebuild" hidden>Rebuild intervention</button>
+          <button type="button" data-command="cancel" hidden>Отменить intervention</button>
+          <button type="button" data-command="complete" hidden>Завершить decision</button>
+        </div>
+        <p id="intervention-command-error" class="error" role="alert"></p>
+      </section>
+
+      <details class="panel diagnostics">
+        <summary>Source identity и fingerprint</summary>
+        <dl id="intervention-source-identity" class="detail-list"></dl>
+        <p id="intervention-fingerprint" class="fingerprint">—</p>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация intervention">
+        <a id="intervention-back-monitoring" href="/pattern-execution-monitoring" hidden>Вернуться к Monitoring</a>
+        <a id="intervention-open-action" href="/pattern-execution-action" hidden>Перейти к исполнению действия</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

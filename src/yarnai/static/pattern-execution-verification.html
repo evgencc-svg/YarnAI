@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Проверка выполнения действия — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-verification.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-verification.js" defer></script>
+  <script src="/static/pattern-execution-verification-assistant.js" defer></script>
+</head>
+<body>
+  <main class="verification-shell">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_VERIFICATION · Stage 34</p>
+      <h1 id="execution-verification-title">Проверка выполнения действия</h1>
+      <p id="execution-verification-description" class="lead">Проверяем, действительно ли собранные evidence подтверждают выполненное действие и ожидаемый результат.</p>
+      <p id="execution-verification-context" class="context" aria-live="polite">Загружаем контекст проекта…</p>
+    </header>
+
+    <section id="execution-verification-fatal" class="panel fatal" hidden>
+      <h2>Verification недоступна</h2>
+      <p id="execution-verification-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="execution-verification-workflow">
+      <section class="panel overview" aria-labelledby="execution-verification-status-heading">
+        <div class="status-row">
+          <span id="execution-verification-status" class="status-chip" data-status="waiting" role="status">Ожидание</span>
+          <span id="execution-verification-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="execution-verification-status-heading">Итоговый статус verification</h2>
+        <dl id="execution-verification-summary" class="detail-list"></dl>
+        <p id="execution-verification-blocked" class="problem-text" role="alert" hidden></p>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-verification-action-heading">
+        <h2 id="execution-verification-action-heading">Связанное действие</h2>
+        <dl id="execution-verification-action" class="detail-list"></dl>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-verification-evidence-heading">
+        <h2 id="execution-verification-evidence-heading">Execution evidence</h2>
+        <div class="table-scroll" tabindex="0" aria-label="Список evidence">
+          <table>
+            <thead><tr><th>Тип</th><th>Источник</th><th>Время</th><th>Критерий</th><th>Пригодность</th></tr></thead>
+            <tbody id="execution-verification-evidence"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-verification-criteria-heading">
+        <h2 id="execution-verification-criteria-heading">Критерии ожидаемого результата</h2>
+        <div class="table-scroll" tabindex="0" aria-label="Результаты критериев">
+          <table>
+            <thead><tr><th>Критерий</th><th>Обязательный</th><th>Outcome</th><th>Supporting evidence</th><th>Explanation</th></tr></thead>
+            <tbody id="execution-verification-criteria"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel contradictions" aria-labelledby="execution-verification-contradictions-heading">
+        <h2 id="execution-verification-contradictions-heading">Contradictions</h2>
+        <ul id="execution-verification-contradictions" class="record-list"></ul>
+      </section>
+
+      <section class="panel command-panel" aria-labelledby="execution-verification-commands-heading">
+        <h2 id="execution-verification-commands-heading">Доступные действия</h2>
+        <p class="separation-note">Проверка читает сохранённые action и evidence. Она не выполняет действие повторно и не принимает свободный текст вместо evidence.</p>
+        <div id="execution-verification-command-bar" class="command-bar">
+          <button type="button" data-command="create" hidden>Подготовить verification</button>
+          <button type="button" data-command="verify" hidden>Начать / повторить проверку</button>
+          <button type="button" data-command="rebuild" hidden>Явно пересобрать stale verification</button>
+        </div>
+        <p id="execution-verification-command-error" class="error" role="alert"></p>
+      </section>
+
+      <nav class="page-nav" aria-label="Навигация verification">
+        <a id="execution-verification-back-evidence" href="/pattern-execution-evidence">Назад к Stage 33 evidence</a>
+        <a id="execution-verification-add-evidence" href="/pattern-execution-evidence" hidden>Добавить evidence на Stage 33</a>
+        <a id="execution-verification-fix-action" href="/pattern-execution-action" hidden>Исправить action на Stage 32</a>
+        <a id="execution-verification-open-decision" href="/pattern-execution-decision" hidden>Open Stage 35 decision</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

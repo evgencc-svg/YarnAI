@@ -9,7 +9,7 @@
     warningsPanel: byId("execution-result-warnings-panel"), warnings: byId("execution-result-warnings"), notesPanel: byId("execution-result-notes-panel"), notes: byId("execution-result-notes"),
     blockersPanel: byId("execution-result-blockers-panel"), blockers: byId("execution-result-blockers"), stalePanel: byId("execution-result-stale-panel"), staleReasons: byId("execution-result-stale-reasons"),
     actionsPanel: byId("execution-result-actions-panel"), generate: byId("execution-result-generate"), retry: byId("execution-result-retry"), rebuild: byId("execution-result-rebuild"), save: byId("execution-result-save"), error: byId("execution-result-error"),
-    identity: byId("execution-result-identity"), fingerprint: byId("execution-result-fingerprint"), back: byId("execution-result-back"),
+    identity: byId("execution-result-identity"), fingerprint: byId("execution-result-fingerprint"), back: byId("execution-result-back"), runtime: byId("execution-result-runtime"),
   };
   const system = globalObject.YarnAIProjectSystem;
   const api = globalObject.YarnAIPatternExecutionResult;
@@ -30,6 +30,7 @@
     bindActions();
     ui.back.href = `/pattern-execution-completion?project=${encodeURIComponent(projectId)}`;
     ui.back.hidden = false;
+    ui.runtime.href = `/pattern-execution-runtime?project=${encodeURIComponent(projectId)}`;
     inspected = await repository.readPatternExecutionResult(projectId);
     render();
   }
@@ -66,6 +67,7 @@
     ui.retry.hidden = !(inspected.canRetry && !effectiveStale);
     ui.rebuild.hidden = !(inspected.canRebuild || effectiveStale);
     ui.save.hidden = !(snapshot && status === "ready");
+    ui.runtime.hidden = !(snapshot && status === "ready" && !inspected.corrupt && !effectiveStale);
     ui.actionsPanel.hidden = ui.generate.hidden && ui.retry.hidden && ui.rebuild.hidden && ui.save.hidden;
   }
 

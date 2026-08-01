@@ -9,6 +9,7 @@ require("../src/yarnai/static/project-system.js");
 
 const {
   DB_NAME,
+  DB_VERSION,
   INDEX_MANIFEST,
   ProjectAutosave,
   ProjectRepository,
@@ -18,6 +19,42 @@ const {
   isUuidv7,
   uuidv7,
 } = global.YarnAIProjectSystem;
+
+const CANONICAL_STORE_NAMES = Object.freeze([
+  "cache",
+  "calculations",
+  "checkpoints",
+  "meta",
+  "migration_records",
+  "operations",
+  "pattern_file_blobs",
+  "pattern_files",
+  "photo_blobs",
+  "photos",
+  "progress",
+  "projects",
+  "quarantine",
+  "settings",
+  "sync_state",
+  "transfer_receipts",
+]);
+
+const VERSION_3_STORES = Object.freeze({
+  meta: "key",
+  projects: "project_id",
+  calculations: "calculation_id",
+  progress: "progress_id",
+  operations: "operation_id",
+  checkpoints: "checkpoint_id",
+  photos: "photo_id",
+  photo_blobs: "blob_id",
+  settings: "setting_id",
+  cache: "cache_key",
+  sync_state: "partition_key",
+  transfer_receipts: "transfer_id",
+  quarantine: "quarantine_id",
+  migration_records: "migration_id",
+});
 
 let repositories = [];
 
@@ -48,6 +85,29 @@ function transactionDone(transaction) {
     transaction.oncomplete = resolve;
     transaction.onabort = () => reject(transaction.error);
     transaction.onerror = () => {};
+  });
+}
+
+function assertCanonicalSchema(database) {
+  const actual = [...database.objectStoreNames];
+  assert.equal(DB_VERSION, 4);
+  assert.equal(database.version, 4);
+  assert.equal(new Set(STORE_NAMES).size, STORE_NAMES.length);
+  assert.equal(new Set(actual).size, actual.length);
+  assert.deepEqual([...STORE_NAMES].sort(), CANONICAL_STORE_NAMES);
+  assert.deepEqual(actual.sort(), CANONICAL_STORE_NAMES);
+}
+
+function createVersion3Database() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 3);
+    request.onupgradeneeded = () => {
+      for (const [name, keyPath] of Object.entries(VERSION_3_STORES)) {
+        request.result.createObjectStore(name, { keyPath });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
   });
 }
 
@@ -112,16 +172,24 @@ test("schema migration creates all stores and required indexes", async () => {
   const repo = repository();
   await repo.initialize();
   const database = await repo._database();
-  assert.deepEqual(
-    [...database.objectStoreNames].sort(),
-    [...STORE_NAMES].sort(),
-  );
+  assertCanonicalSchema(database);
   for (const [storeName, indexes] of Object.entries(INDEX_MANIFEST)) {
     const transaction = database.transaction(storeName, "readonly");
     const actual = [...transaction.objectStore(storeName).indexNames];
     indexes.forEach(([name]) => assert.ok(actual.includes(name), `${storeName}.${name}`));
     await transactionDone(transaction);
   }
+});
+
+test("version 3 upgrade produces the same canonical schema as a new profile", async () => {
+  const version3 = await createVersion3Database();
+  assert.equal(version3.version, 3);
+  assert.deepEqual([...version3.objectStoreNames].sort(), Object.keys(VERSION_3_STORES).sort());
+  version3.close();
+
+  const repo = repository();
+  await repo.initialize();
+  assertCanonicalSchema(await repo._database());
 });
 
 test("project creation is atomic and can exist without a calculation", async () => {

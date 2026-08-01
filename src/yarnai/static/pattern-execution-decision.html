@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Решение по результату выполнения — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-decision.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-decision.js" defer></script>
+  <script src="/static/pattern-execution-decision-assistant.js" defer></script>
+</head>
+<body>
+  <main class="decision-shell" data-testid="pattern-execution-decision-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_DECISION · Stage 35</p>
+      <h1 id="execution-decision-title">Решение по verification</h1>
+      <p class="lead">Recommendation помогает рассмотреть результат, но не фиксирует решение. Outcome сохраняется только после явного подтверждения.</p>
+      <p id="execution-decision-context" class="context" aria-live="polite">Загружаем контекст проекта…</p>
+    </header>
+
+    <section id="execution-decision-fatal" class="panel fatal" hidden>
+      <h2>Decision недоступна</h2>
+      <p id="execution-decision-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="execution-decision-workflow">
+      <section class="panel overview" aria-labelledby="execution-decision-status-heading">
+        <div class="status-row">
+          <span id="execution-decision-status" data-testid="decision-status" class="status-chip" data-status="waiting" role="status">Ожидание</span>
+          <span id="execution-decision-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="execution-decision-status-heading">Состояние решения</h2>
+        <dl id="execution-decision-summary" class="detail-list"></dl>
+        <p id="execution-decision-problem" class="problem-text" role="alert" hidden></p>
+      </section>
+
+      <section class="panel split" aria-label="Verification и recommendation">
+        <div>
+          <h2>Verification</h2>
+          <p id="execution-decision-verification-status" data-testid="verification-status" class="large-value">—</p>
+          <p id="execution-decision-verification-id" class="muted">—</p>
+        </div>
+        <div>
+          <h2>Recommendation</h2>
+          <p id="execution-decision-recommendation" data-testid="decision-recommendation" class="large-value">—</p>
+          <p class="muted">Recommendation не является фактическим решением.</p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-decision-current-heading">
+        <h2 id="execution-decision-current-heading">Зафиксированное решение</h2>
+        <dl id="execution-decision-current" class="detail-list"></dl>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-decision-form-heading">
+        <h2 id="execution-decision-form-heading">Явная команда решения</h2>
+        <p id="execution-decision-allowed" data-testid="allowed-outcomes">Allowed outcomes: —</p>
+        <div class="form-grid">
+          <label>Outcome
+            <select id="execution-decision-outcome" data-testid="decision-outcome"></select>
+          </label>
+          <label>Reason code
+            <select id="execution-decision-reason" data-testid="decision-reason"></select>
+          </label>
+          <label class="wide">Explanation
+            <textarea id="execution-decision-explanation" rows="4" maxlength="4000"></textarea>
+          </label>
+          <label class="wide">Required follow-up
+            <textarea id="execution-decision-follow-up" rows="2" maxlength="1000"></textarea>
+          </label>
+        </div>
+        <div class="selection-grid">
+          <fieldset><legend>Selected criteria</legend><div id="execution-decision-criteria" data-testid="selected-criteria"></div></fieldset>
+          <fieldset><legend>Selected evidence</legend><div id="execution-decision-evidence" data-testid="selected-evidence"></div></fieldset>
+        </div>
+        <label class="confirm"><input id="execution-decision-confirm" data-testid="decision-explicit-confirmation" type="checkbox"> Я явно подтверждаю выбранный outcome</label>
+        <div id="execution-decision-command-bar" class="command-bar">
+          <button type="button" data-command="create" hidden>Подготовить decision</button>
+          <button type="button" data-command="begin" hidden>Начать рассмотрение</button>
+          <button type="button" data-command="decide" data-testid="confirm-decision" hidden>Зафиксировать решение</button>
+          <button type="button" data-command="rebuild" hidden>Явно пересобрать decision</button>
+        </div>
+        <p id="execution-decision-command-error" class="error" role="alert"></p>
+      </section>
+
+      <nav class="page-nav" aria-label="Навигация decision">
+        <a id="execution-decision-back-verification" data-testid="back-to-verification" href="/pattern-execution-verification">Назад к Stage 34 verification</a>
+        <a id="execution-decision-more-evidence" data-testid="more-evidence-link" href="/pattern-execution-evidence" hidden>Дополнить evidence на Stage 33</a>
+        <a id="execution-decision-correct-action" data-testid="correction-link" href="/pattern-execution-action" hidden>Пересмотреть action на Stage 32</a>
+        <a id="execution-decision-open-follow-up" data-testid="follow-up-link" href="/pattern-execution-follow-up" hidden>Открыть Stage 36 follow-up</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

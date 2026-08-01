@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Исполнение подтверждённого действия — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-action.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-runtime.js" defer></script>
+  <script src="/static/pattern-execution-monitoring.js" defer></script>
+  <script src="/static/pattern-execution-intervention.js" defer></script>
+  <script src="/static/pattern-execution-action.js" defer></script>
+  <script src="/static/pattern-execution-action-assistant.js" defer></script>
+</head>
+<body>
+  <main class="action-shell">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_ACTION</p>
+      <h1 id="execution-action-project-title">Исполнение подтверждённого действия</h1>
+      <p id="execution-action-project-context" class="lead" aria-live="polite">Проверяем контекст проекта…</p>
+    </header>
+
+    <section id="execution-action-fatal" class="panel fatal" hidden>
+      <h2>Действие недоступно</h2>
+      <p id="execution-action-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="execution-action-workflow">
+      <section class="panel overview" aria-labelledby="execution-action-overview-heading">
+        <div class="status-row">
+          <span id="execution-action-lifecycle" class="status-chip" data-status="waiting">Ожидание</span>
+          <span id="execution-action-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="execution-action-overview-heading">Подтверждённое решение</h2>
+        <dl id="execution-action-decision" class="detail-list"></dl>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-action-target-heading">
+        <h2 id="execution-action-target-heading">Target и ожидаемый эффект</h2>
+        <dl id="execution-action-target" class="detail-list"></dl>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-action-attempt-heading">
+        <h2 id="execution-action-attempt-heading">Текущая попытка</h2>
+        <dl id="execution-action-attempt" class="detail-list"></dl>
+      </section>
+
+      <section class="panel result-panel" aria-labelledby="execution-action-result-heading">
+        <h2 id="execution-action-result-heading">Результат adapter</h2>
+        <p class="separation-note">Вызов adapter и реальное изменение — разные факты. Завершение возможно только после отдельной verification.</p>
+        <dl id="execution-action-result" class="detail-list"></dl>
+      </section>
+
+      <section class="panel verification-panel" aria-labelledby="execution-action-verification-heading">
+        <h2 id="execution-action-verification-heading">Verification</h2>
+        <dl id="execution-action-verification" class="detail-list"></dl>
+        <ul id="execution-action-evidence" class="evidence-list"></ul>
+      </section>
+
+      <section id="execution-action-problem-panel" class="panel problem-panel" hidden>
+        <h2 id="execution-action-problem-heading">Состояние действия</h2>
+        <p id="execution-action-problem-message"></p>
+      </section>
+
+      <section class="panel command-panel" aria-labelledby="execution-action-commands-heading">
+        <h2 id="execution-action-commands-heading">Явные команды</h2>
+        <div id="execution-action-command-bar" class="command-bar">
+          <button type="button" data-command="create" hidden>Создать action</button>
+          <button type="button" data-command="validate" hidden>Prepare</button>
+          <button type="button" data-command="execute" hidden>Execute</button>
+          <button type="button" data-command="verify" hidden>Verify</button>
+          <button type="button" data-command="recover" hidden>Recover</button>
+          <button type="button" data-command="retry" hidden>Retry</button>
+          <button type="button" data-command="cancel" hidden>Cancel</button>
+          <button type="button" data-command="rebuild" hidden>Rebuild</button>
+        </div>
+        <p id="execution-action-command-error" class="error" role="alert"></p>
+      </section>
+
+      <details class="panel audit-panel">
+        <summary>Audit и fingerprints</summary>
+        <ul id="execution-action-audit" class="audit-list"></ul>
+        <p id="execution-action-fingerprint" class="fingerprint">—</p>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация исполнения действия">
+        <a id="execution-action-back-intervention" href="/pattern-execution-intervention" hidden>Вернуться к решению</a>
+        <a id="execution-action-open-evidence" href="/pattern-execution-evidence" hidden>Открыть доказательства выполнения</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Мониторинг выполнения паттерна — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-monitoring.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-runtime.js" defer></script>
+  <script src="/static/pattern-execution-monitoring.js" defer></script>
+  <script src="/static/pattern-execution-monitoring-assistant.js" defer></script>
+</head>
+<body>
+  <main class="monitoring-shell">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_MONITORING</p>
+      <h1 id="monitoring-project-title">Мониторинг выполнения</h1>
+      <p id="monitoring-project-context" class="lead" aria-live="polite">Проверяем контекст проекта…</p>
+    </header>
+
+    <section id="monitoring-fatal" class="panel fatal" hidden>
+      <h2>Мониторинг недоступен</h2>
+      <p id="monitoring-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="monitoring-workflow">
+      <section class="panel overview" aria-labelledby="monitoring-overview-heading">
+        <div class="status-row">
+          <span id="monitoring-lifecycle" class="status-chip" data-status="waiting">Ожидание</span>
+          <span id="monitoring-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="monitoring-overview-heading">Состояние наблюдения</h2>
+        <div class="runtime-row">
+          <span>Runtime</span>
+          <strong id="monitoring-runtime-status">—</strong>
+        </div>
+        <p id="monitoring-progress-text">Monitoring snapshot ещё не создан.</p>
+        <progress id="monitoring-progress-bar" class="progress-track" max="100" value="0">0%</progress>
+        <dl class="metric-grid">
+          <div><dt>Шаги</dt><dd id="monitoring-steps">0 / 0</dd></div>
+          <div><dt>Checkpoint</dt><dd id="monitoring-checkpoints">0 / 0</dd></div>
+          <div><dt>Осталось</dt><dd id="monitoring-remaining">0</dd></div>
+          <div><dt>Последнее изменение</dt><dd id="monitoring-last-change">—</dd></div>
+        </dl>
+      </section>
+
+      <section class="panel" aria-labelledby="monitoring-activity-heading">
+        <h2 id="monitoring-activity-heading">Текущая активность</h2>
+        <dl id="monitoring-current-activity" class="detail-list"></dl>
+      </section>
+
+      <section id="monitoring-recovery-panel" class="panel attention" hidden>
+        <h2>Незавершённое наблюдение</h2>
+        <p id="monitoring-recovery-message">Snapshot остался в observing и требует явной recovery-команды.</p>
+      </section>
+
+      <section id="monitoring-stale-panel" class="panel stale" hidden>
+        <h2>Source identity не подтверждена</h2>
+        <p>Состояние не меняется при чтении. Требуется явная команда пользователя.</p>
+      </section>
+
+      <section id="monitoring-failure-panel" class="panel fatal" hidden>
+        <h2>Monitoring зафиксировал failure</h2>
+        <p>Откройте runtime и изучите диагностические данные. Monitoring не изменяет upstream.</p>
+      </section>
+
+      <section id="monitoring-blockers-panel" class="panel" hidden>
+        <h2>Blockers</h2>
+        <ul id="monitoring-blockers" class="item-list"></ul>
+      </section>
+
+      <section id="monitoring-warnings-panel" class="panel" hidden>
+        <h2>Warnings</h2>
+        <ul id="monitoring-warnings" class="item-list"></ul>
+      </section>
+
+      <section class="panel recommendation" aria-labelledby="monitoring-recommendation-heading">
+        <h2 id="monitoring-recommendation-heading">Рекомендуемое следующее действие</h2>
+        <p id="monitoring-recommendation-label">Действие пока недоступно.</p>
+        <p id="monitoring-recommendation-reason" class="muted"></p>
+        <a id="monitoring-recommended-action" class="button-link" href="/pattern-execution-runtime" hidden>Перейти</a>
+      </section>
+
+      <section class="panel command-panel" aria-labelledby="monitoring-commands-heading">
+        <h2 id="monitoring-commands-heading">Команды monitoring</h2>
+        <div id="monitoring-command-bar" class="command-bar">
+          <button type="button" data-command="create" hidden>Создать monitoring</button>
+          <button type="button" data-command="refresh" hidden>Refresh monitoring</button>
+          <button type="button" data-command="recover" hidden>Recover monitoring</button>
+          <button type="button" data-command="rebuild" hidden>Rebuild monitoring</button>
+          <a id="monitoring-open-runtime" class="button-link secondary" href="/pattern-execution-runtime" hidden>Open runtime</a>
+        </div>
+        <p id="monitoring-command-error" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="monitoring-timeline-heading">
+        <h2 id="monitoring-timeline-heading">Timeline runtime</h2>
+        <ol id="monitoring-timeline" class="timeline"></ol>
+      </section>
+
+      <details class="panel diagnostics">
+        <summary>Diagnostics и source identity</summary>
+        <ul id="monitoring-diagnostics" class="item-list"></ul>
+        <dl id="monitoring-source-identity" class="detail-list"></dl>
+        <p id="monitoring-fingerprint" class="fingerprint">—</p>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация monitoring">
+        <a id="monitoring-back-runtime" href="/pattern-execution-runtime" hidden>Вернуться к Runtime</a>
+        <a id="monitoring-open-intervention" href="/pattern-execution-intervention" hidden>Открыть Intervention</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Runtime исполнения паттерна — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-runtime.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-plan.js" defer></script>
+  <script src="/static/pattern-execution-session.js" defer></script>
+  <script src="/static/pattern-execution-step.js" defer></script>
+  <script src="/static/pattern-execution-checkpoint.js" defer></script>
+  <script src="/static/pattern-execution-progress.js" defer></script>
+  <script src="/static/pattern-execution-completion.js" defer></script>
+  <script src="/static/pattern-execution-result.js" defer></script>
+  <script src="/static/pattern-execution-runtime.js" defer></script>
+  <script src="/static/pattern-execution-runtime-assistant.js" defer></script>
+</head>
+<body>
+  <main class="runtime-shell">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_RUNTIME</p>
+      <h1 id="runtime-project-title">Runtime исполнения</h1>
+      <p id="runtime-message" class="lead" aria-live="polite">Runtime работает только с подтверждённым snapshot Stage 28 и не выполняет внешних действий.</p>
+    </header>
+
+    <section id="runtime-fatal" class="panel fatal" hidden>
+      <h2>Runtime недоступен</h2>
+      <p id="runtime-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="runtime-workflow">
+      <section class="panel hero-card" aria-labelledby="runtime-overview-heading">
+        <div class="status-row">
+          <span id="runtime-status" class="status-chip" data-status="waiting">Ожидание</span>
+          <span id="runtime-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="runtime-overview-heading">Последовательное исполнение</h2>
+        <p id="runtime-progress-text" class="summary-text">Runtime ещё не создан.</p>
+        <progress id="runtime-progress-bar" class="progress-track" max="100" value="0">0%</progress>
+        <dl class="metric-grid">
+          <div><dt>Cursor</dt><dd id="runtime-cursor">—</dd></div>
+          <div><dt>Active action</dt><dd id="runtime-active-action">—</dd></div>
+          <div><dt>Завершено</dt><dd id="runtime-completed-count">0</dd></div>
+          <div><dt>Всего</dt><dd id="runtime-total-count">0</dd></div>
+        </dl>
+      </section>
+
+      <section id="runtime-recovery-panel" class="panel recovery-panel" hidden>
+        <h2>Recovery</h2>
+        <p id="runtime-recovery-message"></p>
+      </section>
+
+      <section id="runtime-stale-panel" class="panel stale-panel" hidden>
+        <h2>Source identity устарела</h2>
+        <ul id="runtime-stale-reasons" class="item-list"></ul>
+      </section>
+
+      <section id="runtime-errors-panel" class="panel error-panel" hidden>
+        <h2>Ошибки и blockers</h2>
+        <ul id="runtime-errors" class="item-list"></ul>
+      </section>
+
+      <section class="panel" aria-labelledby="runtime-actions-heading">
+        <h2 id="runtime-actions-heading">Runtime actions</h2>
+        <ol id="runtime-actions" class="action-list"></ol>
+      </section>
+
+      <section class="panel command-panel" aria-labelledby="runtime-commands-heading">
+        <h2 id="runtime-commands-heading">Доступные команды</h2>
+        <div id="runtime-command-bar" class="command-bar">
+          <button type="button" data-command="create" hidden>Создать runtime</button>
+          <button type="button" data-command="validate" hidden>Проверить identity</button>
+          <button type="button" data-command="start" hidden>Запустить</button>
+          <button type="button" data-command="pause" hidden>Пауза</button>
+          <button type="button" data-command="resume" hidden>Продолжить</button>
+          <button type="button" data-command="begin_current_action" hidden>Начать текущее действие</button>
+          <button type="button" data-command="complete_current_action" hidden>Завершить текущее действие</button>
+          <button type="button" data-command="block_current_action" hidden>Заблокировать действие</button>
+          <button type="button" data-command="unblock_current_action" hidden>Снять блокировку</button>
+          <button type="button" data-command="fail_current_action" hidden>Зафиксировать сбой действия</button>
+          <button type="button" data-command="skip_current_action" hidden>Пропустить разрешённое действие</button>
+          <button type="button" data-command="recover" hidden>Recovery</button>
+          <button type="button" data-command="mark_stale" hidden>Зафиксировать stale</button>
+          <button type="button" data-command="fail" hidden>Завершить со сбоем</button>
+          <button type="button" data-command="stop" hidden>Остановить</button>
+          <button type="button" data-command="rebuild" hidden>Rebuild с новым epoch</button>
+        </div>
+        <p id="runtime-command-error" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel" aria-labelledby="runtime-audit-heading">
+        <h2 id="runtime-audit-heading">Audit trail</h2>
+        <ol id="runtime-audit" class="audit-list"></ol>
+      </section>
+
+      <details class="panel diagnostics">
+        <summary>Source identity и fingerprints</summary>
+        <dl id="runtime-source-identity" class="identity-list"></dl>
+        <p id="runtime-fingerprint" class="fingerprint">—</p>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация runtime">
+        <a id="runtime-back" href="/pattern-execution-result" hidden>Вернуться к результату Stage 28</a>
+        <a id="runtime-monitoring" href="/pattern-execution-monitoring" hidden>Открыть Monitoring</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

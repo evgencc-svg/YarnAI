@@ -45,6 +45,14 @@
     "PATTERN_EXECUTION_PROGRESS",
     "PATTERN_EXECUTION_COMPLETION",
     "PATTERN_EXECUTION_RESULT",
+    "PATTERN_EXECUTION_RUNTIME",
+    "PATTERN_EXECUTION_MONITORING",
+    "PATTERN_EXECUTION_INTERVENTION",
+    "PATTERN_EXECUTION_ACTION",
+    "PATTERN_EXECUTION_EVIDENCE",
+    "PATTERN_EXECUTION_VERIFICATION",
+    "PATTERN_EXECUTION_DECISION",
+    "PATTERN_EXECUTION_FOLLOW_UP",
   ]);
   const ALL_STATUSES = new Set([...ACTIVE_STATUSES, "ARCHIVED", "DELETED"]);
   const RESTORABLE_STATUSES = new Set([
@@ -826,6 +834,710 @@
       state.status === "stale" && !state.staleReasons.length ||
       state.status === "generating" && !state.interruptedOperation
     ) invalid("INVALID_IMPORT_EXECUTION_RESULT", "Lifecycle итогового результата противоречив.");
+  }
+
+  function patternExecutionRuntimeActionFingerprint(action) {
+    return fnv1a32Fingerprint({
+      id: action.id,
+      ordinal: action.ordinal,
+      sourceReference: action.sourceReference,
+      title: action.title,
+      payload: action.payload,
+      prerequisiteIds: action.prerequisiteIds,
+      required: action.required,
+      allowSkip: action.allowSkip,
+    });
+  }
+
+  function patternExecutionRuntimeFingerprint(state) {
+    return fnv1a32Fingerprint({
+      schemaVersion: state.schemaVersion,
+      sourceSchemaVersion: state.sourceSchemaVersion,
+      projectId: state.projectId,
+      type: state.type,
+      epoch: state.epoch,
+      sourceResultId: state.sourceResultId,
+      sourceResultRevision: state.sourceResultRevision,
+      sourceResultFingerprint: state.sourceResultFingerprint,
+      sourceExecutionId: state.sourceExecutionId,
+      sourcePlanId: state.sourcePlanId,
+      sourceIdentity: state.sourceIdentity,
+      actions: state.actions.map((action) => ({
+        id: action.id,
+        ordinal: action.ordinal,
+        sourceReference: action.sourceReference,
+        title: action.title,
+        payload: action.payload,
+        prerequisiteIds: action.prerequisiteIds,
+        required: action.required,
+        allowSkip: action.allowSkip,
+        fingerprint: action.fingerprint,
+      })),
+    });
+  }
+
+  function validateImportedPatternExecutionRuntime(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const runtimeStatuses = new Set(["waiting", "ready", "running", "paused", "blocked", "recovering", "completed", "failed", "stopped", "stale"]);
+    const actionStatuses = new Set(["pending", "ready", "running", "paused", "completed", "blocked", "failed", "skipped"]);
+    const arrays = ["actions", "completedActionIds", "failedActionIds", "skippedActionIds", "blockedActionIds", "staleReasons", "audit", "operations"];
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_RUNTIME" || state.kind !== "PATTERN_EXECUTION_RUNTIME" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.sourceSchemaVersion !== 1 ||
+      state.projectId !== sourceProjectId || !state.id || !runtimeStatuses.has(state.status) ||
+      !Number.isInteger(state.epoch) || state.epoch < 1 || !Number.isInteger(state.revision) || state.revision < 1 ||
+      !state.sourceResultId || !Number.isInteger(state.sourceResultRevision) || state.sourceResultRevision < 1 ||
+      !state.sourceResultFingerprint || !state.sourceExecutionId || !state.sourcePlanId || !state.sourceIdentity ||
+      arrays.some((field) => !Array.isArray(state[field])) || state.actions.length === 0 ||
+      state.audit.length > 64 || state.operations.length > 128 ||
+      !Number.isInteger(state.cursor) || state.cursor < 0 || state.cursor > state.actions.length ||
+      !isTimestamp(state.createdAt) || !isTimestamp(state.updatedAt)
+    ) invalid("INVALID_IMPORT_EXECUTION_RUNTIME", "Импортируемый runtime повреждён.");
+    for (const field of ["startedAt", "pausedAt", "completedAt", "failedAt", "stoppedAt"]) {
+      if (state[field] !== null && !isTimestamp(state[field])) invalid("INVALID_IMPORT_EXECUTION_RUNTIME", "Runtime содержит повреждённый timestamp.");
+    }
+    const ids = new Set();
+    state.actions.forEach((action, index) => {
+      if (
+        !action || !action.id || ids.has(action.id) || action.ordinal !== index + 1 || !actionStatuses.has(action.state) ||
+        !action.sourceReference || typeof action.title !== "string" || !action.title.trim() || !Object.hasOwn(action, "payload") ||
+        !Array.isArray(action.prerequisiteIds) || typeof action.required !== "boolean" || typeof action.allowSkip !== "boolean" ||
+        !Number.isInteger(action.attempt) || action.attempt < 0 || action.fingerprint !== patternExecutionRuntimeActionFingerprint(action)
+      ) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_ACTION", "Runtime action повреждён.");
+      for (const field of ["startedAt", "completedAt", "failedAt"]) {
+        if (action?.[field] !== null && !isTimestamp(action?.[field])) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_ACTION", "Runtime action содержит повреждённый timestamp.");
+      }
+      ids.add(action.id);
+    });
+    const visiting = new Set();
+    const visited = new Set();
+    const visit = (id) => {
+      if (visiting.has(id)) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_GRAPH", "Prerequisite graph содержит цикл.");
+      if (visited.has(id)) return;
+      visiting.add(id);
+      const action = state.actions.find((entry) => entry.id === id);
+      for (const prerequisiteId of action?.prerequisiteIds || []) {
+        if (!ids.has(prerequisiteId)) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_GRAPH", "Prerequisite ссылается на неизвестный action.");
+        visit(prerequisiteId);
+      }
+      visiting.delete(id);
+      visited.add(id);
+    };
+    state.actions.forEach((action) => visit(action.id));
+    const projection = (actionState) => state.actions.filter((action) => action.state === actionState).map((action) => action.id).sort();
+    const same = (left, right) => canonicalize([...left].sort()) === canonicalize([...right].sort());
+    if (
+      !same(state.completedActionIds, projection("completed")) || !same(state.failedActionIds, projection("failed")) ||
+      !same(state.skippedActionIds, projection("skipped")) || !same(state.blockedActionIds, projection("blocked"))
+    ) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_PROJECTION", "Runtime state projections противоречат actions.");
+    const unresolved = state.actions.findIndex((action) => !["completed", "skipped"].includes(action.state));
+    const expectedCursor = unresolved < 0 ? state.actions.length : unresolved;
+    if (state.cursor !== expectedCursor) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_CURSOR", "Runtime cursor противоречит actions.");
+    const active = state.activeActionId ? state.actions.find((action) => action.id === state.activeActionId) : null;
+    if (state.activeActionId && (!active || !["running", "paused", "blocked"].includes(active.state))) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_ACTIVE_ACTION", "Active action повреждён.");
+    if (["completed", "failed", "stopped", "stale"].includes(state.status) && state.actions.some((action) => action.state === "running")) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_LIFECYCLE", "Терминальный runtime содержит running action.");
+    if (state.status === "completed" && state.actions.some((action) => action.required && action.state !== "completed")) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_LIFECYCLE", "Completed runtime содержит незавершённый обязательный action.");
+    if (state.status === "failed" && !state.lastError || state.status === "stale" && !state.staleReasons.length) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_LIFECYCLE", "Lifecycle runtime противоречив.");
+    const sourceIdentityPayload = clone(state.sourceIdentity);
+    delete sourceIdentityPayload.sourceIdentityFingerprint;
+    if (state.sourceIdentity.sourceIdentityFingerprint !== fnv1a32Fingerprint(sourceIdentityPayload)) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_IDENTITY", "Runtime source identity fingerprint повреждён.");
+    if (state.runtimeFingerprint !== patternExecutionRuntimeFingerprint(state)) invalid("INVALID_IMPORT_EXECUTION_RUNTIME_FINGERPRINT", "Runtime fingerprint повреждён.");
+    const runtimeApi = global.YarnAIPatternExecutionRuntime;
+    if (runtimeApi?.validateRuntime) {
+      const report = runtimeApi.validateRuntime(state);
+      if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_RUNTIME", "Runtime не прошёл повторную доменную validation.");
+    }
+  }
+
+  function patternExecutionMonitoringSourceIdentityFingerprint(identity) {
+    const payload = clone(identity);
+    delete payload.sourceIdentityFingerprint;
+    return fnv1a32Fingerprint(payload);
+  }
+
+  function patternExecutionMonitoringRecommendedActionFingerprint(action) {
+    const payload = clone(action);
+    delete payload.fingerprint;
+    return fnv1a32Fingerprint(payload);
+  }
+
+  function patternExecutionMonitoringTimelineFingerprint(entry) {
+    return fnv1a32Fingerprint({
+      eventType: entry.eventType,
+      runtimeRevision: entry.runtimeRevision,
+      actionId: entry.actionId,
+      stepId: entry.stepId,
+      checkpointId: entry.checkpointId,
+      status: entry.status,
+      timestamp: entry.timestamp,
+      reason: entry.reason,
+    });
+  }
+
+  function patternExecutionMonitoringFingerprint(state) {
+    return fnv1a32Fingerprint({
+      schemaVersion: state.schemaVersion,
+      sourceSchemaVersion: state.sourceSchemaVersion,
+      id: state.id,
+      projectId: state.projectId,
+      type: state.type,
+      revision: state.revision,
+      epoch: state.epoch,
+      lifecycle: state.lifecycle,
+      sourceIdentity: state.sourceIdentity,
+      runtimeSummary: state.runtimeSummary,
+      progressSummary: state.progressSummary,
+      currentActivity: state.currentActivity,
+      blockers: state.blockers,
+      warnings: state.warnings,
+      diagnostics: state.diagnostics,
+      recommendedAction: state.recommendedAction,
+      timeline: state.timeline,
+      lastObservationFingerprint: state.lastObservationFingerprint,
+    });
+  }
+
+  function validateImportedPatternExecutionMonitoring(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const lifecycles = new Set(["waiting", "observing", "healthy", "attention_required", "blocked", "completed", "failed", "stale"]);
+    const activities = new Set(["running", "paused", "recovering", "blocked", "waiting", "completed", "failed", "stopped", "stale", "none"]);
+    const recommendations = new Set(["open_runtime", "resume_runtime", "review_paused_action", "resolve_blocker", "retry_recovery", "rebuild_runtime", "review_result", "inspect_failure", "no_action_required"]);
+    const arrays = ["blockers", "warnings", "diagnostics", "timeline", "audit", "operations"];
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_MONITORING" || state.kind !== "PATTERN_EXECUTION_MONITORING" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.sourceSchemaVersion !== 1 ||
+      state.projectId !== sourceProjectId || !state.id || !Number.isInteger(state.revision) || state.revision < 1 ||
+      !Number.isInteger(state.epoch) || state.epoch < 1 || !state.lifecycle || !lifecycles.has(state.lifecycle.state) ||
+      !state.sourceIdentity || !state.runtimeSummary || !state.progressSummary || !state.currentActivity ||
+      !state.recommendedAction || arrays.some((field) => !Array.isArray(state[field])) ||
+      state.timeline.length > 32 || state.audit.length > 24 || state.operations.length > 64 ||
+      !isTimestamp(state.createdAt) || !isTimestamp(state.updatedAt) ||
+      !activities.has(state.currentActivity.status) || !recommendations.has(state.recommendedAction.type)
+    ) invalid("INVALID_IMPORT_EXECUTION_MONITORING", "Импортируемый monitoring snapshot повреждён.");
+    if (state.lifecycle.previousState !== null && !lifecycles.has(state.lifecycle.previousState)) invalid("INVALID_IMPORT_EXECUTION_MONITORING_LIFECYCLE", "Lifecycle monitoring snapshot повреждён.");
+    if (state.lifecycle.observedAt !== null && !isTimestamp(state.lifecycle.observedAt)) invalid("INVALID_IMPORT_EXECUTION_MONITORING_LIFECYCLE", "Lifecycle monitoring содержит повреждённый timestamp.");
+    if (state.sourceIdentity.sourceIdentityFingerprint !== patternExecutionMonitoringSourceIdentityFingerprint(state.sourceIdentity)) invalid("INVALID_IMPORT_EXECUTION_MONITORING_IDENTITY", "Source identity monitoring snapshot повреждена.");
+    const progress = state.progressSummary;
+    const runtime = state.runtimeSummary;
+    const numericFields = ["totalSteps", "completedSteps", "currentStepIndex", "completedPercent", "totalCheckpoints", "completedCheckpoints", "blockedCount", "warningCount", "failedCount", "remainingCount"];
+    if (numericFields.some((field) => !Number.isInteger(progress[field]) || progress[field] < 0) || progress.completedSteps > progress.totalSteps || progress.currentStepIndex > progress.totalSteps || progress.completedPercent > 100 || progress.completedCheckpoints > progress.totalCheckpoints) invalid("INVALID_IMPORT_EXECUTION_MONITORING_PROGRESS", "Progress monitoring snapshot противоречив.");
+    const expectedPercent = progress.totalSteps === 0 ? 0 : Math.round(progress.completedSteps * 100 / progress.totalSteps);
+    if (progress.completedPercent !== expectedPercent || progress.totalSteps !== runtime.totalSteps || progress.completedSteps !== runtime.completedSteps || progress.totalCheckpoints !== runtime.totalCheckpoints || progress.completedCheckpoints !== runtime.completedCheckpoints) invalid("INVALID_IMPORT_EXECUTION_MONITORING_PROGRESS", "Агрегация monitoring snapshot противоречива.");
+    if (state.recommendedAction.sourceRevision !== state.sourceIdentity.runtime?.revision || state.recommendedAction.fingerprint !== patternExecutionMonitoringRecommendedActionFingerprint(state.recommendedAction)) invalid("INVALID_IMPORT_EXECUTION_MONITORING_RECOMMENDATION", "Рекомендация monitoring snapshot повреждена.");
+    const timelineIds = new Set();
+    state.timeline.forEach((entry, index) => {
+      if (!entry?.id || entry.sequence !== index + 1 || timelineIds.has(entry.id) || !Number.isInteger(entry.runtimeRevision) || entry.runtimeRevision < 1 || !isTimestamp(entry.timestamp) || entry.id !== `monitoring-timeline:${patternExecutionMonitoringTimelineFingerprint(entry).slice(8)}`) invalid("INVALID_IMPORT_EXECUTION_MONITORING_TIMELINE", "Timeline monitoring snapshot повреждён.");
+      timelineIds.add(entry.id);
+    });
+    if (state.fingerprint !== patternExecutionMonitoringFingerprint(state)) invalid("INVALID_IMPORT_EXECUTION_MONITORING_FINGERPRINT", "Fingerprint monitoring snapshot повреждён.");
+    const monitoringApi = global.YarnAIPatternExecutionMonitoring;
+    if (monitoringApi?.validateMonitoring) {
+      const report = monitoringApi.validateMonitoring(state);
+      if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_MONITORING", "Monitoring snapshot не прошёл повторную доменную validation.");
+    }
+  }
+
+  function normalizePatternExecutionInterventionValue(value) {
+    if (Array.isArray(value)) return value.map(normalizePatternExecutionInterventionValue).sort((left, right) => canonicalize(left).localeCompare(canonicalize(right)));
+    if (value && typeof value === "object") {
+      const next = {};
+      for (const key of Object.keys(value).sort()) next[key] = normalizePatternExecutionInterventionValue(value[key]);
+      return next;
+    }
+    return value;
+  }
+
+  function patternExecutionInterventionIdentityFingerprint(identity) {
+    const payload = normalizePatternExecutionInterventionValue(clone(identity));
+    delete payload.sourceIdentityFingerprint;
+    return fnv1a32Fingerprint(payload);
+  }
+
+  function normalizePatternExecutionInterventionAction(action) {
+    if (!action) return null;
+    return {
+      id: action.id, type: action.type, label: action.label, reason: action.reason,
+      sourceObservationIds: [...new Set(action.sourceObservationIds || [])].sort(),
+      requiresConfirmation: action.requiresConfirmation, expectedEffect: action.expectedEffect,
+      targetIdentity: normalizePatternExecutionInterventionValue(action.targetIdentity),
+      priority: action.priority, impact: action.impact,
+    };
+  }
+
+  function patternExecutionInterventionDecisionFingerprint(decision) {
+    return fnv1a32Fingerprint({
+      intervention: decision.intervention,
+      selectedAction: normalizePatternExecutionInterventionAction(decision.selectedAction),
+      sourceMonitoringIdentity: decision.sourceMonitoringIdentity,
+      targetIdentity: normalizePatternExecutionInterventionValue(decision.targetIdentity),
+      reason: decision.reason,
+      expectedEffect: decision.expectedEffect,
+      confirmation: decision.confirmation ? { confirmedBy: decision.confirmation.confirmedBy, method: decision.confirmation.method, sourceVerified: decision.confirmation.sourceVerified } : null,
+      sourceObservationIds: [...new Set(decision.sourceObservationIds || [])].sort(),
+      runtimeActionExecuted: false,
+      effectApplied: false,
+    });
+  }
+
+  function patternExecutionInterventionFingerprint(state) {
+    const stableIssues = (values) => [...(values || [])].map(clone).sort((left, right) => String(left.code || "").localeCompare(String(right.code || "")) || canonicalize(left.details || {}).localeCompare(canonicalize(right.details || {})));
+    const actions = [...(state.actions || [])].map((entry) => ({ ...clone(entry), sourceObservationIds: [...new Set(entry.sourceObservationIds || [])].sort(), targetIdentity: normalizePatternExecutionInterventionValue(entry.targetIdentity) })).sort((left, right) => String(left.type || "").localeCompare(String(right.type || "")));
+    const recommendation = state.recommendation ? { ...clone(state.recommendation), sourceObservationIds: [...new Set(state.recommendation.sourceObservationIds || [])].sort(), targetIdentity: normalizePatternExecutionInterventionValue(state.recommendation.targetIdentity) } : null;
+    const decision = state.decision ? clone(state.decision) : null;
+    if (decision?.confirmation) delete decision.confirmation.confirmedAt;
+    if (decision) {
+      decision.selectedAction = normalizePatternExecutionInterventionAction(decision.selectedAction);
+      decision.sourceObservationIds = [...new Set(decision.sourceObservationIds || [])].sort();
+      decision.targetIdentity = normalizePatternExecutionInterventionValue(decision.targetIdentity);
+    }
+    return fnv1a32Fingerprint({
+      schemaVersion: state.schemaVersion, sourceSchemaVersion: state.sourceSchemaVersion,
+      projectId: state.projectId, type: state.type, revision: state.revision, epoch: state.epoch,
+      lifecycle: state.lifecycle ? { state: state.lifecycle.state, previousState: state.lifecycle.previousState } : null,
+      monitoringStatus: state.monitoringStatus, requiresIntervention: state.requiresIntervention,
+      assessmentReason: state.assessmentReason,
+      sourceIdentity: normalizePatternExecutionInterventionValue(state.sourceIdentity),
+      sourceEvidence: normalizePatternExecutionInterventionValue(state.sourceEvidence),
+      observations: [...(state.observations || [])].map(clone).sort((left, right) => String(left.id || "").localeCompare(String(right.id || ""))),
+      blockers: stableIssues(state.blockers), warnings: stableIssues(state.warnings), actions,
+      recommendation,
+      selectedAction: normalizePatternExecutionInterventionAction(state.selectedAction),
+      confirmation: state.confirmation ? { confirmedBy: state.confirmation.confirmedBy, method: state.confirmation.method, sourceVerified: state.confirmation.sourceVerified, sourceIdentityFingerprint: state.confirmation.sourceIdentityFingerprint } : null,
+      decision,
+      previousEpoch: state.previousEpoch || null,
+      importedDiagnostic: state.importedDiagnostic || null,
+    });
+  }
+
+  function remapImportedPatternExecutionIntervention(state, referenceMap) {
+    const next = clone(state);
+    const previousObservationIds = (next.observations || []).map((entry) => entry.id);
+    remapExactReferences(next, referenceMap);
+    next.sourceIdentity.sourceIdentityFingerprint = patternExecutionInterventionIdentityFingerprint(next.sourceIdentity);
+    const observationMap = new Map();
+    next.observations = (next.observations || []).map((entry, index) => {
+      const core = clone(entry); delete core.id;
+      const id = `intervention-observation:${fnv1a32Fingerprint(core).slice(8)}`;
+      observationMap.set(previousObservationIds[index], id);
+      return { id, ...core };
+    }).sort((left, right) => left.id.localeCompare(right.id));
+    const remapObservationIds = (values) => [...new Set((values || []).map((id) => observationMap.get(id) || id))].sort();
+    next.actions = (next.actions || []).map((action) => ({ ...action, sourceObservationIds: remapObservationIds(action.sourceObservationIds) })).sort((left, right) => left.type.localeCompare(right.type));
+    if (next.recommendation) next.recommendation.sourceObservationIds = remapObservationIds(next.recommendation.sourceObservationIds);
+    if (next.selectedAction) next.selectedAction.sourceObservationIds = remapObservationIds(next.selectedAction.sourceObservationIds);
+    if (next.decision) {
+      next.decision.sourceObservationIds = remapObservationIds(next.decision.sourceObservationIds);
+      next.decision.selectedAction.sourceObservationIds = remapObservationIds(next.decision.selectedAction.sourceObservationIds);
+      next.decision.fingerprint = patternExecutionInterventionDecisionFingerprint(next.decision);
+    }
+    next.fingerprint = patternExecutionInterventionFingerprint(next);
+    return next;
+  }
+
+  function makeImportedPatternExecutionInterventionStale(state, timestamp, collision) {
+    const next = clone(state);
+    const previousLifecycle = next.lifecycle.state;
+    const diagnostic = { fingerprint: next.fingerprint, lifecycle: previousLifecycle, selectedActionId: next.selectedAction?.id || null, decisionFingerprint: next.decision?.fingerprint || null };
+    next.revision += 1; next.updatedAt = timestamp;
+    next.lifecycle = { state: "stale", previousState: previousLifecycle, assessedAt: next.lifecycle.assessedAt || timestamp };
+    next.monitoringStatus = "stale"; next.requiresIntervention = true;
+    next.assessmentReason = "Imported identity не доказана; executable intent удалён до явного rebuild.";
+    const issueCore = { code: "import_identity_unproven", message: "Imported intervention сохранён в безопасном stale-состоянии.", details: {} };
+    const issue = { id: `intervention-issue:${fnv1a32Fingerprint(issueCore).slice(8)}`, code: issueCore.code, source: "source", message: issueCore.message, details: {} };
+    const issueMap = new Map((next.blockers || []).map((entry) => [`${entry.code}|${entry.source}|${canonicalize(entry.details || {})}`, entry]));
+    issueMap.set(`${issue.code}|${issue.source}|${canonicalize(issue.details)}`, issue);
+    next.blockers = [...issueMap.values()].sort((left, right) => left.code.localeCompare(right.code) || canonicalize(left.details || {}).localeCompare(canonicalize(right.details || {})));
+    const allObservationIds = [...new Set((next.observations || []).map((entry) => entry.id))].sort();
+    const blockerObservationIds = [...new Set((next.observations || []).filter((entry) => ["blocker", "warning"].includes(entry.kind)).map((entry) => entry.id))].sort();
+    next.actions = (next.actions || []).map((action) => ({
+      ...action, reason: `stale:${action.type}`,
+      sourceObservationIds: ["review_blocker", "resolve_blocker", "return_to_checkpoint"].includes(action.type) ? blockerObservationIds : allObservationIds,
+      eligible: false, blockedReason: "monitoring_is_stale_rebuild_intervention_required",
+      priority: action.type === "no_action" ? 50 : action.priority,
+    })).sort((left, right) => left.type.localeCompare(right.type));
+    next.recommendation = null; next.selectedAction = null; next.confirmation = null; next.decision = null;
+    next.importedDiagnostic = diagnostic;
+    const auditDetails = { originalFingerprint: diagnostic.fingerprint, collision: Boolean(collision) };
+    const auditCore = { event: "intervention_imported_stale", revision: next.revision, epoch: next.epoch, details: normalizePatternExecutionInterventionValue(auditDetails) };
+    next.audit = [...(next.audit || []), { id: `intervention-audit:${fnv1a32Fingerprint(auditCore).slice(8)}`, ...auditCore, at: timestamp }].slice(-32);
+    next.fingerprint = patternExecutionInterventionFingerprint(next);
+    return next;
+  }
+
+  function validateImportedPatternExecutionIntervention(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const lifecycles = new Set(["waiting", "assessing", "ready", "confirmation_required", "confirmed", "cancelled", "completed", "blocked", "failed", "stale"]);
+    const monitoringStates = new Set(["healthy", "attention_required", "blocked", "completed", "failed", "stale"]);
+    const actionTypes = new Set(["no_action", "acknowledge", "resume_runtime", "pause_runtime", "retry_runtime", "recover_runtime", "review_blocker", "resolve_blocker", "return_to_checkpoint", "rebuild_runtime", "stop_runtime", "accept_completion", "inspect_failure", "rebuild_monitoring"]);
+    const arrays = ["observations", "blockers", "warnings", "actions", "audit", "operations"];
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_INTERVENTION" || state.kind !== "PATTERN_EXECUTION_INTERVENTION" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.sourceSchemaVersion !== 1 ||
+      state.projectId !== sourceProjectId || !state.id || !Number.isInteger(state.revision) || state.revision < 1 ||
+      !Number.isInteger(state.epoch) || state.epoch < 1 || !state.lifecycle || !lifecycles.has(state.lifecycle.state) ||
+      state.monitoringStatus !== null && !monitoringStates.has(state.monitoringStatus) || !state.sourceIdentity || !state.sourceEvidence ||
+      arrays.some((field) => !Array.isArray(state[field])) || state.actions.length !== actionTypes.size ||
+      state.audit.length > 32 || state.operations.length > 64 || !isTimestamp(state.createdAt) || !isTimestamp(state.updatedAt) ||
+      typeof state.fingerprint !== "string" || !/^fnv1a32:[0-9a-f]{8}$/.test(state.fingerprint)
+    ) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION", "Импортируемый intervention snapshot повреждён.");
+    const seenActions = new Set();
+    for (const action of state.actions) {
+      if (!action || !actionTypes.has(action.type) || action.id !== `intervention-action:${action.type}` || seenActions.has(action.type) || typeof action.eligible !== "boolean" || typeof action.requiresConfirmation !== "boolean" || !Array.isArray(action.sourceObservationIds) || !Number.isInteger(action.priority) || action.priority < 1 || action.eligible && action.blockedReason !== null || !action.eligible && typeof action.blockedReason !== "string") invalid("INVALID_IMPORT_EXECUTION_INTERVENTION_ACTION", "Intervention action повреждён.");
+      seenActions.add(action.type);
+    }
+    if (state.selectedAction && (!actionTypes.has(state.selectedAction.type) || !state.actions.some((entry) => entry.id === state.selectedAction.id && entry.eligible))) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION_SELECTION", "Selected intervention action противоречиво.");
+    if (["confirmation_required", "confirmed", "completed"].includes(state.lifecycle.state) && !state.selectedAction) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION_LIFECYCLE", "Lifecycle intervention требует выбранное action.");
+    if (["confirmed", "completed"].includes(state.lifecycle.state) && (!state.confirmation || !state.decision)) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION_DECISION", "Подтверждённый intervention не содержит decision.");
+    if (state.decision && (state.decision.runtimeActionExecuted !== false || state.decision.effectApplied !== false || state.decision.selectedAction?.id !== state.selectedAction?.id)) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION_DECISION", "Decision не является безопасным intent snapshot.");
+    if (state.lifecycle.state === "stale" && (state.selectedAction || state.confirmation || state.decision || state.actions.some((entry) => entry.eligible))) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION_STALE", "Stale intervention сохраняет executable intent.");
+    if (state.sourceIdentity.sourceIdentityFingerprint !== patternExecutionInterventionIdentityFingerprint(state.sourceIdentity)) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION_IDENTITY", "Source identity intervention повреждена.");
+    if (state.decision && state.decision.fingerprint !== patternExecutionInterventionDecisionFingerprint(state.decision)) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION_DECISION", "Decision fingerprint intervention повреждён.");
+    if (state.fingerprint !== patternExecutionInterventionFingerprint(state)) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION_FINGERPRINT", "Fingerprint intervention snapshot повреждён.");
+    const interventionApi = global.YarnAIPatternExecutionIntervention;
+    if (interventionApi?.validatePatternExecutionIntervention) {
+      const report = interventionApi.validatePatternExecutionIntervention(state);
+      if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_INTERVENTION", "Intervention snapshot не прошёл повторную доменную validation.");
+    }
+  }
+
+  function normalizePatternExecutionActionValue(value) {
+    if (Array.isArray(value)) return value.map(normalizePatternExecutionActionValue).sort((left, right) => canonicalize(left).localeCompare(canonicalize(right)));
+    if (value && typeof value === "object") {
+      const next = {};
+      for (const key of Object.keys(value).sort()) next[key] = normalizePatternExecutionActionValue(value[key]);
+      return next;
+    }
+    return value;
+  }
+
+  function normalizePatternExecutionActionSelected(value) {
+    return value ? {
+      id: value.id, type: value.type, label: value.label, reason: value.reason,
+      sourceObservationIds: [...new Set(value.sourceObservationIds || [])].sort(),
+      requiresConfirmation: Boolean(value.requiresConfirmation), expectedEffect: value.expectedEffect,
+      targetIdentity: normalizePatternExecutionActionValue(value.targetIdentity),
+      priority: value.priority, impact: value.impact,
+    } : null;
+  }
+
+  function normalizePatternExecutionActionReason(value) {
+    return value ? { code: String(value.code || "unspecified"), message: String(value.message || value.code || "unspecified"), details: normalizePatternExecutionActionValue(value.details || {}) } : null;
+  }
+
+  function normalizePatternExecutionActionAttempt(value) {
+    return value ? { ...clone(value), evidence: normalizePatternExecutionActionValue(value.evidence || {}), error: normalizePatternExecutionActionReason(value.error) } : null;
+  }
+
+  function normalizePatternExecutionActionVerification(value) {
+    return value ? { ...clone(value), targetIdentity: normalizePatternExecutionActionValue(value.targetIdentity), evidence: normalizePatternExecutionActionValue(value.evidence || {}) } : null;
+  }
+
+  function normalizePatternExecutionActionResult(value) {
+    return value ? {
+      ...clone(value), affectedIdentity: normalizePatternExecutionActionValue(value.affectedIdentity),
+      evidence: normalizePatternExecutionActionValue(value.evidence || {}),
+      warnings: [...new Set(value.warnings || [])].sort(),
+      blockedReason: normalizePatternExecutionActionReason(value.blockedReason),
+    } : null;
+  }
+
+  function patternExecutionActionVerificationFingerprint(value) {
+    const normalized = normalizePatternExecutionActionVerification(value);
+    delete normalized.fingerprint;
+    return fnv1a32Fingerprint(normalized);
+  }
+
+  function patternExecutionActionFingerprint(state) {
+    return fnv1a32Fingerprint({
+      schemaVersion: state.schemaVersion, kind: state.kind, id: state.id,
+      projectId: state.projectId, epoch: state.epoch, revision: state.revision,
+      lifecycle: state.lifecycle, createdAt: state.createdAt,
+      interventionIdentity: normalizePatternExecutionActionValue(state.interventionIdentity),
+      interventionFingerprint: state.interventionFingerprint,
+      decisionIdentity: normalizePatternExecutionActionValue(state.decisionIdentity),
+      selectedAction: normalizePatternExecutionActionSelected(state.selectedAction),
+      targetIdentity: normalizePatternExecutionActionValue(state.targetIdentity),
+      sourceIdentity: normalizePatternExecutionActionValue(state.sourceIdentity),
+      executionPlan: normalizePatternExecutionActionValue(state.executionPlan),
+      currentAttempt: normalizePatternExecutionActionAttempt(state.currentAttempt),
+      attemptHistory: [...(state.attemptHistory || [])].map(normalizePatternExecutionActionAttempt).sort((left, right) => (left.ordinal || 0) - (right.ordinal || 0) || String(left.attemptId || "").localeCompare(String(right.attemptId || ""))),
+      verification: normalizePatternExecutionActionVerification(state.verification),
+      result: normalizePatternExecutionActionResult(state.result),
+      blockedReason: normalizePatternExecutionActionReason(state.blockedReason),
+      failure: normalizePatternExecutionActionReason(state.failure),
+      previousEpoch: normalizePatternExecutionActionValue(state.previousEpoch),
+      importedDiagnostic: normalizePatternExecutionActionValue(state.importedDiagnostic),
+      audit: (state.audit || []).map((entry) => ({ id: entry.id, event: entry.event, revision: entry.revision, epoch: entry.epoch, at: entry.at, details: normalizePatternExecutionActionValue(entry.details) })),
+    });
+  }
+
+  function patternExecutionActionIdempotencyKey(state, ordinal) {
+    return `action-idempotency:${fnv1a32Fingerprint({
+      projectId: state.projectId, interventionFingerprint: state.interventionFingerprint,
+      decisionFingerprint: state.decisionIdentity.fingerprint, actionType: state.selectedAction.type,
+      targetIdentity: state.targetIdentity, epoch: state.epoch, ordinal,
+    }).slice(8)}`;
+  }
+
+  function remapImportedPatternExecutionAction(state, referenceMap) {
+    const next = clone(state);
+    remapExactReferences(next, referenceMap);
+    for (const attempt of [...(next.attemptHistory || []), next.currentAttempt].filter(Boolean)) {
+      attempt.idempotencyKey = patternExecutionActionIdempotencyKey(next, attempt.ordinal);
+      if (attempt.preconditionFingerprint) attempt.preconditionFingerprint = fnv1a32Fingerprint({ remapped: true, actionId: next.id, ordinal: attempt.ordinal, sourceIdentity: next.sourceIdentity, targetIdentity: next.targetIdentity });
+    }
+    if (next.result) {
+      next.result.preconditionFingerprint = fnv1a32Fingerprint({ sourceState: next.result.sourceState, affectedIdentity: next.result.affectedIdentity, targetIdentity: next.targetIdentity });
+      next.result.effectFingerprint = fnv1a32Fingerprint({ actionType: next.result.actionType, resultingState: next.result.resultingState, changed: next.result.changed, noOp: next.result.noOp, affectedIdentity: next.result.affectedIdentity, evidence: next.result.evidence });
+      if (next.currentAttempt) next.currentAttempt.effectFingerprint = next.result.effectFingerprint;
+    }
+    if (next.verification?.fingerprint) next.verification.fingerprint = patternExecutionActionVerificationFingerprint(next.verification);
+    next.fingerprint = patternExecutionActionFingerprint(next);
+    return next;
+  }
+
+  function makeImportedPatternExecutionActionStale(state, timestamp, collision) {
+    const next = clone(state);
+    const original = { fingerprint: next.fingerprint, lifecycle: next.lifecycle, selectedAction: next.selectedAction?.type || null, effectApplied: next.currentAttempt?.effectApplied === true };
+    next.revision += 1; next.updatedAt = timestamp; next.lifecycle = "stale";
+    next.executionPlan = {
+      actionType: next.selectedAction.type, executionMode: next.executionPlan.executionMode,
+      targetKind: next.executionPlan.targetKind, expectedEffect: next.selectedAction.expectedEffect,
+      executable: false,
+    };
+    if (next.currentAttempt) { next.currentAttempt.status = "stale"; next.currentAttempt.effectApplied = false; }
+    next.blockedReason = { code: "import_identity_unproven", message: "import_identity_unproven", details: { executableIntentRemoved: true } };
+    next.failure = null; next.importedDiagnostic = original;
+    const details = { import: true, collision: Boolean(collision), originalFingerprint: original.fingerprint };
+    const core = { event: "marked_stale", revision: next.revision, epoch: next.epoch, details: normalizePatternExecutionActionValue(details) };
+    next.audit = [...(next.audit || []), { id: `action-audit:${fnv1a32Fingerprint(core).slice(8)}`, ...core, at: timestamp }].slice(-64);
+    next.fingerprint = patternExecutionActionFingerprint(next);
+    return next;
+  }
+
+  function validateImportedPatternExecutionAction(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const lifecycles = new Set(["waiting", "validating", "ready", "executing", "verifying", "completed", "blocked", "failed", "cancelled", "stale"]);
+    const actions = new Set(["no_action", "acknowledge", "resume_runtime", "pause_runtime", "retry_runtime", "recover_runtime", "review_blocker", "resolve_blocker", "return_to_checkpoint", "rebuild_runtime", "stop_runtime", "accept_completion", "inspect_failure", "rebuild_monitoring"]);
+    const modes = new Set(["no_op", "acknowledgement", "runtime_transition", "recovery_request", "blocker_review", "blocker_resolution", "checkpoint_return", "runtime_rebuild", "runtime_stop", "completion_acceptance", "failure_inspection", "monitoring_rebuild"]);
+    const attempts = [...(state?.attemptHistory || []), state?.currentAttempt].filter(Boolean);
+    if (!state || state.type !== "PATTERN_EXECUTION_ACTION" || state.kind !== "PATTERN_EXECUTION_ACTION" || state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId || !state.id || !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1 || !lifecycles.has(state.lifecycle) || !actions.has(state.selectedAction?.type) || !modes.has(state.executionPlan?.executionMode) || !state.interventionIdentity || !/^fnv1a32:[0-9a-f]{8}$/.test(state.interventionFingerprint || "") || !state.decisionIdentity || !/^fnv1a32:[0-9a-f]{8}$/.test(state.decisionIdentity.fingerprint || "") || !Array.isArray(state.attemptHistory) || !Array.isArray(state.audit) || !Array.isArray(state.operations) || state.audit.length > 64 || state.operations.length > 96 || !isTimestamp(state.createdAt) || !isTimestamp(state.updatedAt)) invalid("INVALID_IMPORT_EXECUTION_ACTION", "Импортируемый execution action snapshot повреждён.");
+    for (const attempt of attempts) {
+      if (!attempt.attemptId || !Number.isInteger(attempt.ordinal) || attempt.ordinal < 1 || !/^fnv1a32:[0-9a-f]{8}$/.test(attempt.preconditionFingerprint || "") || !attempt.idempotencyKey || typeof attempt.effectApplied !== "boolean" || typeof attempt.runtimeActionExecuted !== "boolean" || attempt.effectApplied && !attempt.runtimeActionExecuted) invalid("INVALID_IMPORT_EXECUTION_ACTION_ATTEMPT", "Execution attempt повреждён.");
+    }
+    if (state.lifecycle === "completed" && (state.verification?.status !== "verified" || state.currentAttempt?.status !== "verified")) invalid("INVALID_IMPORT_EXECUTION_ACTION_VERIFICATION", "Completed action не имеет verified результата.");
+    if (state.lifecycle === "cancelled" && (state.currentAttempt?.effectApplied === true || state.result?.changed === true)) invalid("INVALID_IMPORT_EXECUTION_ACTION_CANCELLED", "Cancelled action маскирует применённый эффект.");
+    if (state.lifecycle === "stale" && state.executionPlan?.executable === true) invalid("INVALID_IMPORT_EXECUTION_ACTION_STALE", "Stale action сохраняет executable intent.");
+    if (state.fingerprint !== patternExecutionActionFingerprint(state)) invalid("INVALID_IMPORT_EXECUTION_ACTION_FINGERPRINT", "Fingerprint execution action повреждён.");
+    const actionApi = global.YarnAIPatternExecutionAction;
+    if (actionApi?.validatePatternExecutionAction) {
+      const report = actionApi.validatePatternExecutionAction(state);
+      if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_ACTION", "Execution action не прошёл повторную доменную validation.");
+    }
+  }
+
+  const PATTERN_EXECUTION_EVIDENCE_TYPES = [
+    "ACTION_IDENTITY", "ACTION_ATTEMPT", "ADAPTER_INVOCATION", "PRE_STATE_SNAPSHOT",
+    "POST_STATE_SNAPSHOT", "VERIFICATION_RESULT", "TARGET_IDENTITY", "SOURCE_CHAIN",
+    "SIDE_EFFECT_BOUNDARY", "IDEMPOTENCY_PROOF", "AUDIT_PROOF", "IMPORT_SAFETY",
+  ];
+  const PATTERN_EXECUTION_EVIDENCE_ASSERTIONS = [
+    "ACTION_WAS_VERIFIED", "ACTION_EFFECT_CONFIRMED", "ACTION_TARGET_MATCHED",
+    "ACTION_ATTEMPT_MATCHED", "SOURCE_CHAIN_MATCHED", "NO_UNEXPECTED_SIDE_EFFECTS",
+    "IDEMPOTENCY_KEY_MATCHED", "AUDIT_SEQUENCE_MATCHED", "IMPORT_IDENTITY_SAFE",
+  ];
+
+  function normalizePatternExecutionEvidenceValue(value) {
+    if (Array.isArray(value)) return value.map(normalizePatternExecutionEvidenceValue);
+    if (value && typeof value === "object") {
+      const next = {};
+      for (const key of Object.keys(value).sort()) next[key] = normalizePatternExecutionEvidenceValue(value[key]);
+      return next;
+    }
+    return value;
+  }
+
+  function patternExecutionEvidenceItemFingerprint(item) {
+    return fnv1a32Fingerprint({
+      id: item.id, type: item.type, source: item.source,
+      sourceIdentity: normalizePatternExecutionEvidenceValue(item.sourceIdentity),
+      observedValue: normalizePatternExecutionEvidenceValue(item.observedValue),
+      expectedValue: normalizePatternExecutionEvidenceValue(item.expectedValue),
+      status: item.status, collectedAt: item.collectedAt,
+    });
+  }
+
+  function patternExecutionEvidenceFingerprint(state) {
+    const items = [...(state.evidenceItems || [])].map(normalizePatternExecutionEvidenceValue).sort((left, right) => PATTERN_EXECUTION_EVIDENCE_TYPES.indexOf(left.type) - PATTERN_EXECUTION_EVIDENCE_TYPES.indexOf(right.type) || String(left.id || "").localeCompare(String(right.id || "")));
+    const assertions = [...(state.assertions || [])].map((entry) => ({ ...normalizePatternExecutionEvidenceValue(entry), evidenceItemIds: [...new Set(entry.evidenceItemIds || [])].sort() })).sort((left, right) => PATTERN_EXECUTION_EVIDENCE_ASSERTIONS.indexOf(left.type) - PATTERN_EXECUTION_EVIDENCE_ASSERTIONS.indexOf(right.type));
+    const diagnostics = (values) => [...(values || [])].map(normalizePatternExecutionEvidenceValue).sort((left, right) => String(left.code || "").localeCompare(String(right.code || "")) || canonicalize(left.details || {}).localeCompare(canonicalize(right.details || {})));
+    return fnv1a32Fingerprint({
+      schemaVersion: state.schemaVersion, kind: state.kind, id: state.id,
+      projectId: state.projectId, calculationId: state.calculationId,
+      executionEpoch: state.executionEpoch, evidenceEpoch: state.evidenceEpoch,
+      evidenceAttemptOrdinal: state.evidenceAttemptOrdinal, epoch: state.epoch,
+      actionId: state.actionId, actionFingerprint: state.actionFingerprint,
+      actionAttemptId: state.actionAttemptId, actionAttemptOrdinal: state.actionAttemptOrdinal,
+      interventionId: state.interventionId, interventionFingerprint: state.interventionFingerprint,
+      decisionId: state.decisionId, decisionFingerprint: state.decisionFingerprint,
+      runtimeId: state.runtimeId, monitoringId: state.monitoringId, resultId: state.resultId,
+      sourceIdentities: normalizePatternExecutionEvidenceValue(state.sourceIdentities),
+      collectedSourceIdentities: normalizePatternExecutionEvidenceValue(state.collectedSourceIdentities),
+      lifecycle: state.lifecycle, collectionStatus: state.collectionStatus, validationStatus: state.validationStatus,
+      evidenceItems: items, assertions, unexpectedChanges: diagnostics(state.unexpectedChanges),
+      missingEvidence: diagnostics(state.missingEvidence), contradictions: diagnostics(state.contradictions),
+      summary: normalizePatternExecutionEvidenceValue(state.summary), previousEvidence: normalizePatternExecutionEvidenceValue(state.previousEvidence),
+      revision: state.revision, createdAt: state.createdAt, collectedAt: state.collectedAt,
+      validatedAt: state.validatedAt, completedAt: state.completedAt,
+      importedDiagnostic: normalizePatternExecutionEvidenceValue(state.importedDiagnostic),
+      audit: (state.audit || []).map((entry) => ({ id: entry.id, event: entry.event, revision: entry.revision, epoch: entry.epoch, evidenceEpoch: entry.evidenceEpoch, at: entry.at, details: normalizePatternExecutionEvidenceValue(entry.details) })),
+    });
+  }
+
+  function remapImportedPatternExecutionEvidence(state, referenceMap) {
+    const next = clone(state);
+    remapExactReferences(next, referenceMap);
+    next.evidenceItems = (next.evidenceItems || []).map((item) => {
+      item.fingerprint = patternExecutionEvidenceItemFingerprint(item);
+      return item;
+    }).sort((left, right) => PATTERN_EXECUTION_EVIDENCE_TYPES.indexOf(left.type) - PATTERN_EXECUTION_EVIDENCE_TYPES.indexOf(right.type));
+    const itemIds = new Set(next.evidenceItems.map((item) => item.id));
+    next.assertions = (next.assertions || []).map((assertion) => ({
+      ...assertion,
+      evidenceItemIds: [...new Set(assertion.evidenceItemIds || [])].filter((id) => itemIds.has(id)).sort(),
+    })).sort((left, right) => PATTERN_EXECUTION_EVIDENCE_ASSERTIONS.indexOf(left.type) - PATTERN_EXECUTION_EVIDENCE_ASSERTIONS.indexOf(right.type));
+    next.fingerprint = patternExecutionEvidenceFingerprint(next);
+    return next;
+  }
+
+  function makeImportedPatternExecutionEvidenceStale(state, timestamp, collision) {
+    const next = clone(state);
+    const original = { id: next.id, fingerprint: next.fingerprint, epoch: next.epoch, evidenceEpoch: next.evidenceEpoch, evidenceAttemptOrdinal: next.evidenceAttemptOrdinal, lifecycle: next.lifecycle };
+    next.revision += 1; next.updatedAt = timestamp; next.lifecycle = "stale"; next.validationStatus = "stale";
+    next.importedDiagnostic = { reason: "import_identity_unproven", collision: Boolean(collision), original: normalizePatternExecutionEvidenceValue(original) };
+    const details = { reason: "import_identity_unproven", collision: Boolean(collision) };
+    const core = { event: "import_marked_stale", revision: next.revision, epoch: next.epoch, evidenceEpoch: next.evidenceEpoch, details: normalizePatternExecutionEvidenceValue(details) };
+    next.audit = [...(next.audit || []), { id: `evidence-audit:${fnv1a32Fingerprint(core).slice(8)}`, ...core, at: timestamp }].slice(-64);
+    next.fingerprint = patternExecutionEvidenceFingerprint(next);
+    return next;
+  }
+
+  function validateImportedPatternExecutionEvidence(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const lifecycles = new Set(["waiting", "collecting", "validating", "ready", "completed", "blocked", "failed", "cancelled", "stale"]);
+    const itemStatuses = new Set(["present", "missing", "invalid", "contradictory"]);
+    const assertionStatuses = new Set(["passed", "failed", "unknown"]);
+    if (!state || state.type !== "PATTERN_EXECUTION_EVIDENCE" || state.kind !== "PATTERN_EXECUTION_EVIDENCE" || state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId || !state.id || !state.calculationId || !state.actionId || !state.actionFingerprint || !state.actionAttemptId || !Number.isInteger(state.actionAttemptOrdinal) || state.actionAttemptOrdinal < 1 || !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1 || !Number.isInteger(state.executionEpoch) || state.executionEpoch < 1 || !Number.isInteger(state.evidenceEpoch) || state.evidenceEpoch < 1 || !Number.isInteger(state.evidenceAttemptOrdinal) || state.evidenceAttemptOrdinal < 1 || !lifecycles.has(state.lifecycle) || !Array.isArray(state.evidenceItems) || !Array.isArray(state.assertions) || !Array.isArray(state.audit) || !Array.isArray(state.operations) || state.audit.length > 64 || state.operations.length > 96 || !isTimestamp(state.createdAt) || !isTimestamp(state.updatedAt)) invalid("INVALID_IMPORT_EXECUTION_EVIDENCE", "Импортируемый evidence snapshot повреждён.");
+    const ids = new Set();
+    for (const item of state.evidenceItems) {
+      if (!item.id || ids.has(item.id) || !PATTERN_EXECUTION_EVIDENCE_TYPES.includes(item.type) || !itemStatuses.has(item.status) || !isTimestamp(item.collectedAt) || item.fingerprint !== patternExecutionEvidenceItemFingerprint(item)) invalid("INVALID_IMPORT_EXECUTION_EVIDENCE_ITEM", "Evidence item повреждён.");
+      ids.add(item.id);
+    }
+    for (const assertion of state.assertions) if (!PATTERN_EXECUTION_EVIDENCE_ASSERTIONS.includes(assertion.type) || !assertionStatuses.has(assertion.status) || !Array.isArray(assertion.evidenceItemIds) || assertion.evidenceItemIds.some((id) => !ids.has(id))) invalid("INVALID_IMPORT_EXECUTION_EVIDENCE_ASSERTION", "Evidence assertion повреждён.");
+    if (state.lifecycle === "completed" && (state.validationStatus !== "successful" || !state.completedAt || !state.summary || PATTERN_EXECUTION_EVIDENCE_ASSERTIONS.some((type) => !state.assertions.some((assertion) => assertion.type === type && assertion.status === "passed")))) invalid("INVALID_IMPORT_EXECUTION_EVIDENCE_COMPLETED", "Completed evidence не доказан.");
+    if (state.fingerprint !== patternExecutionEvidenceFingerprint(state)) invalid("INVALID_IMPORT_EXECUTION_EVIDENCE_FINGERPRINT", "Fingerprint evidence повреждён.");
+    const evidenceApi = global.YarnAIPatternExecutionEvidence;
+    if (evidenceApi?.validatePatternExecutionEvidenceSnapshot) {
+      const report = evidenceApi.validatePatternExecutionEvidenceSnapshot(state);
+      if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_EVIDENCE", "Evidence не прошёл доменную validation.");
+    }
+  }
+
+  function patternExecutionVerificationFingerprint(state) {
+    const api = global.YarnAIPatternExecutionVerification;
+    if (api?.fingerprintPatternExecutionVerification) return api.fingerprintPatternExecutionVerification(state);
+    const criteria = [...(state.expectedCriteria || [])].map(normalizePatternExecutionEvidenceValue).sort((left, right) => Number(left.order || 0) - Number(right.order || 0) || String(left.id || left.criterionId || "").localeCompare(String(right.id || right.criterionId || "")));
+    const results = [...(state.criterionResults || [])].map(normalizePatternExecutionEvidenceValue).sort((left, right) => String(left.criterionId || "").localeCompare(String(right.criterionId || "")));
+    const diagnostics = (values) => [...(values || [])].map(normalizePatternExecutionEvidenceValue).sort((left, right) => String(left.code || "").localeCompare(String(right.code || "")) || canonicalize(left).localeCompare(canonicalize(right)));
+    return fnv1a32Fingerprint({
+      schemaVersion: state.schemaVersion, version: state.version, kind: state.kind, type: state.type,
+      id: state.id, projectId: state.projectId, calculationId: state.calculationId,
+      actionId: state.actionId, actionRevision: state.actionRevision, actionFingerprint: state.actionFingerprint,
+      evidenceIds: [...(state.evidenceIds || [])].sort(), status: state.status,
+      expectedCriteria: criteria, criterionResults: results.map((entry) => ({
+        ...entry,
+        supportingEvidenceIds: [...new Set(entry.supportingEvidenceIds || [])].sort(),
+        conflictingEvidenceIds: [...new Set(entry.conflictingEvidenceIds || [])].sort(),
+      })),
+      contradictions: diagnostics(state.contradictions), diagnostics: diagnostics(state.diagnostics),
+      summary: normalizePatternExecutionEvidenceValue(state.summary), inputFingerprint: state.inputFingerprint,
+      verifiedAt: state.verifiedAt, epoch: state.epoch, revision: state.revision,
+      createdAt: state.createdAt, updatedAt: state.updatedAt,
+      previousVerification: normalizePatternExecutionEvidenceValue(state.previousVerification),
+      importedDiagnostic: normalizePatternExecutionEvidenceValue(state.importedDiagnostic),
+    });
+  }
+
+  function remapImportedPatternExecutionVerification(state, referenceMap) {
+    const next = clone(state);
+    remapExactReferences(next, referenceMap);
+    next.evidenceIds = [...new Set(next.evidenceIds || [])].sort();
+    next.criterionResults = [...(next.criterionResults || [])].map((entry) => ({
+      ...entry,
+      supportingEvidenceIds: [...new Set(entry.supportingEvidenceIds || [])].sort(),
+      conflictingEvidenceIds: [...new Set(entry.conflictingEvidenceIds || [])].sort(),
+    })).sort((left, right) => String(left.criterionId || "").localeCompare(String(right.criterionId || "")));
+    next.inputFingerprint = fnv1a32Fingerprint({
+      remapped: true, actionId: next.actionId, actionRevision: next.actionRevision,
+      actionFingerprint: next.actionFingerprint, evidenceIds: next.evidenceIds,
+      criteria: next.expectedCriteria,
+    });
+    next.fingerprint = patternExecutionVerificationFingerprint(next);
+    return next;
+  }
+
+  function makeImportedPatternExecutionVerificationStale(state, timestamp, collision) {
+    const next = clone(state);
+    next.status = "stale";
+    next.revision = Math.max(1, Number(next.revision) || 1) + 1;
+    next.updatedAt = timestamp;
+    next.verifiedAt = null;
+    next.importedDiagnostic = { reason: "import_identity_unproven", collision: Boolean(collision) };
+    next.fingerprint = patternExecutionVerificationFingerprint(next);
+    return next;
+  }
+
+  function validateImportedPatternExecutionVerification(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const statuses = new Set(["waiting", "ready", "verifying", "needs_evidence", "contradicted", "verified", "rejected", "blocked", "stale"]);
+    const outcomes = new Set(["confirmed", "disproved", "insufficient", "conflicting"]);
+    if (!state || state.type !== "PATTERN_EXECUTION_VERIFICATION" || state.kind !== "PATTERN_EXECUTION_VERIFICATION" || state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId || !state.id || !state.calculationId || !state.inputFingerprint || !statuses.has(state.status) || !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1 || !Array.isArray(state.evidenceIds) || new Set(state.evidenceIds).size !== state.evidenceIds.length || !Array.isArray(state.expectedCriteria) || !Array.isArray(state.criterionResults) || !Array.isArray(state.contradictions) || !Array.isArray(state.diagnostics) || !isTimestamp(state.createdAt) || !isTimestamp(state.updatedAt)) {
+      invalid("INVALID_IMPORT_EXECUTION_VERIFICATION", "Импортируемая execution verification повреждена.");
+    }
+    if (state.actionId !== null && !state.actionId || state.actionRevision !== null && (!Number.isInteger(state.actionRevision) || state.actionRevision < 1)) invalid("INVALID_IMPORT_EXECUTION_VERIFICATION_ACTION", "Ссылка verification на action повреждена.");
+    const criterionIds = new Set((state.expectedCriteria || []).map((entry) => entry?.id || entry?.criterionId));
+    if (criterionIds.has(undefined) || criterionIds.size !== state.expectedCriteria.length) invalid("INVALID_IMPORT_EXECUTION_VERIFICATION_CRITERIA", "Критерии verification повреждены.");
+    for (const result of state.criterionResults) if (!criterionIds.has(result.criterionId) || !outcomes.has(result.outcome) || typeof result.required !== "boolean" || !Array.isArray(result.supportingEvidenceIds) || !Array.isArray(result.conflictingEvidenceIds) || typeof result.explanation !== "string") invalid("INVALID_IMPORT_EXECUTION_VERIFICATION_RESULT", "Результат критерия verification повреждён.");
+    if (["verified", "rejected"].includes(state.status) && !isTimestamp(state.verifiedAt)) invalid("INVALID_IMPORT_EXECUTION_VERIFICATION_TERMINAL", "Терминальная verification не имеет времени проверки.");
+    if (state.fingerprint !== patternExecutionVerificationFingerprint(state)) invalid("INVALID_IMPORT_EXECUTION_VERIFICATION_FINGERPRINT", "Fingerprint verification повреждён.");
+    const api = global.YarnAIPatternExecutionVerification;
+    const report = api?.validatePatternExecutionVerification?.(state);
+    if (report && !report.valid) invalid("INVALID_IMPORT_EXECUTION_VERIFICATION", "Verification не прошла доменную validation.");
+  }
+
+  function validateImportedPatternExecutionDecision(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionDecision;
+    if (!state || state.type !== "PATTERN_EXECUTION_DECISION" || state.kind !== "PATTERN_EXECUTION_DECISION" || state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId || !state.id || !state.calculationId || !state.executionPlanId || !state.sessionId || !state.actionId || !state.verificationId || !Number.isInteger(state.verificationRevision) || state.verificationRevision < 1 || !state.verificationFingerprint || !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1 || !Array.isArray(state.criterionIds) || !Array.isArray(state.evidenceReferences) || !Array.isArray(state.allowedOutcomes) || !state.decision) invalid("INVALID_IMPORT_EXECUTION_DECISION", "Imported execution decision is corrupted.");
+    if (!api?.validatePatternExecutionDecision || !api?.fingerprintPatternExecutionDecision) invalid("PATTERN_EXECUTION_DECISION_API_MISSING", "Execution decision module is not loaded.");
+    const report = api.validatePatternExecutionDecision(state);
+    if (!report.valid || state.fingerprint !== api.fingerprintPatternExecutionDecision(state)) invalid("INVALID_IMPORT_EXECUTION_DECISION", "Decision failed domain validation.");
+  }
+
+  function validateImportedPatternExecutionFollowUp(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionFollowUp;
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_FOLLOW_UP" || state.kind !== "PATTERN_EXECUTION_FOLLOW_UP" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId ||
+      !state.id || !state.calculationId || !state.planId || !state.sessionId || !state.decisionId ||
+      !Number.isInteger(state.decisionRevision) || state.decisionRevision < 1 || !state.decisionFingerprint ||
+      !Number.isInteger(state.decisionEpoch) || state.decisionEpoch < 1 ||
+      !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1
+    ) invalid("INVALID_IMPORT_EXECUTION_FOLLOW_UP", "Imported execution follow-up is corrupted.");
+    if (!api?.validatePatternExecutionFollowUp || !api?.fingerprintPatternExecutionFollowUp) invalid("PATTERN_EXECUTION_FOLLOW_UP_API_MISSING", "Execution follow-up module is not loaded.");
+    const report = api.validatePatternExecutionFollowUp(state);
+    if (!report.valid || state.fingerprint !== api.fingerprintPatternExecutionFollowUp(state)) invalid("INVALID_IMPORT_EXECUTION_FOLLOW_UP", "Follow-up failed domain validation.");
   }
 
   async function sha256Text(text) {
@@ -4175,6 +4887,840 @@
       return api.recoverForProject(this, projectId, options);
     }
 
+    async getPatternExecutionRuntime(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PATTERN_EXECUTION_RUNTIME");
+    }
+
+    async ensurePatternExecutionRuntime(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIPatternExecutionRuntime;
+      const report = api?.validateRuntime?.(state);
+      if (
+        state?.type !== "PATTERN_EXECUTION_RUNTIME" || state?.kind !== "PATTERN_EXECUTION_RUNTIME" ||
+        state?.schemaVersion !== 1 || state?.version !== 1 || state?.sourceSchemaVersion !== 1 ||
+        state?.status !== "waiting" || state?.projectId !== projectId || state?.revision !== 1 ||
+        report && !report.valid
+      ) {
+        throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_RUNTIME_INITIAL_STATE", "Начальный runtime должен ожидать явной validation.");
+      }
+      validateImportedPatternExecutionRuntime(state, projectId);
+      return this.ensureCalculationProgress(projectId, calculationId, "PATTERN_EXECUTION_RUNTIME", state, options);
+    }
+
+    async updatePatternExecutionRuntime(projectId, calculationId, state, options = {}) {
+      const current = await this.getPatternExecutionRuntime(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PATTERN_EXECUTION_RUNTIME_NOT_FOUND", "Runtime не найден.");
+      const api = global.YarnAIPatternExecutionRuntime;
+      const report = api?.validateRuntime?.(state);
+      if (
+        state?.type !== "PATTERN_EXECUTION_RUNTIME" || state?.kind !== "PATTERN_EXECUTION_RUNTIME" ||
+        state?.projectId !== projectId || state?.id !== current.state?.id ||
+        state?.revision !== current.state?.revision + 1 || report && !report.valid
+      ) {
+        throw new ProjectRepositoryError(
+          "PATTERN_EXECUTION_RUNTIME_REVISION_CONFLICT",
+          "Runtime изменён другой операцией.",
+          { details: { expectedRevision: current.state?.revision + 1, actualRevision: state?.revision } },
+        );
+      }
+      if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision) {
+        throw new ProjectRepositoryError(
+          "PATTERN_EXECUTION_RUNTIME_REVISION_CONFLICT",
+          "Runtime изменён другой операцией.",
+          { details: { expectedRevision: options.expectedRevision, actualRevision: current.state.revision } },
+        );
+      }
+      validateImportedPatternExecutionRuntime(state, projectId);
+      return this.updateCalculationProgress(projectId, calculationId, "PATTERN_EXECUTION_RUNTIME", state, { ...options, baseProgressRevision: current.revision });
+    }
+
+    async createPatternExecutionRuntime(projectId, options = {}) {
+      const api = global.YarnAIPatternExecutionRuntime;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_RUNTIME_API_MISSING", "Модуль runtime не загружен.");
+      return api.createForProject(this, projectId, options);
+    }
+
+    async readPatternExecutionRuntime(projectId) {
+      const api = global.YarnAIPatternExecutionRuntime;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_RUNTIME_API_MISSING", "Модуль runtime не загружен.");
+      return api.readForProject(this, projectId);
+    }
+
+    async executePatternExecutionRuntimeCommand(projectId, command, options = {}) {
+      const api = global.YarnAIPatternExecutionRuntime;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_RUNTIME_API_MISSING", "Модуль runtime не загружен.");
+      return api.executeForProject(this, projectId, command, options);
+    }
+
+    async validatePatternExecutionRuntime(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "validate", options); }
+    async startPatternExecutionRuntime(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "start", options); }
+    async pausePatternExecutionRuntime(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "pause", options); }
+    async resumePatternExecutionRuntime(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "resume", options); }
+    async beginPatternExecutionRuntimeAction(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "begin_current_action", options); }
+    async completePatternExecutionRuntimeAction(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "complete_current_action", options); }
+    async failPatternExecutionRuntimeAction(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "fail_current_action", options); }
+    async blockPatternExecutionRuntimeAction(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "block_current_action", options); }
+    async unblockPatternExecutionRuntimeAction(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "unblock_current_action", options); }
+    async skipPatternExecutionRuntimeAction(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "skip_current_action", options); }
+    async stopPatternExecutionRuntime(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "stop", options); }
+    async failPatternExecutionRuntime(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "fail", options); }
+    async recoverPatternExecutionRuntime(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "recover", options); }
+    async markPatternExecutionRuntimeStale(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "mark_stale", options); }
+    async rebuildPatternExecutionRuntime(projectId, options = {}) { return this.executePatternExecutionRuntimeCommand(projectId, "rebuild", options); }
+
+    async getPatternExecutionMonitoring(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PATTERN_EXECUTION_MONITORING");
+    }
+
+    async listPatternExecutionMonitoringByProject(projectId) {
+      const aggregate = await this.getProject(projectId);
+      return aggregate.progress.filter((entry) => entry.kind === "PATTERN_EXECUTION_MONITORING");
+    }
+
+    async ensurePatternExecutionMonitoring(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIPatternExecutionMonitoring;
+      const report = api?.validateMonitoring?.(state);
+      if (
+        state?.type !== "PATTERN_EXECUTION_MONITORING" || state?.kind !== "PATTERN_EXECUTION_MONITORING" ||
+        state?.schemaVersion !== 1 || state?.version !== 1 || state?.sourceSchemaVersion !== 1 ||
+        state?.lifecycle?.state !== "waiting" || state?.projectId !== projectId || state?.revision !== 1 ||
+        report && !report.valid
+      ) {
+        throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_MONITORING_INITIAL_STATE", "Начальный monitoring snapshot должен ожидать явного refresh.");
+      }
+      validateImportedPatternExecutionMonitoring(state, projectId);
+      return this.ensureCalculationProgress(projectId, calculationId, "PATTERN_EXECUTION_MONITORING", state, options);
+    }
+
+    async updatePatternExecutionMonitoring(projectId, calculationId, state, options = {}) {
+      const current = await this.getPatternExecutionMonitoring(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PATTERN_EXECUTION_MONITORING_NOT_FOUND", "Monitoring snapshot не найден.");
+      const api = global.YarnAIPatternExecutionMonitoring;
+      const report = api?.validateMonitoring?.(state);
+      if (
+        state?.type !== "PATTERN_EXECUTION_MONITORING" || state?.kind !== "PATTERN_EXECUTION_MONITORING" ||
+        state?.projectId !== projectId || state?.id !== current.state?.id ||
+        state?.revision !== current.state?.revision + 1 || report && !report.valid
+      ) {
+        throw new ProjectRepositoryError("PATTERN_EXECUTION_MONITORING_REVISION_CONFLICT", "Monitoring snapshot изменён другой операцией.");
+      }
+      if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision) {
+        throw new ProjectRepositoryError("PATTERN_EXECUTION_MONITORING_REVISION_CONFLICT", "Monitoring snapshot изменён другой операцией.");
+      }
+      validateImportedPatternExecutionMonitoring(state, projectId);
+      return this.updateCalculationProgress(projectId, calculationId, "PATTERN_EXECUTION_MONITORING", state, { ...options, baseProgressRevision: current.revision });
+    }
+
+    async createPatternExecutionMonitoring(projectId, options = {}) {
+      const api = global.YarnAIPatternExecutionMonitoring;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_MONITORING_API_MISSING", "Модуль monitoring не загружен.");
+      return api.createForProject(this, projectId, options);
+    }
+
+    async readPatternExecutionMonitoring(projectId) {
+      const api = global.YarnAIPatternExecutionMonitoring;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_MONITORING_API_MISSING", "Модуль monitoring не загружен.");
+      return api.readForProject(this, projectId);
+    }
+
+    async executePatternExecutionMonitoringCommand(projectId, command, options = {}) {
+      const api = global.YarnAIPatternExecutionMonitoring;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_MONITORING_API_MISSING", "Модуль monitoring не загружен.");
+      return api.executeForProject(this, projectId, command, options);
+    }
+
+    async refreshPatternExecutionMonitoring(projectId, options = {}) { return this.executePatternExecutionMonitoringCommand(projectId, "refresh", options); }
+    async recoverPatternExecutionMonitoring(projectId, options = {}) { return this.executePatternExecutionMonitoringCommand(projectId, "recover", options); }
+    async rebuildPatternExecutionMonitoring(projectId, options = {}) { return this.executePatternExecutionMonitoringCommand(projectId, "rebuild", options); }
+
+    async getPatternExecutionIntervention(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PATTERN_EXECUTION_INTERVENTION");
+    }
+
+    async listPatternExecutionInterventionByProject(projectId) {
+      const aggregate = await this.getProject(projectId);
+      return aggregate.progress.filter((entry) => entry.kind === "PATTERN_EXECUTION_INTERVENTION");
+    }
+
+    async ensurePatternExecutionIntervention(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIPatternExecutionIntervention;
+      const report = api?.validatePatternExecutionIntervention?.(state);
+      if (
+        state?.type !== "PATTERN_EXECUTION_INTERVENTION" || state?.kind !== "PATTERN_EXECUTION_INTERVENTION" ||
+        state?.schemaVersion !== 1 || state?.version !== 1 || state?.sourceSchemaVersion !== 1 ||
+        state?.projectId !== projectId || state?.revision !== 1 || report && !report.valid
+      ) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_INTERVENTION_INITIAL_STATE", "Начальный intervention snapshot повреждён.");
+      validateImportedPatternExecutionIntervention(state, projectId);
+      return this.ensureCalculationProgress(projectId, calculationId, "PATTERN_EXECUTION_INTERVENTION", state, options);
+    }
+
+    async updatePatternExecutionIntervention(projectId, calculationId, state, options = {}) {
+      const current = await this.getPatternExecutionIntervention(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PATTERN_EXECUTION_INTERVENTION_NOT_FOUND", "Intervention snapshot не найден.");
+      const api = global.YarnAIPatternExecutionIntervention;
+      const report = api?.validatePatternExecutionIntervention?.(state);
+      if (
+        state?.type !== "PATTERN_EXECUTION_INTERVENTION" || state?.kind !== "PATTERN_EXECUTION_INTERVENTION" ||
+        state?.projectId !== projectId || state?.id !== current.state?.id || state?.revision !== current.state?.revision + 1 || report && !report.valid
+      ) throw new ProjectRepositoryError("PATTERN_EXECUTION_INTERVENTION_REVISION_CONFLICT", "Intervention snapshot изменён другой операцией.");
+      if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision) throw new ProjectRepositoryError("PATTERN_EXECUTION_INTERVENTION_REVISION_CONFLICT", "Intervention snapshot изменён другой операцией.");
+      validateImportedPatternExecutionIntervention(state, projectId);
+      return this.updateCalculationProgress(projectId, calculationId, "PATTERN_EXECUTION_INTERVENTION", state, { ...options, baseProgressRevision: current.revision });
+    }
+
+    async createPatternExecutionIntervention(projectId, options = {}) {
+      const api = global.YarnAIPatternExecutionIntervention;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_INTERVENTION_API_MISSING", "Модуль intervention не загружен.");
+      return api.createForProject(this, projectId, options);
+    }
+
+    async readPatternExecutionIntervention(projectId) {
+      const api = global.YarnAIPatternExecutionIntervention;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_INTERVENTION_API_MISSING", "Модуль intervention не загружен.");
+      return api.readForProject(this, projectId);
+    }
+
+    async executePatternExecutionInterventionCommand(projectId, command, options = {}) {
+      const api = global.YarnAIPatternExecutionIntervention;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_INTERVENTION_API_MISSING", "Модуль intervention не загружен.");
+      return api.executeForProject(this, projectId, command, options);
+    }
+
+    async selectPatternExecutionInterventionAction(projectId, options = {}) { return this.executePatternExecutionInterventionCommand(projectId, "select", options); }
+    async confirmPatternExecutionIntervention(projectId, options = {}) { return this.executePatternExecutionInterventionCommand(projectId, "confirm", options); }
+    async cancelPatternExecutionIntervention(projectId, options = {}) { return this.executePatternExecutionInterventionCommand(projectId, "cancel", options); }
+    async completePatternExecutionIntervention(projectId, options = {}) { return this.executePatternExecutionInterventionCommand(projectId, "complete", options); }
+    async recoverPatternExecutionIntervention(projectId, options = {}) { return this.executePatternExecutionInterventionCommand(projectId, "recover", options); }
+    async rebuildPatternExecutionIntervention(projectId, options = {}) { return this.executePatternExecutionInterventionCommand(projectId, "rebuild", options); }
+
+    async getPatternExecutionAction(projectId, calculationId = null) {
+      const aggregate = await this.getProject(projectId);
+      const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id;
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PATTERN_EXECUTION_ACTION");
+    }
+
+    async listPatternExecutionActionByProject(projectId) {
+      const aggregate = await this.getProject(projectId);
+      return aggregate.progress.filter((entry) => entry.kind === "PATTERN_EXECUTION_ACTION");
+    }
+
+    async ensurePatternExecutionAction(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIPatternExecutionAction;
+      const report = api?.validatePatternExecutionAction?.(state);
+      if (state?.type !== "PATTERN_EXECUTION_ACTION" || state?.kind !== "PATTERN_EXECUTION_ACTION" || state?.projectId !== projectId || report && !report.valid) {
+        throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_ACTION_INITIAL_STATE", "Начальный execution action snapshot повреждён.");
+      }
+      validateImportedPatternExecutionAction(state, projectId);
+      return this.ensureCalculationProgress(projectId, calculationId, "PATTERN_EXECUTION_ACTION", state, options);
+    }
+
+    async updatePatternExecutionAction(projectId, calculationId, state, options = {}) {
+      const current = await this.getPatternExecutionAction(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PATTERN_EXECUTION_ACTION_NOT_FOUND", "Execution action snapshot не найден.");
+      const api = global.YarnAIPatternExecutionAction;
+      const report = api?.validatePatternExecutionAction?.(state);
+      if (state?.type !== "PATTERN_EXECUTION_ACTION" || state?.kind !== "PATTERN_EXECUTION_ACTION" || state?.projectId !== projectId || report && !report.valid || options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision || options.expectedFingerprint !== undefined && options.expectedFingerprint !== current.state.fingerprint) {
+        throw new ProjectRepositoryError("PATTERN_EXECUTION_ACTION_REVISION_CONFLICT", "Execution action snapshot изменён другой операцией.");
+      }
+      validateImportedPatternExecutionAction(state, projectId);
+      return this.updateCalculationProgress(projectId, calculationId, "PATTERN_EXECUTION_ACTION", state, { ...options, baseProgressRevision: current.revision });
+    }
+
+    async createPatternExecutionAction(projectId, options = {}) {
+      const api = global.YarnAIPatternExecutionAction;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ACTION_API_MISSING", "Модуль execution action не загружен.");
+      return api.createForProject(this, projectId, options);
+    }
+
+    async readPatternExecutionAction(projectId) {
+      const api = global.YarnAIPatternExecutionAction;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ACTION_API_MISSING", "Модуль execution action не загружен.");
+      return api.readForProject(this, projectId);
+    }
+
+    async executePatternExecutionActionCommand(projectId, actionCommand, options = {}) {
+      const api = global.YarnAIPatternExecutionAction;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ACTION_API_MISSING", "Модуль execution action не загружен.");
+      return api.executeForProject(this, projectId, actionCommand, options);
+    }
+
+    async validatePatternExecutionAction(projectId, options = {}) { return this.executePatternExecutionActionCommand(projectId, "validate", options); }
+    async executePatternExecutionAction(projectId, options = {}) { return this.executePatternExecutionActionCommand(projectId, "execute", options); }
+    async verifyPatternExecutionAction(projectId, options = {}) { return this.executePatternExecutionActionCommand(projectId, "verify", options); }
+    async recoverPatternExecutionAction(projectId, options = {}) { return this.executePatternExecutionActionCommand(projectId, "recover", options); }
+    async retryPatternExecutionAction(projectId, options = {}) { return this.executePatternExecutionActionCommand(projectId, "retry", options); }
+    async cancelPatternExecutionAction(projectId, options = {}) { return this.executePatternExecutionActionCommand(projectId, "cancel", options); }
+    async rebuildPatternExecutionAction(projectId, options = {}) { return this.executePatternExecutionActionCommand(projectId, "rebuild", options); }
+
+    async listPatternExecutionEvidence(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(
+        transaction.objectStore("progress").index("by_calculation_kind").getAll(
+          global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_EVIDENCE"]),
+        ),
+      );
+      await transactionComplete(transaction);
+      return records.filter((entry) => entry.project_id === projectId).sort((left, right) => left.epoch - right.epoch).map((entry) => {
+        validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_EVIDENCE");
+        validateImportedPatternExecutionEvidence(entry.state, projectId);
+        return clone(entry);
+      });
+    }
+
+    async getPatternExecutionEvidence(projectId, recordId = null, calculationId = null) {
+      const records = await this.listPatternExecutionEvidence(projectId, calculationId);
+      if (recordId) return records.find((entry) => entry.progress_id === recordId || entry.state?.id === recordId) || null;
+      return records.at(-1) || null;
+    }
+
+    async savePatternExecutionEvidence(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIPatternExecutionEvidence;
+      const report = api?.validatePatternExecutionEvidenceSnapshot?.(state);
+      if (state?.kind !== "PATTERN_EXECUTION_EVIDENCE" || state?.type !== "PATTERN_EXECUTION_EVIDENCE" || state?.projectId !== projectId || state?.calculationId !== calculationId || report && !report.valid) {
+        throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_EVIDENCE_STATE", "Evidence snapshot повреждён.");
+      }
+      validateImportedPatternExecutionEvidence(state, projectId);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Evidence относится не к активному расчёту.");
+        const existing = await this.listPatternExecutionEvidence(projectId, calculationId);
+        const current = options.recordId
+          ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId)
+          : existing.find((entry) => entry.state?.id === state.id);
+        if (current) {
+          if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision || options.expectedFingerprint !== undefined && options.expectedFingerprint !== current.state.fingerprint) {
+            throw new ProjectRepositoryError("PATTERN_EXECUTION_EVIDENCE_REVISION_CONFLICT", "Evidence изменён другой операцией.", { details: { expectedRevision: options.expectedRevision, actualRevision: current.state.revision } });
+          }
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          if (state.id !== current.state.id || state.epoch !== current.state.epoch || state.revision !== current.state.revision + 1) throw new ProjectRepositoryError("PATTERN_EXECUTION_EVIDENCE_REVISION_CONFLICT", "Evidence revision или identity повреждены.");
+          const timestamp = options.timestamp || utcNow();
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_evidence_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+          nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_EVIDENCE_${state.lifecycle.toUpperCase()}`, {
+            calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch,
+            progress_revision: nextProgress.revision, operation_id: options.operationId || null, progress_state: clone(state),
+          }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database();
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try {
+            const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+            const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id));
+            if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_EVIDENCE_REVISION_CONFLICT", "Evidence изменён параллельно."); }
+            await allocateOperationMetadata(transaction, operation);
+            transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject);
+            transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+            await transactionComplete(transaction);
+          } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind);
+          return clone(nextProgress);
+        }
+
+        if (state.revision !== 1 || existing.some((entry) => entry.state?.id === state.id)) throw new ProjectRepositoryError("PATTERN_EXECUTION_EVIDENCE_IDENTITY_CONFLICT", "Новая evidence запись имеет конфликт identity.");
+        const timestamp = options.timestamp || utcNow();
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_EVIDENCE", timestamp);
+        progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1;
+        progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_EVIDENCE_EPOCH_CONFLICT", "Storage epoch evidence не совпадает с progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_evidence_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+        nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_EVIDENCE_CREATED", {
+          calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch,
+          progress_revision: progress.revision, operation_id: options.operationId || null, progress_state: clone(state),
+        }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database();
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+          if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_EVIDENCE_REVISION_CONFLICT", "Проект изменён параллельно."); }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject);
+          transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
+    async ensurePatternExecutionEvidence(projectId, calculationId, state, options = {}) { return this.savePatternExecutionEvidence(projectId, calculationId, state, options); }
+    async updatePatternExecutionEvidence(projectId, recordId, state, options = {}) { return this.savePatternExecutionEvidence(projectId, state.calculationId, state, { ...options, recordId }); }
+
+    async createPatternExecutionEvidence(projectId, options = {}) {
+      const api = global.YarnAIPatternExecutionEvidence;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_EVIDENCE_API_MISSING", "Модуль execution evidence не загружен.");
+      return api.createForProject(this, projectId, options);
+    }
+
+    async readPatternExecutionEvidence(projectId) {
+      const api = global.YarnAIPatternExecutionEvidence;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_EVIDENCE_API_MISSING", "Модуль execution evidence не загружен.");
+      return api.readForProject(this, projectId);
+    }
+
+    async executePatternExecutionEvidenceCommand(projectId, evidenceCommand, options = {}) {
+      const api = global.YarnAIPatternExecutionEvidence;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_EVIDENCE_API_MISSING", "Модуль execution evidence не загружен.");
+      return api.executeForProject(this, projectId, evidenceCommand, options);
+    }
+
+    async collectPatternExecutionEvidence(projectId, options = {}) { return this.executePatternExecutionEvidenceCommand(projectId, "collect", options); }
+    async validatePatternExecutionEvidence(projectId, options = {}) { return this.executePatternExecutionEvidenceCommand(projectId, "validate", options); }
+    async completePatternExecutionEvidence(projectId, options = {}) { return this.executePatternExecutionEvidenceCommand(projectId, "complete", options); }
+    async retryPatternExecutionEvidence(projectId, options = {}) { return this.executePatternExecutionEvidenceCommand(projectId, "retry", options); }
+    async rebuildPatternExecutionEvidence(projectId, options = {}) { return this.executePatternExecutionEvidenceCommand(projectId, "rebuild", options); }
+
+    async listPatternExecutionVerification(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(
+        transaction.objectStore("progress").index("by_calculation_kind").getAll(
+          global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_VERIFICATION"]),
+        ),
+      );
+      await transactionComplete(transaction);
+      return records.filter((entry) => entry.project_id === projectId).sort((left, right) => left.epoch - right.epoch).map((entry) => {
+        validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_VERIFICATION");
+        validateImportedPatternExecutionVerification(entry.state, projectId);
+        return clone(entry);
+      });
+    }
+
+    async getPatternExecutionVerification(projectId, recordId = null, calculationId = null) {
+      const records = await this.listPatternExecutionVerification(projectId, calculationId);
+      if (recordId) return records.find((entry) => entry.progress_id === recordId || entry.state?.id === recordId) || null;
+      return records.at(-1) || null;
+    }
+
+    async _assertPatternExecutionVerificationReferences(projectId, calculationId, state) {
+      const actionRecord = await this.getPatternExecutionAction(projectId, calculationId);
+      const evidenceRecords = await this.listPatternExecutionEvidence(projectId, calculationId);
+      if (state.actionId && (!actionRecord || actionRecord.project_id !== projectId || actionRecord.state?.projectId !== projectId || actionRecord.state?.id !== state.actionId)) {
+        throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_ACTION_REFERENCE_INVALID", "Verification ссылается на action другого проекта или отсутствующий action.");
+      }
+      const evidenceById = new Map(evidenceRecords.map((entry) => [entry.state?.id, entry]));
+      if (state.evidenceIds.some((id) => !evidenceById.has(id) || evidenceById.get(id).project_id !== projectId || evidenceById.get(id).state?.projectId !== projectId)) {
+        throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_EVIDENCE_REFERENCE_INVALID", "Verification ссылается на evidence другого проекта или отсутствующее evidence.");
+      }
+      const linkedItemIds = new Set(state.evidenceIds.flatMap((id) => (evidenceById.get(id)?.state?.evidenceItems || []).map((item) => item.id)));
+      for (const result of state.criterionResults) {
+        for (const id of [...result.supportingEvidenceIds, ...result.conflictingEvidenceIds]) {
+          if (!linkedItemIds.has(id)) throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_ITEM_REFERENCE_INVALID", "Criterion result ссылается на evidence item вне verification.");
+        }
+      }
+    }
+
+    async savePatternExecutionVerification(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIPatternExecutionVerification;
+      const report = api?.validatePatternExecutionVerification?.(state);
+      if (state?.kind !== "PATTERN_EXECUTION_VERIFICATION" || state?.type !== "PATTERN_EXECUTION_VERIFICATION" || state?.projectId !== projectId || state?.calculationId !== calculationId || report && !report.valid) {
+        throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_VERIFICATION_STATE", "Execution verification snapshot повреждён.");
+      }
+      validateImportedPatternExecutionVerification(state, projectId);
+      await this._assertPatternExecutionVerificationReferences(projectId, calculationId, state);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Verification относится не к активному расчёту.");
+        const existing = await this.listPatternExecutionVerification(projectId, calculationId);
+        const current = options.recordId
+          ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId)
+          : existing.find((entry) => entry.state?.id === state.id);
+        if (current) {
+          if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision || options.expectedFingerprint !== undefined && options.expectedFingerprint !== current.state.fingerprint) {
+            throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_REVISION_CONFLICT", "Verification изменена другой операцией.", { details: { expectedRevision: options.expectedRevision, actualRevision: current.state.revision } });
+          }
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          if (state.id !== current.state.id || state.epoch !== current.state.epoch || state.revision !== current.state.revision + 1) throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_REVISION_CONFLICT", "Verification revision или identity повреждены.");
+          if (["verified", "rejected"].includes(current.state.status) && state.status !== current.state.status) throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_TERMINAL", "Терминальная verification требует отдельного rebuild.");
+          const timestamp = options.timestamp || utcNow();
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_verification_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+          nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_VERIFICATION_${state.status.toUpperCase()}`, {
+            calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch,
+            progress_revision: nextProgress.revision, operation_id: options.operationId || null, progress_state: clone(state),
+          }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database();
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try {
+            const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+            const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id));
+            if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_REVISION_CONFLICT", "Verification изменена параллельно."); }
+            await allocateOperationMetadata(transaction, operation);
+            transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject);
+            transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+            await transactionComplete(transaction);
+          } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind);
+          return clone(nextProgress);
+        }
+        if (state.revision !== 1 || existing.some((entry) => entry.state?.id === state.id)) throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_IDENTITY_CONFLICT", "Новая verification имеет конфликт identity.");
+        const timestamp = options.timestamp || utcNow();
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_VERIFICATION", timestamp);
+        progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1;
+        progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_EPOCH_CONFLICT", "Storage epoch verification не совпадает с progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_verification_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+        nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_VERIFICATION_CREATED", {
+          calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch,
+          progress_revision: progress.revision, operation_id: options.operationId || null, progress_state: clone(state),
+        }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database();
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+          if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_REVISION_CONFLICT", "Проект изменён параллельно."); }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject);
+          transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
+    async ensurePatternExecutionVerification(projectId, calculationId, state, options = {}) { return this.savePatternExecutionVerification(projectId, calculationId, state, options); }
+    async updatePatternExecutionVerification(projectId, recordId, state, options = {}) { return this.savePatternExecutionVerification(projectId, state.calculationId, state, { ...options, recordId }); }
+    async createPatternExecutionVerification(projectId, options = {}) {
+      const api = global.YarnAIPatternExecutionVerification;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_API_MISSING", "Модуль execution verification не загружен.");
+      return api.createForProject(this, projectId, options);
+    }
+    async readPatternExecutionVerification(projectId) {
+      const api = global.YarnAIPatternExecutionVerification;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_API_MISSING", "Модуль execution verification не загружен.");
+      return api.readForProject(this, projectId);
+    }
+    async executePatternExecutionVerificationCommand(projectId, verificationCommand, options = {}) {
+      const api = global.YarnAIPatternExecutionVerification;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_VERIFICATION_API_MISSING", "Модуль execution verification не загружен.");
+      return api.executeForProject(this, projectId, verificationCommand, options);
+    }
+    async verifyPatternExecutionVerification(projectId, options = {}) { return this.executePatternExecutionVerificationCommand(projectId, "verify", options); }
+    async rebuildPatternExecutionVerification(projectId, options = {}) { return this.executePatternExecutionVerificationCommand(projectId, "rebuild", options); }
+
+    async listPatternExecutionDecisions(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(
+        transaction.objectStore("progress").index("by_calculation_kind").getAll(
+          global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_DECISION"]),
+        ),
+      );
+      await transactionComplete(transaction);
+      return records.filter((entry) => entry.project_id === projectId).sort((left, right) => left.epoch - right.epoch).map((entry) => {
+        validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_DECISION");
+        validateImportedPatternExecutionDecision(entry.state, projectId);
+        return clone(entry);
+      });
+    }
+
+    async getPatternExecutionDecision(projectId, decisionId = null, calculationId = null) {
+      const records = await this.listPatternExecutionDecisions(projectId, calculationId);
+      if (decisionId) return records.find((entry) => entry.progress_id === decisionId || entry.state?.id === decisionId) || null;
+      return records.at(-1) || null;
+    }
+
+    async _assertPatternExecutionDecisionReferences(projectId, calculationId, state) {
+      const verificationRecords = await this.listPatternExecutionVerification(projectId, calculationId);
+      const verificationRecord = verificationRecords.find((entry) => entry.state?.id === state.verificationId);
+      if (!verificationRecord || verificationRecord.project_id !== projectId || verificationRecord.state?.projectId !== projectId) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_VERIFICATION_REFERENCE_INVALID", "Decision references a missing or cross-project verification.");
+      if (verificationRecord.state.revision !== state.verificationRevision || verificationRecord.state.fingerprint !== state.verificationFingerprint) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_VERIFICATION_REFERENCE_STALE", "Decision references a different verification revision or fingerprint.");
+      const actionRecord = await this.getPatternExecutionAction(projectId, calculationId);
+      if (!actionRecord || actionRecord.project_id !== projectId || actionRecord.state?.projectId !== projectId || actionRecord.state?.id !== state.actionId) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_ACTION_REFERENCE_INVALID", "Decision references a missing or cross-project action.");
+      const identity = actionRecord.state.sourceIdentity || {};
+      const planId = identity.executionPlanIdentity?.id || identity.plan?.id || identity.runtimeSourceIdentity?.chain?.plan?.id || actionRecord.state.executionPlanId;
+      const sessionId = identity.sessionIdentity?.id || identity.session?.id || identity.runtimeSourceIdentity?.chain?.session?.id || actionRecord.state.sessionId;
+      if (planId !== state.executionPlanId || sessionId !== state.sessionId) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_SOURCE_REFERENCE_INVALID", "Decision plan/session references are inconsistent.");
+      const evidenceRecords = await this.listPatternExecutionEvidence(projectId, calculationId);
+      const evidenceIds = new Set();
+      for (const entry of evidenceRecords) {
+        if (entry.project_id !== projectId || entry.state?.projectId !== projectId) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_EVIDENCE_REFERENCE_INVALID", "Decision evidence crosses project boundary.");
+        if (entry.state?.id) evidenceIds.add(entry.state.id);
+        for (const item of Array.isArray(entry.state?.evidenceItems) ? entry.state.evidenceItems : []) if (item.id) evidenceIds.add(item.id);
+      }
+      if (state.evidenceReferences.some((entry) => !evidenceIds.has(entry.id))) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_EVIDENCE_REFERENCE_INVALID", "Decision references evidence outside its verification.");
+    }
+
+    async savePatternExecutionDecision(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object";
+      const state = directState ? calculationOrState : stateOrOptions;
+      const calculationId = directState ? state.calculationId : calculationOrState;
+      const options = directState ? stateOrOptions : maybeOptions;
+      const api = global.YarnAIPatternExecutionDecision;
+      const report = api?.validatePatternExecutionDecision?.(state);
+      if (state?.kind !== "PATTERN_EXECUTION_DECISION" || state?.type !== "PATTERN_EXECUTION_DECISION" || state?.projectId !== projectId || state?.calculationId !== calculationId || report && !report.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_DECISION_STATE", "Execution decision snapshot is corrupted.");
+      validateImportedPatternExecutionDecision(state, projectId);
+      await this._assertPatternExecutionDecisionReferences(projectId, calculationId, state);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Decision does not belong to the active calculation.");
+        const existing = await this.listPatternExecutionDecisions(projectId, calculationId);
+        const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id);
+        if (current) {
+          if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision || options.expectedFingerprint !== undefined && options.expectedFingerprint !== current.state.fingerprint) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_REVISION_CONFLICT", "Decision was changed by another operation.", { details: { expectedRevision: options.expectedRevision, actualRevision: current.state.revision } });
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          if (state.id !== current.state.id || state.epoch !== current.state.epoch || state.revision !== current.state.revision + 1) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_REVISION_CONFLICT", "Decision revision or identity is invalid.");
+          if (["accepted", "rejected"].includes(current.state.status)) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_TERMINAL", "Terminal decision is immutable; use rebuild.");
+          if (state.verificationId !== current.state.verificationId || state.actionId !== current.state.actionId || state.executionPlanId !== current.state.executionPlanId || state.sessionId !== current.state.sessionId || state.previousDecisionId !== current.state.previousDecisionId) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_REFERENCE_IMMUTABLE", "Supporting decision references are immutable.");
+          const timestamp = options.timestamp || utcNow();
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_decision_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+          nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_DECISION_${state.status.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, operation_id: options.operationId || null, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database();
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try {
+            const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+            const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id));
+            if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_REVISION_CONFLICT", "Decision changed concurrently."); }
+            await allocateOperationMetadata(transaction, operation);
+            transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject);
+            transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+            await transactionComplete(transaction);
+          } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind);
+          return clone(nextProgress);
+        }
+        if (state.revision !== 1 || existing.some((entry) => entry.state?.id === state.id)) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_IDENTITY_CONFLICT", "New decision identity conflicts with an existing snapshot.");
+        const timestamp = options.timestamp || utcNow();
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_DECISION", timestamp);
+        progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1;
+        progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_EPOCH_CONFLICT", "Decision epoch differs from progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_decision_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+        nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_DECISION_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, operation_id: options.operationId || null, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database();
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+          if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_REVISION_CONFLICT", "Project changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject);
+          transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
+    async updatePatternExecutionDecision(projectId, decisionId, patch, expectedRevision, expectedFingerprint, options = {}) {
+      const api = global.YarnAIPatternExecutionDecision;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_API_MISSING", "Execution decision module is not loaded.");
+      return api.updateForProject(this, projectId, decisionId, patch, expectedRevision, expectedFingerprint, options);
+    }
+    async createPatternExecutionDecision(projectId, input = {}) {
+      const api = global.YarnAIPatternExecutionDecision;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_API_MISSING", "Execution decision module is not loaded.");
+      return api.createForProject(this, projectId, input);
+    }
+    async readPatternExecutionDecision(projectId, decisionId = null) {
+      const api = global.YarnAIPatternExecutionDecision;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_API_MISSING", "Execution decision module is not loaded.");
+      return api.readForProject(this, projectId, decisionId);
+    }
+    async decidePatternExecution(projectId, decisionId, command) {
+      const api = global.YarnAIPatternExecutionDecision;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_API_MISSING", "Execution decision module is not loaded.");
+      return api.decideForProject(this, projectId, decisionId, command);
+    }
+    async rebuildPatternExecutionDecision(projectId, decisionId, input = {}) {
+      const api = global.YarnAIPatternExecutionDecision;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_DECISION_API_MISSING", "Execution decision module is not loaded.");
+      return api.rebuildForProject(this, projectId, decisionId, input);
+    }
+
+    async listPatternExecutionFollowUps(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(
+        transaction.objectStore("progress").index("by_calculation_kind").getAll(
+          global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_FOLLOW_UP"]),
+        ),
+      );
+      await transactionComplete(transaction);
+      return records.filter((entry) => entry.project_id === projectId).sort((left, right) => left.epoch - right.epoch).map((entry) => {
+        validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_FOLLOW_UP");
+        validateImportedPatternExecutionFollowUp(entry.state, projectId);
+        return clone(entry);
+      });
+    }
+
+    async getPatternExecutionFollowUp(projectId, followUpId = null, calculationId = null) {
+      const records = await this.listPatternExecutionFollowUps(projectId, calculationId);
+      if (followUpId) return records.find((entry) => entry.progress_id === followUpId || entry.state?.id === followUpId) || null;
+      return records.at(-1) || null;
+    }
+
+    async _assertPatternExecutionFollowUpReferences(projectId, calculationId, state) {
+      const decisionRecord = await this.getPatternExecutionDecision(projectId, state.decisionId, calculationId);
+      if (!decisionRecord || decisionRecord.project_id !== projectId || decisionRecord.state?.projectId !== projectId) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_DECISION_REFERENCE_INVALID", "Follow-up references a missing or cross-project decision.");
+      if (
+        decisionRecord.state.revision !== state.decisionRevision ||
+        decisionRecord.state.fingerprint !== state.decisionFingerprint ||
+        decisionRecord.state.status !== state.decisionStatus ||
+        decisionRecord.state.epoch !== state.decisionEpoch ||
+        decisionRecord.state.decision?.outcome !== state.outcome
+      ) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_DECISION_REFERENCE_STALE", "Follow-up references another decision identity.");
+      if (decisionRecord.state.executionPlanId !== state.planId || decisionRecord.state.sessionId !== state.sessionId) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_SCOPE_REFERENCE_INVALID", "Follow-up plan/session references are inconsistent.");
+      const verificationRecords = await this.listPatternExecutionVerification(projectId, calculationId);
+      const verification = verificationRecords.find((entry) => entry.state?.id === state.verificationReference?.id);
+      if (!verification || verification.state?.projectId !== projectId) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_VERIFICATION_REFERENCE_INVALID", "Follow-up references a missing or cross-project verification.");
+      const action = await this.getPatternExecutionAction(projectId, calculationId);
+      const actionIds = new Set(action?.state?.id ? [action.state.id] : []);
+      if (state.actionReferences.some((entry) => !actionIds.has(entry.id))) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_ACTION_REFERENCE_INVALID", "Follow-up references a missing or cross-project action.");
+      const evidence = await this.listPatternExecutionEvidence(projectId, calculationId);
+      const evidenceIds = new Set();
+      for (const record of evidence) {
+        if (record.state?.projectId !== projectId) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_EVIDENCE_REFERENCE_INVALID", "Follow-up evidence crosses the project boundary.");
+        if (record.state?.id) evidenceIds.add(record.state.id);
+        for (const item of Array.isArray(record.state?.evidenceItems) ? record.state.evidenceItems : []) if (item.id) evidenceIds.add(item.id);
+      }
+      if (state.evidenceReferences.some((entry) => !evidenceIds.has(entry.id))) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_EVIDENCE_REFERENCE_INVALID", "Follow-up references missing evidence.");
+      const targetIds = new Set(state.targetReferences.map((entry) => entry.id));
+      if (state.followUpKind === "collect_evidence" && state.selectedEvidenceIds.some((id) => !targetIds.has(id) || !evidenceIds.has(id))) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_TARGET_REFERENCE_INVALID", "Follow-up evidence targets are not provable.");
+      if (state.followUpKind === "corrective_action" && state.selectedActionIds.some((id) => !targetIds.has(id) || !actionIds.has(id))) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_TARGET_REFERENCE_INVALID", "Follow-up action targets are not provable.");
+    }
+
+    async savePatternExecutionFollowUp(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object";
+      const state = directState ? calculationOrState : stateOrOptions;
+      const calculationId = directState ? state.calculationId : calculationOrState;
+      const options = directState ? stateOrOptions : maybeOptions;
+      const api = global.YarnAIPatternExecutionFollowUp;
+      const report = api?.validatePatternExecutionFollowUp?.(state);
+      if (state?.kind !== "PATTERN_EXECUTION_FOLLOW_UP" || state?.type !== "PATTERN_EXECUTION_FOLLOW_UP" || state?.projectId !== projectId || state?.calculationId !== calculationId || report && !report.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_FOLLOW_UP_STATE", "Execution follow-up snapshot is corrupted.");
+      validateImportedPatternExecutionFollowUp(state, projectId);
+      await this._assertPatternExecutionFollowUpReferences(projectId, calculationId, state);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Follow-up does not belong to the active calculation.");
+        const existing = await this.listPatternExecutionFollowUps(projectId, calculationId);
+        const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id);
+        if (current) {
+          if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision || options.expectedFingerprint !== undefined && options.expectedFingerprint !== current.state.fingerprint) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_REVISION_CONFLICT", "Follow-up was changed by another operation.", { details: { expectedRevision: options.expectedRevision, actualRevision: current.state.revision } });
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          if (state.id !== current.state.id || state.epoch !== current.state.epoch || state.revision !== current.state.revision + 1) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_REVISION_CONFLICT", "Follow-up revision or identity is invalid.");
+          if (["completed", "failed", "cancelled"].includes(current.state.status)) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_TERMINAL", "Terminal follow-up is immutable; use rebuild.");
+          const immutableFields = ["followUpKind", "decisionId", "decisionRevision", "decisionFingerprint", "decisionStatus", "decisionEpoch", "outcome", "reasonCode", "selectedCriterionIds", "selectedEvidenceIds", "selectedActionIds", "targetReferences", "evidenceRequirements", "actionTargets", "verificationReference", "evidenceReferences", "actionReferences", "previousFollowUpId"];
+          if (immutableFields.some((field) => canonicalize(state[field]) !== canonicalize(current.state[field]))) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_REFERENCE_IMMUTABLE", "Follow-up route identity is immutable.");
+          const timestamp = options.timestamp || utcNow();
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_follow_up_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+          nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_FOLLOW_UP_${state.status.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, operation_id: options.operationId || null, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database();
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try {
+            const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+            const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id));
+            if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_REVISION_CONFLICT", "Follow-up changed concurrently."); }
+            await allocateOperationMetadata(transaction, operation);
+            transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject);
+            transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+            await transactionComplete(transaction);
+          } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind);
+          return clone(nextProgress);
+        }
+        if (state.revision !== 1 || existing.some((entry) => entry.state?.id === state.id)) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_IDENTITY_CONFLICT", "New follow-up identity conflicts with an existing snapshot.");
+        const timestamp = options.timestamp || utcNow();
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_FOLLOW_UP", timestamp);
+        progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1;
+        progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_EPOCH_CONFLICT", "Follow-up epoch differs from progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_follow_up_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+        nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_FOLLOW_UP_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, operation_id: options.operationId || null, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database();
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+          if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_REVISION_CONFLICT", "Project changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject);
+          transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
+    async updatePatternExecutionFollowUp(projectId, followUpId, patch, expectedRevision, expectedFingerprint, options = {}) {
+      const api = global.YarnAIPatternExecutionFollowUp;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_API_MISSING", "Execution follow-up module is not loaded.");
+      return api.updateForProject(this, projectId, followUpId, patch, expectedRevision, expectedFingerprint, options);
+    }
+    async createPatternExecutionFollowUp(projectId, input = {}) {
+      const api = global.YarnAIPatternExecutionFollowUp;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_API_MISSING", "Execution follow-up module is not loaded.");
+      return api.createForProject(this, projectId, input);
+    }
+    async readPatternExecutionFollowUp(projectId, followUpId = null) {
+      const api = global.YarnAIPatternExecutionFollowUp;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_API_MISSING", "Execution follow-up module is not loaded.");
+      return api.readForProject(this, projectId, followUpId);
+    }
+    async executePatternExecutionFollowUpCommand(projectId, followUpId, commandName, input = {}) {
+      const api = global.YarnAIPatternExecutionFollowUp;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_API_MISSING", "Execution follow-up module is not loaded.");
+      return api.executeForProject(this, projectId, followUpId, commandName, input);
+    }
+    async schedulePatternExecutionFollowUp(projectId, followUpId, input = {}) { return this.executePatternExecutionFollowUpCommand(projectId, followUpId, "schedule", input); }
+    async activatePatternExecutionFollowUp(projectId, followUpId, input = {}) { return this.executePatternExecutionFollowUpCommand(projectId, followUpId, "activate", input); }
+    async completePatternExecutionFollowUp(projectId, followUpId, input = {}) { return this.executePatternExecutionFollowUpCommand(projectId, followUpId, "complete", input); }
+    async failPatternExecutionFollowUp(projectId, followUpId, input = {}) { return this.executePatternExecutionFollowUpCommand(projectId, followUpId, "fail", input); }
+    async cancelPatternExecutionFollowUp(projectId, followUpId, input = {}) { return this.executePatternExecutionFollowUpCommand(projectId, followUpId, "cancel", input); }
+    async rebuildPatternExecutionFollowUp(projectId, followUpId, input = {}) {
+      const api = global.YarnAIPatternExecutionFollowUp;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_API_MISSING", "Execution follow-up module is not loaded.");
+      return api.rebuildForProject(this, projectId, followUpId, input);
+    }
+
     async addPhoto(projectId, blob, metadata = {}) {
       if (!(blob instanceof Blob) || !blob.type.startsWith("image/")) {
         throw new ProjectRepositoryError(
@@ -4491,6 +6037,18 @@
       const executionProgressStateIdMap = new Map();
       const executionCompletionStateIdMap = new Map();
       const executionResultStateIdMap = new Map();
+      const executionRuntimeStateIdMap = new Map();
+      const executionMonitoringStateIdMap = new Map();
+      const executionInterventionStateIdMap = new Map();
+      const executionActionStateIdMap = new Map();
+      const executionAttemptIdMap = new Map();
+      const executionEvidenceStateIdMap = new Map();
+      const executionEvidenceItemIdMap = new Map();
+      const executionCriterionIdMap = new Map();
+      const executionVerificationStateIdMap = new Map();
+      const executionDecisionStateIdMap = new Map();
+      const executionFollowUpStateIdMap = new Map();
+      const executionRuntimeActionIdMap = new Map();
       if (collision) {
         for (const entry of progress) {
           if (entry.kind === "PATTERN_SEMANTIC_ANALYSIS" && entry.state?.id) semanticStateIdMap.set(entry.state.id, uuidv7());
@@ -4504,6 +6062,29 @@
           if (entry.kind === "PATTERN_EXECUTION_PROGRESS" && entry.state?.id) executionProgressStateIdMap.set(entry.state.id, uuidv7());
           if (entry.kind === "PATTERN_EXECUTION_COMPLETION" && entry.state?.id) executionCompletionStateIdMap.set(entry.state.id, uuidv7());
           if (entry.kind === "PATTERN_EXECUTION_RESULT" && entry.state?.id) executionResultStateIdMap.set(entry.state.id, uuidv7());
+          if (entry.kind === "PATTERN_EXECUTION_RUNTIME" && entry.state?.id) executionRuntimeStateIdMap.set(entry.state.id, uuidv7());
+          if (entry.kind === "PATTERN_EXECUTION_MONITORING" && entry.state?.id) executionMonitoringStateIdMap.set(entry.state.id, uuidv7());
+          if (entry.kind === "PATTERN_EXECUTION_INTERVENTION" && entry.state?.id) executionInterventionStateIdMap.set(entry.state.id, uuidv7());
+          if (entry.kind === "PATTERN_EXECUTION_ACTION" && entry.state?.id) executionActionStateIdMap.set(entry.state.id, uuidv7());
+          if (entry.kind === "PATTERN_EXECUTION_EVIDENCE" && entry.state?.id) executionEvidenceStateIdMap.set(entry.state.id, uuidv7());
+          if (entry.kind === "PATTERN_EXECUTION_VERIFICATION" && entry.state?.id) executionVerificationStateIdMap.set(entry.state.id, uuidv7());
+          if (entry.kind === "PATTERN_EXECUTION_DECISION" && entry.state?.id) executionDecisionStateIdMap.set(entry.state.id, uuidv7());
+          if (entry.kind === "PATTERN_EXECUTION_FOLLOW_UP" && entry.state?.id) executionFollowUpStateIdMap.set(entry.state.id, uuidv7());
+          if (entry.kind === "PATTERN_EXECUTION_EVIDENCE") {
+            for (const item of Array.isArray(entry.state?.evidenceItems) ? entry.state.evidenceItems : []) {
+              if (item.id && !executionEvidenceItemIdMap.has(item.id)) executionEvidenceItemIdMap.set(item.id, uuidv7());
+            }
+          }
+          if (entry.kind === "PATTERN_EXECUTION_ACTION") {
+            for (const attempt of [...(Array.isArray(entry.state?.attemptHistory) ? entry.state.attemptHistory : []), entry.state?.currentAttempt].filter(Boolean)) {
+              if (attempt.attemptId && !executionAttemptIdMap.has(attempt.attemptId)) executionAttemptIdMap.set(attempt.attemptId, uuidv7());
+            }
+          }
+          if (entry.kind === "PATTERN_EXECUTION_RUNTIME") {
+            for (const action of Array.isArray(entry.state?.actions) ? entry.state.actions : []) {
+              if (action?.id && !executionRuntimeActionIdMap.has(action.id)) executionRuntimeActionIdMap.set(action.id, uuidv7());
+            }
+          }
         }
         for (const entry of progress) {
           if (entry.kind !== "PATTERN_EXECUTION_RESULT") continue;
@@ -4515,6 +6096,99 @@
           for (const checkpoint of Array.isArray(identity?.checkpoints) ? identity.checkpoints : []) ensureMapped(executionCheckpointStateIdMap, checkpoint?.id);
           ensureMapped(executionProgressStateIdMap, identity?.progress?.id);
           ensureMapped(executionCompletionStateIdMap, identity?.completion?.id);
+        }
+        for (const entry of progress) {
+          if (entry.kind !== "PATTERN_EXECUTION_RUNTIME") continue;
+          const identity = entry.state?.sourceIdentity?.chain;
+          const ensureMapped = (map, value) => { if (value && !map.has(value)) map.set(value, uuidv7()); };
+          ensureMapped(executionResultStateIdMap, entry.state?.sourceResultId || entry.state?.sourceIdentity?.result?.id);
+          ensureMapped(executionPlanStateIdMap, entry.state?.sourcePlanId || identity?.plan?.id);
+          ensureMapped(executionSessionStateIdMap, entry.state?.sourceExecutionId || identity?.session?.id);
+          for (const step of Array.isArray(identity?.steps) ? identity.steps : []) ensureMapped(executionStepStateIdMap, step?.id);
+          for (const checkpoint of Array.isArray(identity?.checkpoints) ? identity.checkpoints : []) ensureMapped(executionCheckpointStateIdMap, checkpoint?.id);
+          ensureMapped(executionProgressStateIdMap, identity?.progress?.id);
+          ensureMapped(executionCompletionStateIdMap, identity?.completion?.id);
+        }
+        for (const entry of progress) {
+          if (entry.kind !== "PATTERN_EXECUTION_MONITORING") continue;
+          const identity = entry.state?.sourceIdentity;
+          const ensureMapped = (map, value) => { if (value && !map.has(value)) map.set(value, uuidv7()); };
+          ensureMapped(executionRuntimeStateIdMap, identity?.runtime?.id);
+          ensureMapped(executionResultStateIdMap, identity?.result?.id);
+          ensureMapped(executionPlanStateIdMap, identity?.executionPlanIdentity?.id);
+          ensureMapped(executionSessionStateIdMap, identity?.sessionIdentity?.id);
+          ensureMapped(executionProgressStateIdMap, identity?.progressIdentity?.id);
+          ensureMapped(executionCompletionStateIdMap, identity?.completionIdentity?.id);
+          for (const step of Array.isArray(identity?.stepIdentities) ? identity.stepIdentities : []) ensureMapped(executionStepStateIdMap, step?.id);
+          for (const checkpoint of Array.isArray(identity?.checkpointIdentities) ? identity.checkpointIdentities : []) ensureMapped(executionCheckpointStateIdMap, checkpoint?.id);
+          for (const item of [...(Array.isArray(entry.state?.blockers) ? entry.state.blockers : []), ...(Array.isArray(entry.state?.warnings) ? entry.state.warnings : []), ...(Array.isArray(entry.state?.timeline) ? entry.state.timeline : [])]) {
+            ensureMapped(executionRuntimeActionIdMap, item?.relatedActionId || item?.actionId);
+            ensureMapped(executionStepStateIdMap, item?.relatedStepId || item?.stepId);
+            ensureMapped(executionCheckpointStateIdMap, item?.checkpointId);
+          }
+        }
+        for (const entry of progress) {
+          if (entry.kind !== "PATTERN_EXECUTION_INTERVENTION") continue;
+          const identity = entry.state?.sourceIdentity;
+          const ensureMapped = (map, value) => { if (value && !map.has(value)) map.set(value, uuidv7()); };
+          ensureMapped(executionMonitoringStateIdMap, identity?.monitoring?.id);
+          ensureMapped(executionRuntimeStateIdMap, identity?.runtime?.id);
+          ensureMapped(executionResultStateIdMap, identity?.result?.id);
+          ensureMapped(executionPlanStateIdMap, identity?.executionPlanIdentity?.id);
+          ensureMapped(executionSessionStateIdMap, identity?.sessionIdentity?.id);
+          ensureMapped(executionProgressStateIdMap, identity?.progressIdentity?.id);
+          ensureMapped(executionCompletionStateIdMap, identity?.completionIdentity?.id);
+          for (const step of Array.isArray(identity?.stepIdentities) ? identity.stepIdentities : []) ensureMapped(executionStepStateIdMap, step?.id);
+          for (const checkpoint of Array.isArray(identity?.checkpointIdentities) ? identity.checkpointIdentities : []) ensureMapped(executionCheckpointStateIdMap, checkpoint?.id);
+          for (const item of [...(Array.isArray(entry.state?.observations) ? entry.state.observations : []), ...(Array.isArray(entry.state?.actions) ? entry.state.actions : [])]) {
+            ensureMapped(executionRuntimeActionIdMap, item?.relatedActionId || item?.targetIdentity?.actionId);
+            ensureMapped(executionStepStateIdMap, item?.relatedStepId || item?.targetIdentity?.stepId);
+            ensureMapped(executionCheckpointStateIdMap, item?.relatedCheckpointId || item?.targetIdentity?.checkpointId);
+          }
+        }
+        for (const entry of progress) {
+          if (entry.kind !== "PATTERN_EXECUTION_ACTION") continue;
+          const identity = entry.state?.sourceIdentity || {};
+          const ensureMapped = (map, value) => { if (value && !map.has(value)) map.set(value, uuidv7()); };
+          ensureMapped(executionInterventionStateIdMap, entry.state?.interventionIdentity?.id);
+          ensureMapped(executionMonitoringStateIdMap, identity?.monitoring?.id);
+          ensureMapped(executionRuntimeStateIdMap, identity?.runtime?.id);
+          ensureMapped(executionResultStateIdMap, identity?.result?.id);
+          ensureMapped(executionPlanStateIdMap, identity?.executionPlanIdentity?.id);
+          ensureMapped(executionSessionStateIdMap, identity?.sessionIdentity?.id);
+          ensureMapped(executionProgressStateIdMap, identity?.progressIdentity?.id);
+          ensureMapped(executionCompletionStateIdMap, identity?.completionIdentity?.id);
+          for (const step of Array.isArray(identity?.stepIdentities) ? identity.stepIdentities : []) ensureMapped(executionStepStateIdMap, step?.id);
+          for (const checkpoint of Array.isArray(identity?.checkpointIdentities) ? identity.checkpointIdentities : []) ensureMapped(executionCheckpointStateIdMap, checkpoint?.id);
+          ensureMapped(executionRuntimeActionIdMap, entry.state?.targetIdentity?.actionId);
+          ensureMapped(executionStepStateIdMap, entry.state?.targetIdentity?.stepId);
+          ensureMapped(executionCheckpointStateIdMap, entry.state?.targetIdentity?.checkpointId);
+        }
+        for (const entry of progress) {
+          if (entry.kind !== "PATTERN_EXECUTION_EVIDENCE") continue;
+          const identity = entry.state?.sourceIdentities || {};
+          const ensureMapped = (map, value) => { if (value && !map.has(value)) map.set(value, uuidv7()); };
+          ensureMapped(executionActionStateIdMap, entry.state?.actionId || identity.action?.id);
+          ensureMapped(executionAttemptIdMap, entry.state?.actionAttemptId || identity.actionAttempt?.id);
+          ensureMapped(executionInterventionStateIdMap, entry.state?.interventionId || identity.intervention?.id);
+          ensureMapped(executionRuntimeStateIdMap, entry.state?.runtimeId || identity.runtime?.id);
+          ensureMapped(executionMonitoringStateIdMap, entry.state?.monitoringId || identity.monitoring?.id);
+          ensureMapped(executionResultStateIdMap, entry.state?.resultId || identity.result?.id);
+          ensureMapped(executionPlanStateIdMap, identity.plan?.id);
+          ensureMapped(executionSessionStateIdMap, identity.session?.id);
+          ensureMapped(executionProgressStateIdMap, identity.progress?.id);
+          ensureMapped(executionCompletionStateIdMap, identity.completion?.id);
+          for (const step of Array.isArray(identity.steps) ? identity.steps : []) ensureMapped(executionStepStateIdMap, step?.id);
+          for (const checkpoint of Array.isArray(identity.checkpoints) ? identity.checkpoints : []) ensureMapped(executionCheckpointStateIdMap, checkpoint?.id);
+        }
+        for (const entry of progress) {
+          if (entry.kind !== "PATTERN_EXECUTION_VERIFICATION") continue;
+          const ensureMapped = (map, value) => { if (value && !map.has(value)) map.set(value, uuidv7()); };
+          ensureMapped(executionActionStateIdMap, entry.state?.actionId);
+          for (const id of Array.isArray(entry.state?.evidenceIds) ? entry.state.evidenceIds : []) ensureMapped(executionEvidenceStateIdMap, id);
+          for (const result of Array.isArray(entry.state?.criterionResults) ? entry.state.criterionResults : []) {
+            for (const id of [...(result.supportingEvidenceIds || []), ...(result.conflictingEvidenceIds || [])]) ensureMapped(executionEvidenceItemIdMap, id);
+          }
         }
       }
       const importedProgress = progress.map((entry) => {
@@ -4561,8 +6235,38 @@
         if (entry.kind === "PATTERN_EXECUTION_RESULT") {
           validateImportedPatternExecutionResult(importedState, sourceProjectId);
         }
+        if (entry.kind === "PATTERN_EXECUTION_RUNTIME") {
+          validateImportedPatternExecutionRuntime(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_MONITORING") {
+          validateImportedPatternExecutionMonitoring(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_INTERVENTION") {
+          validateImportedPatternExecutionIntervention(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_ACTION") {
+          validateImportedPatternExecutionAction(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_EVIDENCE") {
+          validateImportedPatternExecutionEvidence(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_VERIFICATION") {
+          validateImportedPatternExecutionVerification(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_DECISION") {
+          validateImportedPatternExecutionDecision(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_FOLLOW_UP") {
+          validateImportedPatternExecutionFollowUp(importedState, sourceProjectId);
+        }
         if (
           collision &&
+          entry.kind !== "PATTERN_EXECUTION_INTERVENTION" &&
+          entry.kind !== "PATTERN_EXECUTION_ACTION" &&
+          entry.kind !== "PATTERN_EXECUTION_EVIDENCE" &&
+          entry.kind !== "PATTERN_EXECUTION_VERIFICATION" &&
+          entry.kind !== "PATTERN_EXECUTION_DECISION" &&
+          entry.kind !== "PATTERN_EXECUTION_FOLLOW_UP" &&
           importedState?.projectId === sourceProjectId
         ) {
           importedState.projectId = projectId;
@@ -4599,6 +6303,12 @@
         }
         if (collision && entry.kind === "PATTERN_EXECUTION_RESULT" && importedState?.id) {
           importedState.id = executionResultStateIdMap.get(importedState.id);
+        }
+        if (collision && entry.kind === "PATTERN_EXECUTION_RUNTIME" && importedState?.id) {
+          importedState.id = executionRuntimeStateIdMap.get(importedState.id);
+        }
+        if (collision && entry.kind === "PATTERN_EXECUTION_MONITORING" && importedState?.id) {
+          importedState.id = executionMonitoringStateIdMap.get(importedState.id);
         }
         return {
           ...entry,
@@ -5383,6 +7093,381 @@
         if (collision) importOperations.push({ operationId: uuidv7(), type: "collision_import_remap", result: "applied", revision: state.revision, at: timestamp });
         state.operations = [...(Array.isArray(state.operations) ? state.operations : []), ...importOperations].slice(-96);
         validateImportedPatternExecutionResult(state, projectId);
+      });
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_EXECUTION_RUNTIME") return;
+        const state = entry.state;
+        const importedStatus = state.status;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(),
+            ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(),
+            ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(),
+            ...executionRuntimeStateIdMap.entries(), ...executionMonitoringStateIdMap.entries(), ...executionInterventionStateIdMap.entries(),
+            ...executionRuntimeActionIdMap.entries(),
+          ]);
+          remapExactReferences(state, referenceMap);
+          state.projectId = projectId;
+        }
+        const importedResult = importedProgress.find((candidate) =>
+          candidate.kind === "PATTERN_EXECUTION_RESULT" && candidate.state?.id === state.sourceResultId
+        )?.state;
+        if (!importedResult || !importedResult.resultSnapshot) {
+          throw new ProjectRepositoryError(
+            "INVALID_IMPORT_EXECUTION_RUNTIME_SOURCE",
+            "Runtime ссылается на отсутствующий snapshot Stage 28.",
+          );
+        }
+        state.sourceResultRevision = importedResult.revision;
+        state.sourceResultFingerprint = importedResult.resultFingerprint;
+        state.sourceExecutionId = importedResult.resultSnapshot.sessionId;
+        state.sourcePlanId = importedResult.resultSnapshot.planSummary?.planId || state.sourcePlanId;
+        state.sourceIdentity = {
+          sourceSchemaVersion: 1,
+          result: {
+            id: importedResult.id,
+            revision: importedResult.revision,
+            fingerprint: importedResult.resultFingerprint,
+            resultRevision: importedResult.resultRevision,
+            status: importedResult.status,
+          },
+          chain: clone(importedResult.expectedSourceIdentity || importedResult.resultSnapshot.sourceIdentity),
+          sourceIdentityFingerprint: null,
+        };
+        const runtimeIdentityPayload = clone(state.sourceIdentity);
+        delete runtimeIdentityPayload.sourceIdentityFingerprint;
+        state.sourceIdentity.sourceIdentityFingerprint = fnv1a32Fingerprint(runtimeIdentityPayload);
+        state.actions.forEach((action) => {
+          if (action.sourceReference) {
+            action.sourceReference.resultId = state.sourceResultId;
+            action.sourceReference.resultRevision = state.sourceResultRevision;
+          }
+          if (action.payload?.resultReference) {
+            action.payload.resultReference.id = state.sourceResultId;
+            action.payload.resultReference.fingerprint = state.sourceResultFingerprint;
+          }
+          if (action.state === "running" || action.state === "blocked") action.state = "paused";
+          action.fingerprint = patternExecutionRuntimeActionFingerprint(action);
+        });
+        state.revision = Math.max(1, Number(state.revision) || 1) + 1;
+        state.updatedAt = timestamp;
+        state.status = "stale";
+        state.activeActionId = null;
+        state.recovery = null;
+        state.lastError = null;
+        state.staleReasons = [{
+          code: "import_identity_unproven",
+          message: "После импорта runtime source identity должна быть доказана явным rebuild.",
+          details: { collision },
+        }];
+        state.completedActionIds = state.actions.filter((action) => action.state === "completed").map((action) => action.id);
+        state.failedActionIds = state.actions.filter((action) => action.state === "failed").map((action) => action.id);
+        state.skippedActionIds = state.actions.filter((action) => action.state === "skipped").map((action) => action.id);
+        state.blockedActionIds = [];
+        const importAudit = [{ event: "imported_identity_unproven", at: timestamp, revision: state.revision, sourceProjectId, previousStatus: importedStatus }];
+        if (collision) importAudit.push({ event: "collision_remapped", at: timestamp, revision: state.revision, sourceProjectId, projectId });
+        state.audit = [...(Array.isArray(state.audit) ? state.audit : []), ...importAudit].slice(-64);
+        state.operations = [...(Array.isArray(state.operations) ? state.operations : []), {
+          operationId: uuidv7(), command: "import", revision: state.revision, at: timestamp,
+        }].slice(-128);
+        state.runtimeFingerprint = patternExecutionRuntimeFingerprint(state);
+        validateImportedPatternExecutionRuntime(state, projectId);
+      });
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_EXECUTION_MONITORING") return;
+        const state = entry.state;
+        const previousLifecycle = state.lifecycle.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(),
+            ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(),
+            ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(),
+            ...executionRuntimeStateIdMap.entries(), ...executionMonitoringStateIdMap.entries(), ...executionInterventionStateIdMap.entries(),
+            ...executionRuntimeActionIdMap.entries(),
+          ]);
+          remapExactReferences(state, referenceMap);
+          state.projectId = projectId;
+        }
+        const importedRuntime = importedProgress.find((candidate) =>
+          candidate.kind === "PATTERN_EXECUTION_RUNTIME" && candidate.state?.id === state.sourceIdentity?.runtime?.id
+        )?.state;
+        if (!importedRuntime) {
+          throw new ProjectRepositoryError(
+            "INVALID_IMPORT_EXECUTION_MONITORING_SOURCE",
+            "Monitoring snapshot ссылается на отсутствующий runtime.",
+          );
+        }
+        const importedResult = importedProgress.find((candidate) =>
+          candidate.kind === "PATTERN_EXECUTION_RESULT" && candidate.state?.id === importedRuntime.sourceResultId
+        )?.state || null;
+        const chain = clone(importedRuntime.sourceIdentity?.chain || {});
+        state.sourceIdentity = {
+          sourceSchemaVersion: 1,
+          project: { id: projectId, revision: importedProject.revision },
+          result: { id: importedRuntime.sourceResultId, revision: importedRuntime.sourceResultRevision, fingerprint: importedRuntime.sourceResultFingerprint },
+          runtime: { id: importedRuntime.id, revision: importedRuntime.revision, epoch: importedRuntime.epoch, fingerprint: importedRuntime.runtimeFingerprint },
+          calculationIdentity: clone(chain.calculation || null),
+          executionPlanIdentity: clone(chain.plan || null),
+          sessionIdentity: clone(chain.session || null),
+          runtimeSourceIdentity: clone(importedRuntime.sourceIdentity || null),
+          progressIdentity: clone(chain.progress || null),
+          completionIdentity: clone(chain.completion || null),
+          stepIdentities: Array.isArray(chain.steps) ? clone(chain.steps).sort((left, right) => String(left?.id || "").localeCompare(String(right?.id || ""))) : [],
+          checkpointIdentities: Array.isArray(chain.checkpoints) ? clone(chain.checkpoints).sort((left, right) => String(left?.id || "").localeCompare(String(right?.id || ""))) : [],
+          importRevision: sourceProject.revision,
+          sourceIdentityFingerprint: null,
+        };
+        state.sourceIdentity.sourceIdentityFingerprint = patternExecutionMonitoringSourceIdentityFingerprint(state.sourceIdentity);
+        const importDiagnostic = { code: "import_identity_unproven", severity: "critical", details: { collision } };
+        const monitoringApi = global.YarnAIPatternExecutionMonitoring;
+        const projection = monitoringApi?.projectRuntime?.(importedRuntime, importedResult, [importDiagnostic]) || null;
+        if (projection) {
+          state.runtimeSummary = clone(projection.runtimeSummary);
+          state.progressSummary = clone(projection.progressSummary);
+          state.currentActivity = clone(projection.currentActivity);
+          state.blockers = clone(projection.blockers);
+          state.warnings = clone(projection.warnings);
+          state.diagnostics = clone(projection.diagnostics);
+          state.recommendedAction = clone(projection.recommendedAction);
+        } else {
+          state.runtimeSummary.lifecycle = importedRuntime.status;
+          state.runtimeSummary.epoch = importedRuntime.epoch;
+          state.runtimeSummary.hasStaleUpstream = true;
+          state.runtimeSummary.terminalStatus = "stale";
+          state.currentActivity = { actionId: null, stepId: null, checkpointId: null, startedAt: null, pausedAt: null, status: "stale", reason: "import_identity_unproven", safeToResume: false, requiresUserDecision: true };
+          state.blockers = [{ code: "import_identity_unproven", severity: "critical", source: "source_identity", messageKey: "monitoring.import_identity_unproven", relatedStepId: null, relatedActionId: null, recoverable: false, recommendedCommand: "rebuild_runtime" }];
+          state.diagnostics = [importDiagnostic];
+          state.progressSummary.blockedCount = state.blockers.length;
+          state.progressSummary.warningCount = state.warnings.length;
+          state.recommendedAction = { type: "rebuild_runtime", label: "Пересобрать runtime", reason: "stale:stale:stale", targetRoute: "/pattern-execution-runtime", enabled: true, requiresConfirmation: true, sourceRevision: importedRuntime.revision, targetIdentity: { projectId, runtimeId: importedRuntime.id, resultId: importedRuntime.sourceResultId }, fingerprint: null };
+        }
+        state.recommendedAction.sourceRevision = importedRuntime.revision;
+        state.recommendedAction.targetIdentity = { projectId, runtimeId: importedRuntime.id, resultId: importedRuntime.sourceResultId };
+        state.recommendedAction.fingerprint = patternExecutionMonitoringRecommendedActionFingerprint(state.recommendedAction);
+        state.timeline = (Array.isArray(state.timeline) ? state.timeline : []).map((item, index) => {
+          const projected = { ...item, sequence: index + 1, id: null };
+          projected.id = `monitoring-timeline:${patternExecutionMonitoringTimelineFingerprint(projected).slice(8)}`;
+          return projected;
+        }).slice(-32).map((item, index) => ({ ...item, sequence: index + 1 }));
+        state.revision = Math.max(1, Number(state.revision) || 1) + 1;
+        state.updatedAt = timestamp;
+        state.lifecycle = { state: "stale", previousState: previousLifecycle, observedAt: state.lifecycle.observedAt || timestamp };
+        state.lastObservationFingerprint = null;
+        const auditBase = { event: "monitoring_imported_stale", revision: state.revision, epoch: state.epoch, at: timestamp, runtimeRevision: importedRuntime.revision, fromLifecycle: previousLifecycle, toLifecycle: "stale", operationId: null, reason: "import_identity_unproven" };
+        state.audit = [...(Array.isArray(state.audit) ? state.audit : []), { id: `monitoring-audit:${fnv1a32Fingerprint(auditBase).slice(8)}`, ...auditBase }].slice(-24);
+        state.operations = [...(Array.isArray(state.operations) ? state.operations : []), { operationId: uuidv7(), command: "import", revision: state.revision, at: timestamp }].slice(-64);
+        state.fingerprint = patternExecutionMonitoringFingerprint(state);
+        validateImportedPatternExecutionMonitoring(state, projectId);
+      });
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_EXECUTION_INTERVENTION") return;
+        const interventionApi = global.YarnAIPatternExecutionIntervention;
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(),
+            ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(),
+            ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(),
+            ...executionRuntimeStateIdMap.entries(), ...executionMonitoringStateIdMap.entries(),
+            ...executionInterventionStateIdMap.entries(), ...executionRuntimeActionIdMap.entries(),
+          ]);
+          state = interventionApi?.remapPatternExecutionIntervention
+            ? clone(interventionApi.remapPatternExecutionIntervention(state, referenceMap))
+            : remapImportedPatternExecutionIntervention(state, referenceMap);
+        }
+        state = interventionApi?.makeImportedInterventionStale
+          ? clone(interventionApi.makeImportedInterventionStale(state, { now: timestamp, collision, reason: "import_identity_unproven" }))
+          : makeImportedPatternExecutionInterventionStale(state, timestamp, collision);
+        entry.state = state;
+        validateImportedPatternExecutionIntervention(state, projectId);
+      });
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_EXECUTION_ACTION") return;
+        const actionApi = global.YarnAIPatternExecutionAction;
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(),
+            ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(),
+            ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(),
+            ...executionRuntimeStateIdMap.entries(), ...executionMonitoringStateIdMap.entries(),
+            ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(),
+            ...executionRuntimeActionIdMap.entries(), ...executionAttemptIdMap.entries(),
+          ]);
+          state = actionApi?.remapPatternExecutionAction
+            ? clone(actionApi.remapPatternExecutionAction(state, referenceMap))
+            : remapImportedPatternExecutionAction(state, referenceMap);
+        }
+        state = actionApi?.makeImportedPatternExecutionActionStale
+          ? clone(actionApi.makeImportedPatternExecutionActionStale(state, { now: timestamp, collision, reason: "import_identity_unproven" }))
+          : makeImportedPatternExecutionActionStale(state, timestamp, collision);
+        entry.state = state;
+        validateImportedPatternExecutionAction(state, projectId);
+      });
+      importedProgress.forEach((entry, importedIndex) => {
+        if (entry.kind !== "PATTERN_EXECUTION_EVIDENCE") return;
+        const evidenceApi = global.YarnAIPatternExecutionEvidence;
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(),
+            ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(),
+            ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(),
+            ...executionRuntimeStateIdMap.entries(), ...executionMonitoringStateIdMap.entries(),
+            ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(),
+            ...executionAttemptIdMap.entries(), ...executionRuntimeActionIdMap.entries(),
+            ...executionEvidenceStateIdMap.entries(), ...executionEvidenceItemIdMap.entries(),
+            ...executionCriterionIdMap.entries(),
+          ]);
+          const fingerprintFields = ["fingerprint", "runtimeFingerprint", "resultFingerprint"];
+          for (let index = 0; index < progress.length; index += 1) {
+            const originalState = progress[index]?.state;
+            const remappedState = importedProgress[index]?.state;
+            if (!originalState || !remappedState) continue;
+            for (const field of fingerprintFields) {
+              if (originalState[field] && remappedState[field]) referenceMap.set(originalState[field], remappedState[field]);
+            }
+            if (originalState.decision?.fingerprint && remappedState.decision?.fingerprint) referenceMap.set(originalState.decision.fingerprint, remappedState.decision.fingerprint);
+            if (originalState.verification?.fingerprint && remappedState.verification?.fingerprint) referenceMap.set(originalState.verification.fingerprint, remappedState.verification.fingerprint);
+          }
+          state = evidenceApi?.remapPatternExecutionEvidence
+            ? clone(evidenceApi.remapPatternExecutionEvidence(state, referenceMap))
+            : remapImportedPatternExecutionEvidence(state, referenceMap);
+        }
+        state = evidenceApi?.makeImportedPatternExecutionEvidenceStale
+          ? clone(evidenceApi.makeImportedPatternExecutionEvidenceStale(state, { now: timestamp, collision, reason: "import_identity_unproven" }))
+          : makeImportedPatternExecutionEvidenceStale(state, timestamp, collision);
+        entry.state = state;
+        validateImportedPatternExecutionEvidence(state, projectId);
+      });
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_EXECUTION_VERIFICATION") return;
+        const verificationApi = global.YarnAIPatternExecutionVerification;
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(),
+            ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(),
+            ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(),
+            ...executionRuntimeStateIdMap.entries(), ...executionMonitoringStateIdMap.entries(),
+            ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(),
+            ...executionAttemptIdMap.entries(), ...executionRuntimeActionIdMap.entries(),
+            ...executionEvidenceStateIdMap.entries(), ...executionEvidenceItemIdMap.entries(),
+            ...executionCriterionIdMap.entries(), ...executionVerificationStateIdMap.entries(),
+          ]);
+          for (let index = 0; index < progress.length; index += 1) {
+            const originalState = progress[index]?.state;
+            const remappedState = importedProgress[index]?.state;
+            if (originalState?.fingerprint && remappedState?.fingerprint) referenceMap.set(originalState.fingerprint, remappedState.fingerprint);
+          }
+          state = verificationApi?.remapPatternExecutionVerification
+            ? clone(verificationApi.remapPatternExecutionVerification(state, referenceMap))
+            : remapImportedPatternExecutionVerification(state, referenceMap);
+        }
+        const linkedAction = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ACTION" && candidate.state?.id === state.actionId);
+        const linkedEvidence = new Set(importedProgress.filter((candidate) => candidate.kind === "PATTERN_EXECUTION_EVIDENCE").map((candidate) => candidate.state?.id));
+        if (state.actionId && (!linkedAction || state.evidenceIds.some((id) => !linkedEvidence.has(id)))) {
+          throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_VERIFICATION_REFERENCE", "Verification ссылается на отсутствующие action или evidence.");
+        }
+        state = verificationApi?.makeImportedPatternExecutionVerificationStale
+          ? clone(verificationApi.makeImportedPatternExecutionVerificationStale(state, { now: timestamp, collision, reason: "import_identity_unproven" }))
+          : makeImportedPatternExecutionVerificationStale(state, timestamp, collision);
+        entry.state = state;
+        validateImportedPatternExecutionVerification(state, projectId);
+      });
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_EXECUTION_DECISION") return;
+        const decisionApi = global.YarnAIPatternExecutionDecision;
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(),
+            ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(),
+            ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(),
+            ...executionRuntimeStateIdMap.entries(), ...executionMonitoringStateIdMap.entries(),
+            ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(),
+            ...executionAttemptIdMap.entries(), ...executionRuntimeActionIdMap.entries(),
+            ...executionEvidenceStateIdMap.entries(), ...executionEvidenceItemIdMap.entries(),
+            ...executionCriterionIdMap.entries(), ...executionVerificationStateIdMap.entries(),
+            ...executionDecisionStateIdMap.entries(), ...executionFollowUpStateIdMap.entries(),
+          ]);
+          for (let index = 0; index < progress.length; index += 1) {
+            const originalState = progress[index]?.state;
+            const remappedState = importedProgress[index]?.state;
+            if (originalState?.fingerprint && remappedState?.fingerprint) referenceMap.set(originalState.fingerprint, remappedState.fingerprint);
+          }
+          if (entry.kind === "PATTERN_EXECUTION_VERIFICATION") {
+            for (const criterion of Array.isArray(entry.state?.expectedCriteria) ? entry.state.expectedCriteria : []) {
+              const criterionId = criterion?.id || criterion?.criterionId;
+              if (criterionId && !executionCriterionIdMap.has(criterionId)) executionCriterionIdMap.set(criterionId, uuidv7());
+            }
+          }
+          state = clone(decisionApi.remapPatternExecutionDecision(state, referenceMap));
+        }
+        const linkedVerification = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_VERIFICATION" && candidate.state?.id === state.verificationId);
+        const linkedAction = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ACTION" && candidate.state?.id === state.actionId);
+        const linkedEvidenceIds = new Set(importedProgress.filter((candidate) => candidate.kind === "PATTERN_EXECUTION_EVIDENCE").flatMap((candidate) => [candidate.state?.id, ...(candidate.state?.evidenceItems || []).map((item) => item.id)]));
+        if (!linkedVerification || !linkedAction || state.evidenceReferences.some((item) => !linkedEvidenceIds.has(item.id))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_DECISION_REFERENCE", "Decision references missing verification, action, or evidence.");
+        state = clone(decisionApi.makeImportedPatternExecutionDecisionStale(state, { now: timestamp, collision, reason: "import_identity_unproven" }));
+        entry.state = state;
+        validateImportedPatternExecutionDecision(state, projectId);
+      });
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_EXECUTION_FOLLOW_UP") return;
+        const followUpApi = global.YarnAIPatternExecutionFollowUp;
+        if (!followUpApi?.remapPatternExecutionFollowUp || !followUpApi?.makeImportedPatternExecutionFollowUpStale) throw new ProjectRepositoryError("PATTERN_EXECUTION_FOLLOW_UP_API_MISSING", "Execution follow-up module is not loaded.");
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(),
+            ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(),
+            ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(),
+            ...executionRuntimeStateIdMap.entries(), ...executionMonitoringStateIdMap.entries(),
+            ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(),
+            ...executionAttemptIdMap.entries(), ...executionRuntimeActionIdMap.entries(),
+            ...executionEvidenceStateIdMap.entries(), ...executionEvidenceItemIdMap.entries(),
+            ...executionCriterionIdMap.entries(), ...executionVerificationStateIdMap.entries(),
+            ...executionDecisionStateIdMap.entries(), ...executionFollowUpStateIdMap.entries(),
+          ]);
+          for (let index = 0; index < progress.length; index += 1) {
+            const originalState = progress[index]?.state;
+            const remappedState = importedProgress[index]?.state;
+            if (originalState?.fingerprint && remappedState?.fingerprint) referenceMap.set(originalState.fingerprint, remappedState.fingerprint);
+          }
+          state = clone(followUpApi.remapPatternExecutionFollowUp(state, referenceMap));
+        }
+        const linkedDecision = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_DECISION" && candidate.state?.id === state.decisionId);
+        const linkedVerification = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_VERIFICATION" && candidate.state?.id === state.verificationReference?.id);
+        const linkedActionIds = new Set(importedProgress.filter((candidate) => candidate.kind === "PATTERN_EXECUTION_ACTION").map((candidate) => candidate.state?.id));
+        const linkedEvidenceIds = new Set(importedProgress.filter((candidate) => candidate.kind === "PATTERN_EXECUTION_EVIDENCE").flatMap((candidate) => [candidate.state?.id, ...(candidate.state?.evidenceItems || []).map((item) => item.id)]));
+        if (!linkedDecision || !linkedVerification || state.actionReferences.some((item) => !linkedActionIds.has(item.id)) || state.evidenceReferences.some((item) => !linkedEvidenceIds.has(item.id))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_FOLLOW_UP_REFERENCE", "Follow-up references missing decision, verification, action, or evidence.");
+        state = clone(followUpApi.makeImportedPatternExecutionFollowUpStale(state, { now: timestamp, collision, reason: "import_identity_unproven" }));
+        entry.state = state;
+        validateImportedPatternExecutionFollowUp(state, projectId);
       });
       const importedEvents = events.map((entry) => ({
         ...entry,

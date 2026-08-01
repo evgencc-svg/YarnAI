@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Доказательства выполнения — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-evidence.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-result.js" defer></script>
+  <script src="/static/pattern-execution-runtime.js" defer></script>
+  <script src="/static/pattern-execution-monitoring.js" defer></script>
+  <script src="/static/pattern-execution-intervention.js" defer></script>
+  <script src="/static/pattern-execution-action.js" defer></script>
+  <script src="/static/pattern-execution-evidence.js" defer></script>
+  <script src="/static/pattern-execution-evidence-assistant.js" defer></script>
+</head>
+<body>
+  <main class="evidence-shell">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_EVIDENCE</p>
+      <h1 id="execution-evidence-title">Доказательства выполнения</h1>
+      <p id="execution-evidence-context" class="lead" aria-live="polite">Проверяем контекст проекта…</p>
+    </header>
+
+    <section id="execution-evidence-fatal" class="panel fatal" hidden>
+      <h2>Evidence недоступен</h2>
+      <p id="execution-evidence-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="execution-evidence-workflow">
+      <section class="panel overview" aria-labelledby="execution-evidence-overview-heading">
+        <div class="status-row">
+          <span id="execution-evidence-lifecycle" class="status-chip" data-status="waiting" role="status">Ожидание</span>
+          <span id="execution-evidence-revision" class="revision">Evidence epoch — · revision —</span>
+        </div>
+        <h2 id="execution-evidence-overview-heading">Action identity</h2>
+        <dl id="execution-evidence-identity" class="detail-list"></dl>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-evidence-chain-heading">
+        <h2 id="execution-evidence-chain-heading">Source chain</h2>
+        <p id="execution-evidence-chain-status" class="chain-status" role="status">Не собрана</p>
+        <dl id="execution-evidence-chain" class="detail-list"></dl>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-evidence-items-heading">
+        <h2 id="execution-evidence-items-heading">Evidence items</h2>
+        <ul id="execution-evidence-items" class="record-list"></ul>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-evidence-assertions-heading">
+        <h2 id="execution-evidence-assertions-heading">Assertions</h2>
+        <ul id="execution-evidence-assertions" class="record-list"></ul>
+      </section>
+
+      <div class="problem-grid">
+        <section class="panel problem" aria-labelledby="execution-evidence-missing-heading">
+          <h2 id="execution-evidence-missing-heading">Missing evidence</h2>
+          <ul id="execution-evidence-missing" class="record-list"></ul>
+        </section>
+        <section class="panel problem" aria-labelledby="execution-evidence-contradictions-heading">
+          <h2 id="execution-evidence-contradictions-heading">Contradictions</h2>
+          <ul id="execution-evidence-contradictions" class="record-list"></ul>
+        </section>
+        <section class="panel problem" aria-labelledby="execution-evidence-unexpected-heading">
+          <h2 id="execution-evidence-unexpected-heading">Unexpected changes</h2>
+          <ul id="execution-evidence-unexpected" class="record-list"></ul>
+        </section>
+      </div>
+
+      <section class="panel" aria-labelledby="execution-evidence-summary-heading">
+        <h2 id="execution-evidence-summary-heading">Immutable summary</h2>
+        <dl id="execution-evidence-summary" class="detail-list"></dl>
+      </section>
+
+      <section class="panel command-panel" aria-labelledby="execution-evidence-commands-heading">
+        <h2 id="execution-evidence-commands-heading">Явные команды</h2>
+        <p class="separation-note">Открытие страницы ничего не собирает и не проверяет автоматически.</p>
+        <div id="execution-evidence-command-bar" class="command-bar">
+          <button type="button" data-command="create" hidden>Создать waiting evidence</button>
+          <button type="button" data-command="collect" hidden>Collect</button>
+          <button type="button" data-command="validate" hidden>Validate</button>
+          <button type="button" data-command="complete" hidden>Complete</button>
+          <button type="button" data-command="retry" hidden>Retry</button>
+          <button type="button" data-command="rebuild" hidden>Rebuild</button>
+          <button type="button" data-command="cancel" hidden>Cancel</button>
+          <button id="execution-evidence-export" type="button" hidden>Экспортировать JSON</button>
+        </div>
+        <p id="execution-evidence-command-error" class="error" role="alert"></p>
+      </section>
+
+      <details class="panel audit-panel">
+        <summary>Audit и fingerprint</summary>
+        <ul id="execution-evidence-audit" class="record-list"></ul>
+        <p id="execution-evidence-fingerprint" class="fingerprint">—</p>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация доказательств">
+        <a id="execution-evidence-back-action" href="/pattern-execution-action" hidden>Вернуться к Stage 32 action</a>
+        <a id="execution-evidence-open-verification" href="/pattern-execution-verification" hidden>Перейти к Stage 34 verification</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

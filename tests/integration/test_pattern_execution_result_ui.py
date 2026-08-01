@@ -86,6 +86,7 @@ def test_result_page_has_all_user_facing_sections() -> None:
         "execution-result-rebuild",
         "execution-result-save",
         "execution-result-back",
+        "execution-result-runtime",
     } <= parser.ids
     assert all(button.get("type") == "button" for button in parser.buttons)
     assert all("hidden" in button for button in parser.buttons)
@@ -208,6 +209,7 @@ def test_result_files_only_reference_declared_execution_routes() -> None:
         "/pattern-execution-progress",
         "/pattern-execution-completion",
         "/pattern-execution-result",
+        "/pattern-execution-runtime",
     }
     found = {
         token.split("?", 1)[0].rstrip('"`\'')

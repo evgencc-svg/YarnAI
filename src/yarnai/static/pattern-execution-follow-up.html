@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Follow-up решения</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-execution-follow-up.css">
+  <script src="/static/pattern-execution-decision.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-follow-up.js" defer></script>
+  <script src="/static/pattern-execution-follow-up-assistant.js" defer></script>
+</head>
+<body>
+  <main class="follow-up-shell" data-testid="pattern-execution-follow-up-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_FOLLOW_UP · Stage 36</p>
+      <h1 id="execution-follow-up-title">Дальнейшее действие после решения</h1>
+      <p class="lead">Recommendation показывает допустимый маршрут, но ничего не создаёт и не запускает автоматически.</p>
+      <p id="execution-follow-up-context" class="context" aria-live="polite">Загружаем контекст проекта…</p>
+    </header>
+
+    <section id="execution-follow-up-fatal" class="panel fatal" hidden>
+      <h2>Follow-up недоступен</h2>
+      <p id="execution-follow-up-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="execution-follow-up-workflow">
+      <section class="panel overview" aria-labelledby="execution-follow-up-state-heading">
+        <div class="status-row">
+          <span id="execution-follow-up-status" data-testid="follow-up-status" class="status-chip" data-status="waiting" role="status">Ожидание</span>
+          <span id="execution-follow-up-revision" data-testid="follow-up-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="execution-follow-up-state-heading">Состояние follow-up</h2>
+        <dl id="execution-follow-up-summary" class="detail-list"></dl>
+        <p id="execution-follow-up-problem" class="problem-text" role="alert" hidden></p>
+      </section>
+
+      <section class="panel split" aria-label="Decision outcome и recommendation">
+        <div>
+          <h2>Stage 35 decision</h2>
+          <p id="execution-follow-up-outcome" data-testid="decision-outcome" class="large-value">—</p>
+          <p id="execution-follow-up-decision-id" class="muted">—</p>
+        </div>
+        <div>
+          <h2>Recommendation</h2>
+          <p id="execution-follow-up-recommendation" data-testid="follow-up-recommendation" class="large-value">—</p>
+          <p class="muted">Для rejected маршрут выбирается явно.</p>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-follow-up-route-heading">
+        <h2 id="execution-follow-up-route-heading">Материализованный маршрут</h2>
+        <dl id="execution-follow-up-route" class="detail-list"></dl>
+        <div class="selection-grid">
+          <div><h3>Criterion IDs</h3><p id="execution-follow-up-criteria" data-testid="selected-criteria">—</p></div>
+          <div><h3>Evidence IDs</h3><p id="execution-follow-up-evidence" data-testid="selected-evidence">—</p></div>
+          <div><h3>Action IDs</h3><p id="execution-follow-up-actions" data-testid="selected-actions">—</p></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-follow-up-command-heading">
+        <h2 id="execution-follow-up-command-heading">Явная команда</h2>
+        <label>Follow-up kind
+          <select id="execution-follow-up-kind" data-testid="follow-up-kind"></select>
+        </label>
+        <label>Reason code
+          <input id="execution-follow-up-reason" data-testid="follow-up-reason" type="text" readonly>
+        </label>
+        <label class="confirm"><input id="execution-follow-up-confirm" data-testid="follow-up-explicit-confirmation" type="checkbox"> Я явно подтверждаю этот маршрут и текущую revision/fingerprint</label>
+        <div id="execution-follow-up-command-bar" class="command-bar">
+          <button type="button" data-command="create" hidden>Создать follow-up</button>
+          <button type="button" data-command="schedule" hidden>Запланировать</button>
+          <button type="button" data-command="activate" hidden>Активировать</button>
+          <button type="button" data-command="complete" hidden>Завершить</button>
+          <button type="button" data-command="fail" hidden>Зафиксировать ошибку</button>
+          <button type="button" data-command="cancel" hidden>Отменить</button>
+          <button type="button" data-command="rebuild" hidden>Пересобрать новым snapshot</button>
+        </div>
+        <p id="execution-follow-up-command-error" class="error" role="alert"></p>
+      </section>
+
+      <nav class="page-nav" aria-label="Навигация follow-up">
+        <a id="execution-follow-up-back-decision" data-testid="back-to-decision" href="/pattern-execution-decision">Назад к Stage 35 decision</a>
+        <a id="execution-follow-up-evidence-route" data-testid="evidence-route" href="/pattern-execution-evidence" hidden>Собрать evidence на Stage 33</a>
+        <a id="execution-follow-up-action-route" data-testid="action-route" href="/pattern-execution-action" hidden>Исправить action на Stage 32</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

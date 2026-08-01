@@ -1,0 +1,26 @@
+:root { color-scheme: light; }
+body { margin: 0; background: #f6f3ec; color: #202722; font-family: Inter, system-ui, sans-serif; }
+.follow-up-shell { width: min(72rem, calc(100% - 2rem)); margin: 0 auto; padding: 2.5rem 0 4rem; }
+.page-header { margin-bottom: 1.25rem; }
+.eyebrow { color: #53675b; font-size: .78rem; font-weight: 800; letter-spacing: .12em; }
+.lead, .context, .muted { color: #5c665f; }
+.panel { margin: 1rem 0; padding: 1.25rem; border: 1px solid #d4d9d3; border-radius: 1rem; background: #fff; box-shadow: 0 .25rem 1rem rgb(35 50 41 / 6%); }
+.fatal, .problem-text, .error { color: #8b2727; }
+.status-row, .split, .selection-grid, .command-bar, .page-nav { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.split > *, .selection-grid > * { flex: 1 1 16rem; }
+.status-chip { padding: .4rem .75rem; border-radius: 999px; background: #e8ece8; font-weight: 750; }
+.status-chip[data-status="completed"] { background: #dcebdd; color: #245b31; }
+.status-chip[data-status="failed"], .status-chip[data-status="blocked"] { background: #f5dada; color: #822727; }
+.status-chip[data-status="stale"], .status-chip[data-status="cancelled"] { background: #f2e6c9; color: #735414; }
+.detail-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .75rem; }
+.detail-list div { min-width: 0; }
+.detail-list dt { color: #657168; font-size: .8rem; }
+.detail-list dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+.large-value { font-size: 1.25rem; font-weight: 750; overflow-wrap: anywhere; }
+label { display: grid; gap: .35rem; margin: .8rem 0; }
+select, input { box-sizing: border-box; width: 100%; padding: .65rem; border: 1px solid #bbc4bd; border-radius: .55rem; background: #fff; }
+.confirm { display: flex; grid-template-columns: auto 1fr; align-items: center; }
+.confirm input { width: auto; }
+button, .page-nav a { padding: .65rem .9rem; border-radius: .55rem; border: 1px solid #6c7c71; background: #f7faf7; color: #26342b; text-decoration: none; cursor: pointer; }
+button:disabled { cursor: wait; opacity: .55; }
+@media (max-width: 40rem) { .follow-up-shell { width: min(100% - 1rem, 72rem); padding-top: 1rem; } .panel { padding: 1rem; } }
