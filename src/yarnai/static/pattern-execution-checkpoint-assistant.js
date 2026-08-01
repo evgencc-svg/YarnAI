@@ -12,7 +12,7 @@
     start: byId("execution-checkpoint-start"), defer: byId("execution-checkpoint-defer"), resume: byId("execution-checkpoint-resume"), reject: byId("execution-checkpoint-reject"),
     confirm: byId("execution-checkpoint-confirm"), recover: byId("execution-checkpoint-recover"), rebuild: byId("execution-checkpoint-rebuild"), error: byId("execution-checkpoint-error"),
     reasonPanel: byId("execution-checkpoint-reason-panel"), reason: byId("execution-checkpoint-reason"), lifecycle: byId("execution-checkpoint-lifecycle"),
-    sourceId: byId("execution-checkpoint-source-id"), decision: byId("execution-checkpoint-decision"), sync: byId("execution-checkpoint-sync"), back: byId("execution-checkpoint-back"),
+    sourceId: byId("execution-checkpoint-source-id"), decision: byId("execution-checkpoint-decision"), sync: byId("execution-checkpoint-sync"), back: byId("execution-checkpoint-back"), progress: byId("execution-checkpoint-progress"),
   };
   const system = globalObject.YarnAIProjectSystem;
   const api = globalObject.YarnAIPatternExecutionCheckpoint;
@@ -28,6 +28,8 @@
     if (!system?.isUuidv7(projectId) || !api) return showFatal("Ссылка на проект повреждена.");
     repository = new system.ProjectRepository(); await repository.initialize(); bindActions();
     ui.back.href = `/pattern-execution-step?project=${encodeURIComponent(projectId)}`;
+    ui.progress.href = `/pattern-execution-progress?project=${encodeURIComponent(projectId)}`;
+    ui.progress.hidden = false;
     aggregate = await repository.getProject(projectId);
     record = await findRequestedRecord();
     if (!record && requestedCheckpointId) record = await repository.createPatternExecutionCheckpointForCurrentAction(projectId, requestedCheckpointId, { operationId: operationId("create") });

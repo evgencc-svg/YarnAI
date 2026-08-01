@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Итог проекта — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-result.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-plan.js" defer></script>
+  <script src="/static/pattern-execution-session.js" defer></script>
+  <script src="/static/pattern-execution-step.js" defer></script>
+  <script src="/static/pattern-execution-checkpoint.js" defer></script>
+  <script src="/static/pattern-execution-progress.js" defer></script>
+  <script src="/static/pattern-execution-completion.js" defer></script>
+  <script src="/static/pattern-execution-result.js" defer></script>
+  <script src="/static/pattern-execution-result-assistant.js" defer></script>
+</head>
+<body>
+  <main class="result-shell">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_RESULT</p>
+      <h1 id="execution-result-project-title">Итог завершённого проекта</h1>
+      <p id="execution-result-message" class="lead" aria-live="polite">Итог строится только из сохранённого подтверждения завершённости.</p>
+    </header>
+
+    <section id="execution-result-fatal" class="panel fatal" hidden>
+      <h2>Итог недоступен</h2>
+      <p id="execution-result-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="execution-result-workflow">
+      <section class="panel hero-card" aria-labelledby="execution-result-summary-heading">
+        <div class="status-row">
+          <span id="execution-result-status" class="status-chip" data-status="waiting">Ожидание</span>
+          <span id="execution-result-revision" class="revision">Revision —</span>
+        </div>
+        <h2 id="execution-result-summary-heading">Что получилось</h2>
+        <p id="execution-result-summary" class="summary-text">Итоговый snapshot ещё не создан.</p>
+        <dl id="execution-result-counts" class="count-grid"></dl>
+      </section>
+
+      <section class="panel" aria-labelledby="execution-result-parameters-heading">
+        <h2 id="execution-result-parameters-heading">План и фактические параметры</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Параметр</th><th scope="col">План</th><th scope="col">Факт</th><th scope="col">Подтверждение</th></tr></thead>
+            <tbody id="execution-result-parameters"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="content-grid">
+        <section class="panel"><h2>Завершённые steps</h2><ul id="execution-result-steps" class="item-list"></ul></section>
+        <section class="panel"><h2>Выполненные actions</h2><ul id="execution-result-actions" class="item-list"></ul></section>
+        <section class="panel"><h2>Подтверждённые checkpoints</h2><ul id="execution-result-checkpoints" class="item-list"></ul></section>
+        <section class="panel"><h2>Отклонения от плана</h2><ul id="execution-result-deviations" class="item-list"></ul></section>
+      </div>
+
+      <section id="execution-result-warnings-panel" class="panel notice-panel" hidden><h2>Предупреждения и существенные замечания</h2><ul id="execution-result-warnings" class="item-list"></ul></section>
+      <section id="execution-result-notes-panel" class="panel" hidden><h2>Сохранённые заметки</h2><ul id="execution-result-notes" class="item-list"></ul></section>
+      <section id="execution-result-blockers-panel" class="panel blocked-panel" hidden><h2>Почему итог сейчас недоступен</h2><ul id="execution-result-blockers" class="item-list"></ul></section>
+      <section id="execution-result-stale-panel" class="panel stale-panel" hidden><h2>Почему итог устарел</h2><ul id="execution-result-stale-reasons" class="item-list"></ul></section>
+
+      <section id="execution-result-actions-panel" class="panel action-panel">
+        <div class="action-bar">
+          <button id="execution-result-generate" class="primary" type="button" hidden>Сформировать итог</button>
+          <button id="execution-result-retry" type="button" hidden>Повторить</button>
+          <button id="execution-result-rebuild" type="button" hidden>Перестроить итог</button>
+          <button id="execution-result-save" type="button" hidden>Сохранить snapshot</button>
+        </div>
+        <p id="execution-result-error" class="error" role="alert"></p>
+      </section>
+
+      <details class="panel diagnostics">
+        <summary>Source identity и revisions</summary>
+        <dl id="execution-result-identity" class="identity-list"></dl>
+        <p id="execution-result-fingerprint" class="fingerprint">—</p>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация итогового результата">
+        <a id="execution-result-back" href="/pattern-execution-completion" hidden>Вернуться к подтверждению завершённости</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

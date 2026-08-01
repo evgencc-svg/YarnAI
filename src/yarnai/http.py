@@ -433,6 +433,33 @@ async def pattern_execution_checkpoint(_request: Request) -> FileResponse:
     )
 
 
+async def pattern_execution_progress(_request: Request) -> FileResponse:
+    """Return deterministic aggregate progress derived from execution records."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-progress.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_completion(_request: Request) -> FileResponse:
+    """Return immutable proof of completed pattern execution."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-completion.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_result(_request: Request) -> FileResponse:
+    """Return the saved user-facing result of completed pattern execution."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-result.html",
+        media_type="text/html",
+    )
+
+
 async def extract_pattern_pdf(request: Request) -> JSONResponse:
     """Extract only the local text layer of one PDF."""
 
@@ -627,6 +654,21 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/pattern-execution-checkpoint",
             pattern_execution_checkpoint,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-progress",
+            pattern_execution_progress,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-completion",
+            pattern_execution_completion,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-result",
+            pattern_execution_result,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),

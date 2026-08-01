@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Подтверждение завершения исполнения — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-completion.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-plan.js" defer></script>
+  <script src="/static/pattern-execution-session.js" defer></script>
+  <script src="/static/pattern-execution-step.js" defer></script>
+  <script src="/static/pattern-execution-checkpoint.js" defer></script>
+  <script src="/static/pattern-execution-progress.js" defer></script>
+  <script src="/static/pattern-execution-completion.js" defer></script>
+  <script src="/static/pattern-execution-completion-assistant.js" defer></script>
+</head>
+<body>
+  <main class="completion-shell">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_COMPLETION</p>
+      <h1 id="execution-completion-project-title">Подтверждение завершения</h1>
+      <p id="execution-completion-message" class="lead" aria-live="polite">Проверяется только сохранённая identity-цепочка Stage 22–26.</p>
+    </header>
+
+    <section id="execution-completion-fatal" class="panel fatal" hidden>
+      <h2>Completion недоступен</h2>
+      <p id="execution-completion-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="execution-completion-workflow">
+      <section class="panel overview-card">
+        <div class="status-row">
+          <span id="execution-completion-status" class="status-chip" data-status="waiting">Ожидание</span>
+          <span id="execution-completion-revision" class="revision">Revision —</span>
+        </div>
+        <p id="execution-completion-verdict" class="verdict" aria-live="polite">Завершение ещё не доказано</p>
+        <div class="identity-grid">
+          <div><span>Session</span><strong id="execution-completion-session">—</strong></div>
+          <div><span>Epoch</span><strong id="execution-completion-epoch">—</strong></div>
+          <div><span>Plan</span><strong id="execution-completion-plan">—</strong></div>
+          <div><span>Progress</span><strong id="execution-completion-progress">—</strong></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Итоговая сводка</h2>
+        <dl id="execution-completion-counts" class="count-grid"></dl>
+      </section>
+
+      <section id="execution-completion-blockers-panel" class="panel warning-panel" hidden>
+        <h2>Blockers</h2>
+        <ul id="execution-completion-blockers" class="reason-list"></ul>
+      </section>
+
+      <section id="execution-completion-warnings-panel" class="panel warning-panel" hidden>
+        <h2>Warnings</h2>
+        <ul id="execution-completion-warnings" class="reason-list"></ul>
+      </section>
+
+      <section id="execution-completion-stale-panel" class="panel stale-panel" hidden>
+        <h2>Stale reason</h2>
+        <ul id="execution-completion-stale-reasons" class="reason-list"></ul>
+      </section>
+
+      <section class="panel summary-panel">
+        <h2>Phases</h2>
+        <ul id="execution-completion-phases" class="summary-list"></ul>
+        <h2>Steps</h2>
+        <ul id="execution-completion-steps" class="summary-list"></ul>
+        <h2>Checkpoints</h2>
+        <ul id="execution-completion-checkpoints" class="summary-list"></ul>
+      </section>
+
+      <section id="execution-completion-actions-panel" class="panel actions-panel">
+        <div class="action-bar">
+          <button id="execution-completion-verify" class="primary" type="button" hidden>Проверить завершение</button>
+          <button id="execution-completion-retry" type="button" hidden>Повторить verification</button>
+          <button id="execution-completion-rebuild" type="button" hidden>Перестроить completion</button>
+        </div>
+        <p id="execution-completion-error" class="error" role="alert"></p>
+      </section>
+
+      <details class="panel diagnostics">
+        <summary>Identity и audit</summary>
+        <dl>
+          <div><dt>Completion fingerprint</dt><dd id="execution-completion-fingerprint">—</dd></div>
+          <div><dt>Source identity fingerprint</dt><dd id="execution-completion-source-fingerprint">—</dd></div>
+          <div><dt>Audit summary</dt><dd id="execution-completion-audit">—</dd></div>
+        </dl>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация подтверждения завершения">
+        <a id="execution-completion-back" href="/pattern-execution-progress" hidden>Вернуться к progress</a>
+        <a id="execution-completion-result" href="/pattern-execution-result" hidden>Открыть итог проекта</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

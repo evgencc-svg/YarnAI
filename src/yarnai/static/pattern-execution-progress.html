@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Progress выполнения — YarnAI</title>
+  <link rel="stylesheet" href="/static/pattern-execution-progress.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-plan.js" defer></script>
+  <script src="/static/pattern-execution-session.js" defer></script>
+  <script src="/static/pattern-execution-step.js" defer></script>
+  <script src="/static/pattern-execution-checkpoint.js" defer></script>
+  <script src="/static/pattern-execution-progress.js" defer></script>
+  <script src="/static/pattern-execution-progress-assistant.js" defer></script>
+</head>
+<body>
+  <main class="progress-shell">
+    <header class="page-header">
+      <p class="eyebrow">Progress выполнения</p>
+      <h1 id="execution-progress-project-title">Текущее выполнение</h1>
+      <p id="execution-progress-message" class="lead">Проверяемое агрегированное состояние Stage 22–25.</p>
+    </header>
+
+    <section id="execution-progress-fatal" class="panel fatal" hidden>
+      <h2>Progress недоступен</h2>
+      <p id="execution-progress-fatal-message"></p>
+    </section>
+
+    <div id="execution-progress-workflow">
+      <section class="panel overview-card">
+        <div class="status-row">
+          <span id="execution-progress-status" class="status-chip" data-status="waiting">Ожидание</span>
+          <span id="execution-progress-revision" class="revision">Revision —</span>
+        </div>
+        <div class="summary-row">
+          <div>
+            <span class="metric-label">Общий progress</span>
+            <strong id="execution-progress-percent" class="hero-metric">0%</strong>
+          </div>
+          <div>
+            <span class="metric-label">Фаз плана</span>
+            <strong id="execution-progress-phases" class="hero-metric">0</strong>
+          </div>
+          <div>
+            <span class="metric-label">Шагов</span>
+            <strong id="execution-progress-steps-total" class="hero-metric">0</strong>
+          </div>
+        </div>
+        <progress id="execution-progress-meter" max="100" value="0" aria-label="Общий progress выполнения"></progress>
+      </section>
+
+      <section class="panel">
+        <h2>Steps</h2>
+        <dl id="execution-progress-step-counts" class="count-grid"></dl>
+      </section>
+
+      <section class="panel">
+        <h2>Checkpoints</h2>
+        <dl id="execution-progress-checkpoint-counts" class="count-grid"></dl>
+      </section>
+
+      <section class="panel focus-card">
+        <h2>Текущий шаг</h2>
+        <p id="execution-progress-current-title" class="focus-title">Нет текущего шага</p>
+        <p id="execution-progress-current-context" class="muted">—</p>
+        <h2 class="next-heading">Следующее допустимое действие</h2>
+        <p id="execution-progress-next-action" class="focus-title">—</p>
+      </section>
+
+      <section id="execution-progress-blockers-panel" class="panel warning-panel" hidden>
+        <h2>Блокирующие причины</h2>
+        <ul id="execution-progress-blockers" class="reason-list"></ul>
+      </section>
+
+      <section id="execution-progress-stale-panel" class="panel stale-panel" hidden>
+        <h2>Причины устаревания</h2>
+        <ul id="execution-progress-stale-reasons" class="reason-list"></ul>
+      </section>
+
+      <section id="execution-progress-actions-panel" class="panel actions-panel">
+        <div class="action-bar">
+          <button id="execution-progress-build" class="primary" type="button" hidden>Построить progress</button>
+          <button id="execution-progress-rebuild" type="button" hidden>Перестроить progress</button>
+          <button id="execution-progress-retry" type="button" hidden>Повторить построение</button>
+        </div>
+        <p id="execution-progress-error" class="error" role="alert"></p>
+      </section>
+
+      <details class="panel diagnostics">
+        <summary>Source identity</summary>
+        <dl>
+          <div><dt>Plan</dt><dd id="execution-progress-plan-identity">—</dd></div>
+          <div><dt>Session</dt><dd id="execution-progress-session-identity">—</dd></div>
+          <div><dt>Session epoch</dt><dd id="execution-progress-session-epoch">—</dd></div>
+          <div><dt>Snapshot fingerprint</dt><dd id="execution-progress-snapshot-fingerprint">—</dd></div>
+        </dl>
+      </details>
+
+      <nav class="page-nav" aria-label="Навигация progress">
+        <a id="execution-progress-back" href="/pattern-execution-checkpoint" hidden>Вернуться к checkpoints</a>
+        <a id="execution-progress-completion" href="/pattern-execution-completion" hidden>Проверить завершение исполнения</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>
