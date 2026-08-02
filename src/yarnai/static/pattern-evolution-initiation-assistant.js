@@ -1,0 +1,45 @@
+"use strict";
+
+(function initializePatternEvolutionInitiationAssistant(globalObject) {
+  const api = globalObject.YarnAIPatternEvolutionInitiation;
+  const system = globalObject.YarnAIProjectSystem;
+  if (!api || !system) return;
+
+  const byId = (id) => globalObject.document.getElementById(id);
+  const params = new URLSearchParams(globalObject.location.search);
+  const projectId = params.get("projectId") || params.get("project") || "";
+  const requestedClosureId = params.get("closureId") || params.get("sourceClosureId") || null;
+  const explicitNow = params.get("now") || null;
+  const repository = new system.ProjectRepository();
+  let source = null; let record = null; let progress = null;
+
+  function text(id, value) { const element = byId(id); if (element) element.textContent = value ?? "—"; }
+  function json(id, fallback) { const raw = byId(id)?.value.trim(); if (!raw) return fallback; try { return JSON.parse(raw); } catch { throw new api.PatternEvolutionInitiationError("invalid_json", `${id} contains invalid JSON.`); } }
+  function pretty(value) { return JSON.stringify(value ?? null, null, 2); }
+  function now() { return explicitNow || record?.updatedAt || source?.closure?.closedAt || source?.closure?.updatedAt || api.DEFAULT_TIMESTAMP; }
+  function commandOptions() { return { now: now(), expectedRevision: record?.revision, expectedIdentity: record?.identity, existingInitiatives: source?.initiatives || [] }; }
+  function formInput() { return { hypothesis: byId("evolution-hypothesis").value, rationale: byId("evolution-rationale").value, evolutionScope: json("evolution-scope", {}), protectedAreas: json("evolution-protected", []), allowedChangeClasses: json("evolution-allowed", []), forbiddenChangeClasses: json("evolution-forbidden", []), expectedValue: json("evolution-expected-value", null), successCriteria: json("evolution-success-criteria", []), riskAssessment: json("evolution-risks", {}), constraints: json("evolution-constraints", []), assumptions: json("evolution-assumptions", []), unresolvedQuestions: json("evolution-questions", []) }; }
+  function setForm(value) { byId("evolution-hypothesis").value = value?.hypothesis || ""; byId("evolution-rationale").value = value?.rationale || ""; byId("evolution-scope").value = pretty(value?.evolutionScope || {}); byId("evolution-protected").value = pretty(value?.protectedAreas || []); byId("evolution-allowed").value = pretty(value?.allowedChangeClasses || []); byId("evolution-forbidden").value = pretty(value?.forbiddenChangeClasses || []); byId("evolution-expected-value").value = pretty(value?.expectedValue); byId("evolution-success-criteria").value = pretty(value?.successCriteria || []); byId("evolution-risks").value = pretty(value?.riskAssessment || { risks: [] }); byId("evolution-constraints").value = pretty(value?.constraints || []); byId("evolution-assumptions").value = pretty(value?.assumptions || []); byId("evolution-questions").value = pretty(value?.unresolvedQuestions || []); }
+  function render() {
+    const projection = record && source ? api.projectPatternEvolutionInitiation(record, source, { existingInitiatives: source.initiatives }) : null;
+    const shown = record ? { ...record, ...projection } : null; text("evolution-context", source?.closure ? `Closure ${source.closure.id} · ${source.closure.verdict}` : "No completed adaptation closure is available.");
+    text("evolution-status", projection?.effectiveStatus || record?.status || "draft"); text("evolution-revision", record ? `Epoch ${record.epoch} · revision ${record.revision}` : "Epoch — · revision —"); text("evolution-proof-status", projection?.proofStatus || (source ? api.calculateEvidenceProof(source).fullChainProven ? "proven" : "unproven" : "unproven"));
+    const proof = projection?.sourceProof || record?.sourceProof || (source ? api.calculateEvidenceProof(source) : null); byId("evolution-chain").innerHTML = (proof ? ["retrospective", "learning", "adaptation", "validation", "promotion", "rollout", "rollout evaluation", "closure"].map((stage) => `<li>${stage}</li>`).join("") : ""); byId("evolution-proof-issues").innerHTML = (proof?.issues || []).map((item) => `<li>${String(item)}</li>`).join("");
+    const readiness = projection?.readiness || record?.readiness; byId("evolution-readiness").innerHTML = readiness ? Object.entries(readiness).filter(([, value]) => typeof value === "boolean").map(([key, value]) => `<li data-ready="${value}"><span>${key}</span><strong>${value ? "ready" : "not ready"}</strong></li>`).join("") : "";
+    text("evolution-verdict", projection?.verdict || record?.verdict || "needs_evidence"); byId("evolution-verdict-reasons").innerHTML = (projection?.verdictReasons || record?.verdictReasons || []).map((item) => `<li>${String(item)}</li>`).join(""); text("evolution-evidence-summary", pretty(record?.evidenceSummary || (source ? { sourceIds: api.sourceIds(source), proofIssues: proof?.issues || [] } : null))); text("evolution-audit", pretty(record?.audit || []));
+    const imported = shown?.proofStatus === "imported-unproven"; byId("evolution-imported-warning").hidden = !imported; byId("evolution-stale-warning").hidden = !shown?.stale;
+    if (record) setForm(record); const terminal = record && api.TERMINAL_STATUSES.includes(record.status); for (const button of globalObject.document.querySelectorAll("[data-command]")) { const command = button.dataset.command; button.disabled = terminal || (!record && !["create", "open-latest"].includes(command)) || (record && command === "create"); }
+    const back = byId("evolution-back-closure"); if (back && projectId) back.href = `/pattern-execution-adaptation-closure?projectId=${encodeURIComponent(projectId)}${source?.closure?.evaluationId ? `&evaluationId=${encodeURIComponent(source.closure.evaluationId)}` : ""}`; const proposal = byId("evolution-open-proposal"); const proposalAllowed = Boolean(record && record.status === "approved" && record.verdict === "approve" && !shown?.stale && shown?.proofStatus === "proven" && shown?.sourceProof?.fullChainProven); if (proposal) { proposal.hidden = !proposalAllowed; if (proposalAllowed) proposal.href = `/pattern-evolution-proposal?projectId=${encodeURIComponent(projectId)}&initiationId=${encodeURIComponent(record.id)}`; }
+  }
+  async function reload(initiationId = null) { source = await api.loadSource(repository, projectId, requestedClosureId || record?.sourceClosureId || null); progress = await repository.getPatternEvolutionInitiation(projectId, initiationId, source.calculationId, source.closure.id); record = progress?.state || null; render(); }
+  async function save(next, operationKind) { const stored = await repository.savePatternEvolutionInitiation(projectId, next, { recordId: progress?.progress_id, expectedRevision: record?.revision, expectedIdentity: record?.identity, timestamp: next.updatedAt, operationKind }); progress = stored; record = stored.state; await reload(record.id); text("evolution-message", "Evolution initiative saved locally."); }
+  async function run(command) {
+    text("evolution-error", ""); text("evolution-message", ""); if (command === "open-latest") { await reload(); return; }
+    if (command === "create") { const result = await repository.createPatternEvolutionInitiation(projectId, { closureId: requestedClosureId, now: now(), ...formInput() }); progress = result.initiationRecord; record = result.rawInitiation; await reload(record.id); return; }
+    const options = commandOptions(); let next = record;
+    if (command === "save") next = api.updatePatternEvolutionInitiation(record, formInput(), options); else if (command === "assess") next = api.startAssessing(record, source, options); else if (command === "ready") next = api.markReady(record, source, options); else if (command === "approve") next = api.approveInitiation(record, source, options); else if (command === "reject") next = api.rejectInitiation(record, source, options); else if (command === "cancel") next = api.cancelInitiation(record, source, options); else if (command === "revalidate") { const stored = await repository.revalidatePatternEvolutionInitiation(projectId, record.id, { timestamp: now() }); progress = stored; record = stored.state; await reload(record.id); return; }
+    await save(next, `PATTERN_EVOLUTION_INITIATION_${next.status.toUpperCase()}`);
+  }
+  async function initialize() { setForm(null); if (!projectId) throw new api.PatternEvolutionInitiationError("project_required", "Open this page from an adaptation closure."); await repository.initialize(); await reload(); globalObject.document.addEventListener("click", (event) => { const button = event.target.closest("[data-command]"); if (!button) return; run(button.dataset.command).catch((error) => text("evolution-error", error?.userMessage || error?.message || "Evolution initiative command failed.")); }); }
+  initialize().catch((error) => { byId("evolution-fatal").hidden = false; byId("evolution-workflow").hidden = true; text("evolution-fatal-message", error?.userMessage || error?.message || "Evolution initiative could not be opened."); });
+})(typeof window !== "undefined" ? window : globalThis);

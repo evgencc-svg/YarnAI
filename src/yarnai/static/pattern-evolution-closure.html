@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Pattern evolution closure</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-evolution-closure.css">
+  <script src="/static/pattern-evolution-initiation.js" defer></script>
+  <script src="/static/pattern-evolution-proposal.js" defer></script>
+  <script src="/static/pattern-evolution-proposal-review.js" defer></script>
+  <script src="/static/pattern-evolution-decision.js" defer></script>
+  <script src="/static/pattern-evolution-execution.js" defer></script>
+  <script src="/static/pattern-evolution-execution-verification.js" defer></script>
+  <script src="/static/pattern-evolution-acceptance.js" defer></script>
+  <script src="/static/pattern-evolution-closure.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-evolution-closure-assistant.js" defer></script>
+</head>
+<body>
+  <main class="closure-shell" data-testid="pattern-evolution-closure-page">
+    <header class="closure-hero">
+      <p class="eyebrow">PATTERN_EVOLUTION_CLOSURE · Stage 52</p>
+      <h1>Close one immutable evolution cycle</h1>
+      <p class="lead">A deterministic administrative closure that re-resolves every live record from initiation through acceptance, reconciles evidence, conditions, trust, provenance, revisions, duplicates, and risk, then records one immutable outcome.</p>
+      <p id="closure-context" aria-live="polite">Loading closure context…</p>
+    </header>
+
+    <section id="closure-loading" class="panel state state--loading" data-testid="closure-loading-state" aria-live="polite"><h2>Reconciling the live cycle</h2><p>Reading immutable source records and computing policy results.</p></section>
+    <section id="closure-fatal" class="panel state state--invalid" hidden role="alert" data-testid="closure-fatal-state"><h2>Closure unavailable</h2><p id="closure-fatal-message"></p></section>
+    <div id="closure-workflow" hidden>
+      <section id="closure-missing-context" class="panel state state--missing" hidden data-testid="closure-missing-context-state"><h2>Terminal acceptance context required</h2><p>Open this page from an eligible, locally proven acceptance. URL parameters and embedded snapshots never establish live domain truth.</p></section>
+      <section id="closure-stale" class="panel state state--stale" hidden data-testid="closure-stale-state"><h2>Immutable closure is stale</h2><p>A live dependency changed. This record remains historical; revalidation must create a successor.</p></section>
+      <section id="closure-imported-unproven" class="panel state state--unproven" hidden data-testid="closure-imported-unproven-state"><h2>Imported closure is locally unproven</h2></section>
+      <section id="closure-collision" class="panel state state--invalid" hidden data-testid="closure-collision-state"><h2>Identity collision or competing terminal detected</h2></section>
+      <section id="closure-quarantine" class="panel state state--invalid" hidden data-testid="closure-quarantine-state"><h2>Closure or dependency is quarantined</h2></section>
+
+      <section class="panel" data-testid="closure-summary">
+        <div class="status-line"><span id="closure-lifecycle" class="chip">missing</span><span id="closure-status" class="chip">blocked</span><span id="closure-outcome" class="chip">blocked</span><span id="closure-risk" class="chip">indeterminate</span><span id="closure-chain-validity" class="chip">invalid</span><span id="closure-trust" class="chip">untrusted</span></div>
+        <h2>Administrative closure summary</h2>
+        <dl class="identity-grid"><div><dt>Closure ID</dt><dd id="closure-id">—</dd></div><div><dt>Identity</dt><dd><code id="closure-identity">—</code></dd></div><div><dt>Semantic identity</dt><dd><code id="closure-semantic-identity">—</code></dd></div><div><dt>Digest</dt><dd><code id="closure-digest">—</code></dd></div><div><dt>Revision</dt><dd id="closure-revision">—</dd></div></dl>
+        <p id="closure-policy-summary">Loading deterministic closure policy…</p>
+      </section>
+
+      <section class="panel outcome-card" data-testid="closure-outcome-summary"><div><p class="label">Computed outcome</p><output id="closure-outcome-output">blocked</output></div><div><p class="label">Computed status</p><output id="closure-status-output">blocked</output></div><div><p class="label">Computed risk</p><output id="closure-risk-output">indeterminate</output></div><div><p class="label">Live-chain validity</p><output id="closure-chain-output">invalid</output></div></section>
+
+      <section class="panel" data-testid="closure-live-chain-summary">
+        <h2>Live-chain validation · Stages 45–51</h2>
+        <dl class="source-grid"><div><dt>Project</dt><dd id="closure-project-id">—</dd></div><div><dt>Pattern</dt><dd id="closure-pattern-id">—</dd></div><div><dt>Evolution / cycle</dt><dd id="closure-cycle-id">—</dd></div><div><dt>Initiation</dt><dd id="closure-initiation-id">—</dd></div><div><dt>Proposal</dt><dd id="closure-proposal-id">—</dd></div><div><dt>Proposal review</dt><dd id="closure-review-id">—</dd></div><div><dt>Decision</dt><dd id="closure-decision-id">—</dd></div><div><dt>Execution</dt><dd id="closure-execution-id">—</dd></div><div><dt>Verification</dt><dd id="closure-verification-id">—</dd></div><div><dt>Acceptance</dt><dd id="closure-acceptance-id">—</dd></div></dl>
+        <dl class="compact-grid"><dt>Source-chain digest</dt><dd><code id="closure-source-chain-digest">—</code></dd><dt>Source proof</dt><dd id="closure-source-proof">unproven</dd><dt>Stale projection</dt><dd id="closure-stale-projection">false</dd></dl>
+        <details><summary>Immutable source binding</summary><pre id="closure-source-binding"></pre></details>
+      </section>
+
+      <section class="panel assessment-grid" data-testid="closure-acceptance-summary"><article><h2>Acceptance reconciliation</h2><pre id="closure-acceptance-reconciliation"></pre></article><article><h2>Condition disposition</h2><pre id="closure-condition-disposition"></pre></article><article><h2>Closure criteria</h2><pre id="closure-criteria"></pre></article><article><h2>Closure disposition</h2><pre id="closure-disposition"></pre></article></section>
+      <section class="panel quality-grid" data-testid="closure-evidence-summary"><article><h2>Evidence completeness</h2><pre id="closure-evidence-completeness"></pre></article><article><h2>Evidence consistency</h2><pre id="closure-evidence-consistency"></pre></article><article><h2>Evidence coverage</h2><pre id="closure-evidence-coverage"></pre></article><article><h2>Evidence provenance and trust</h2><pre id="closure-evidence-provenance"></pre></article></section>
+      <section class="panel" data-testid="closure-risk-summary"><h2>Independent risk reconciliation</h2><pre id="closure-risk-reconciliation"></pre></section>
+      <section class="panel" data-testid="closure-findings"><h2>Deterministic reasons</h2><ul id="closure-reason-list"></ul></section>
+
+      <aside class="panel no-operations" data-testid="closure-no-promotion-deployment-notice"><h2>Administrative record only</h2><p>This closure performs no rollout, promotion, deployment, canonical-pattern change, code execution, schema change, migration, or rollback. An accepted closure means the acceptance cycle is administratively final; it does not mean the change was applied.</p></aside>
+
+      <nav class="page-nav" aria-label="Pattern evolution closure navigation"><a id="closure-back-acceptance" data-testid="back-to-evolution-acceptance" href="/pattern-evolution-acceptance">Back to acceptance</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>

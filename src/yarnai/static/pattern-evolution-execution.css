@@ -1,0 +1,21 @@
+:root { color-scheme: light; }
+body { margin: 0; background: #f5f1e8; color: #25221d; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.execution-shell { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 40px 0 72px; }
+.execution-hero { padding: 30px; border-radius: 24px; background: linear-gradient(135deg, #27352f, #49675a); color: #fff; box-shadow: 0 18px 45px rgba(31, 42, 37, .18); }
+.eyebrow, .label { margin: 0 0 8px; font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.execution-hero h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.05; }
+.lead { max-width: 850px; line-height: 1.6; }
+.panel { margin-top: 20px; padding: 24px; border: 1px solid #d9d1c2; border-radius: 18px; background: #fffdf9; box-shadow: 0 8px 24px rgba(56, 49, 39, .06); }
+.status-line { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.chip { display: inline-flex; padding: 5px 10px; border-radius: 999px; background: #e5eee8; color: #264638; font-weight: 750; }
+.identity-grid, .source-grid, .plan-grid, .contract-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.identity-grid div, .source-grid article, .plan-grid article, .contract-grid article { min-width: 0; padding: 15px; border-radius: 12px; background: #f7f3eb; }
+dt { color: #6b6256; font-size: .82rem; font-weight: 750; } dd { margin: 4px 0 12px; overflow-wrap: anywhere; }
+.compact-grid { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; }
+pre { max-height: 360px; overflow: auto; margin: 8px 0 0; padding: 14px; border-radius: 10px; background: #1f2824; color: #edf4ef; white-space: pre-wrap; overflow-wrap: anywhere; }
+.outcome-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.outcome-card output { font-size: 1.15rem; font-weight: 800; overflow-wrap: anywhere; }
+.state { border-left: 6px solid #8a8173; }.state--missing { border-color: #b59042; }.state--invalid, .state--blocked { border-color: #a04436; }.state--authorized { border-color: #2d7452; }.state--stale, .state--unproven { border-color: #865f9b; }.state--evidence, .state--revision { border-color: #b67528; }.state--cancelled { border-color: #777; }
+.page-nav { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 24px; }.page-nav a { color: #285443; font-weight: 750; }
+.error { color: #a12e24; font-weight: 700; }
+@media (max-width: 640px) { .execution-shell { width: min(100% - 20px, 1180px); padding-top: 10px; }.execution-hero, .panel { padding: 18px; border-radius: 14px; }.compact-grid { grid-template-columns: 1fr; } }

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Pattern evolution decision</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-evolution-decision.css">
+  <script src="/static/pattern-evolution-initiation.js" defer></script>
+  <script src="/static/pattern-evolution-proposal.js" defer></script>
+  <script src="/static/pattern-evolution-proposal-review.js" defer></script>
+  <script src="/static/pattern-evolution-decision.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-evolution-decision-assistant.js" defer></script>
+</head>
+<body>
+  <main class="decision-shell" data-testid="pattern-evolution-decision-page">
+    <header class="decision-hero">
+      <p class="eyebrow">PATTERN_EVOLUTION_DECISION · Stage 48</p>
+      <h1>Decide the reviewed evolution proposal</h1>
+      <p class="lead">Record a deterministic governance decision for one immutable proposal and review revision. This gate does not apply changes, alter a pattern, run a migration, or change the IndexedDB schema.</p>
+      <p id="decision-context" aria-live="polite">Loading decision context…</p>
+    </header>
+
+    <section id="decision-fatal" class="panel state state--invalid" hidden role="alert" data-testid="decision-fatal-state"><h2>Decision unavailable</h2><p id="decision-fatal-message"></p></section>
+    <div id="decision-workflow">
+      <section class="panel source-card" data-testid="decision-identity">
+        <div class="status-line"><span id="decision-lifecycle" class="chip">missing</span><span id="decision-proof-status" class="chip">unproven</span><span id="decision-revision">Epoch — · revision —</span></div>
+        <h2>Decision identity and policy</h2>
+        <dl class="identity-grid">
+          <div><dt>Decision ID</dt><dd id="decision-id">—</dd></div>
+          <div><dt>Decision identity</dt><dd><code id="decision-identity-value">—</code></dd></div>
+          <div><dt>Decision digest</dt><dd><code id="decision-digest">—</code></dd></div>
+          <div><dt>Decision policy</dt><dd id="decision-policy">—</dd></div>
+          <div><dt>Review policy</dt><dd id="decision-review-policy">—</dd></div>
+          <div><dt>Risk policy</dt><dd id="decision-risk-policy">—</dd></div>
+        </dl>
+        <p id="decision-message" aria-live="polite"></p><p id="decision-error" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel" data-testid="decision-source-chain">
+        <h2>Immutable source chain</h2>
+        <div class="source-grid">
+          <article><h3>Project and pattern</h3><dl><dt>Project ID</dt><dd id="decision-source-project-id">—</dd><dt>Pattern ID</dt><dd id="decision-source-pattern-id">—</dd></dl></article>
+          <article><h3>Stage 45 initiation</h3><dl><dt>Initiation ID</dt><dd id="decision-source-initiation-id">—</dd><dt>Revision</dt><dd id="decision-source-initiation-revision">—</dd><dt>Digest</dt><dd><code id="decision-source-initiation-digest">—</code></dd></dl></article>
+          <article><h3>Stage 46 proposal</h3><dl><dt>Proposal ID</dt><dd id="decision-source-proposal-id">—</dd><dt>Revision</dt><dd id="decision-source-proposal-revision">—</dd><dt>Digest</dt><dd><code id="decision-source-proposal-digest">—</code></dd></dl></article>
+          <article><h3>Stage 47 review</h3><dl><dt>Review ID</dt><dd id="decision-source-review-id">—</dd><dt>Revision</dt><dd id="decision-source-review-revision">—</dd><dt>Digest</dt><dd><code id="decision-source-review-digest">—</code></dd><dt>Lifecycle / verdict</dt><dd id="decision-source-review-state">—</dd><dt>Risk / readiness</dt><dd id="decision-source-review-readiness">—</dd></dl></article>
+        </div>
+        <dl class="compact-grid"><dt>Source provenance</dt><dd id="decision-source-provenance">unproven</dd><dt>Source freshness</dt><dd id="decision-source-freshness">missing</dd><dt>Source gate</dt><dd id="decision-source-gate">review required</dd></dl>
+        <details><summary>Immutable initiation snapshot</summary><pre id="decision-initiation-snapshot"></pre></details>
+        <details><summary>Immutable proposal snapshot</summary><pre id="decision-proposal-snapshot"></pre></details>
+        <details><summary>Immutable review snapshot</summary><pre id="decision-review-snapshot"></pre></details>
+      </section>
+
+      <section id="decision-missing-context-state" class="panel state state--missing" data-testid="decision-missing-context-state"><h2>Project context required</h2><p>Open this page from a terminal Stage 47 review. No decision was created.</p></section>
+      <section id="decision-missing-review-state" class="panel state state--missing" hidden data-testid="decision-missing-review-state"><h2>Review required</h2><p>A Stage 47 review is required. No synthetic review or stale placeholder was created.</p></section>
+      <section id="decision-authorized-state" class="panel state state--authorized" hidden data-testid="decision-authorized-state"><h2>Authorized</h2><p>The immutable reviewed proposal may proceed only under the recorded conditions.</p></section>
+      <section id="decision-revision-required-state" class="panel state state--revision" hidden data-testid="decision-revision-required-state"><h2>Revision required</h2><p>Create a new proposal revision and obtain a new review.</p></section>
+      <section id="decision-evidence-required-state" class="panel state state--evidence" hidden data-testid="decision-evidence-required-state"><h2>Evidence required</h2><p>Collect evidence and create a new review revision.</p></section>
+      <section id="decision-blocked-state" class="panel state state--blocked" hidden data-testid="decision-blocked-state"><h2>Decision blocked</h2><p>Unresolved policy, source, compatibility, migration, rollback, or conflict gates prevent progress.</p></section>
+      <section id="decision-declined-state" class="panel state state--declined" hidden data-testid="decision-declined-state"><h2>Declined</h2><p>The current proposal identity cannot proceed.</p></section>
+      <section id="decision-cancelled-state" class="panel state state--cancelled" hidden data-testid="decision-cancelled-state"><h2>Cancelled</h2><p>No further action is authorized for this decision.</p></section>
+      <section id="decision-stale-state" class="panel state state--stale" hidden data-testid="decision-stale-state"><h2>Stale decision</h2><p>Current source revisions or digests no longer prove this decision. Create a successor.</p></section>
+      <section id="decision-imported-state" class="panel state state--unproven" hidden data-testid="decision-imported-state"><h2>Imported source is unproven</h2><p>Matching IDs do not authorize. Local semantic revalidation must create a successor.</p></section>
+      <section id="decision-collision-state" class="panel state state--invalid" hidden data-testid="decision-collision-state"><h2>Identity collision</h2><p>The same identity resolves to incompatible semantic payloads.</p></section>
+      <section id="decision-quarantine-state" class="panel state state--invalid" hidden data-testid="decision-quarantine-state"><h2>Invalid or quarantined decision</h2><p>The persisted artifact failed structural or deterministic validation.</p></section>
+
+      <section class="panel outcome-card" data-testid="decision-outcome-panel"><div><p class="label">Computed decision outcome</p><output id="decision-outcome">—</output></div><div><p class="label">Canonical next action</p><output id="decision-next-action">—</output></div><div><p class="label">Review risk interpretation</p><output id="decision-risk">—</output></div></section>
+      <section class="panel" data-testid="decision-reasons"><h2>Deterministic reasons</h2><ul id="decision-reason-list"></ul></section>
+      <section class="panel" data-testid="decision-conditions"><h2>Mandatory decision conditions</h2><ul id="decision-condition-list"></ul></section>
+      <section class="panel traceability" data-testid="decision-traceability"><h2>Requests, blockers, and traceability</h2><div class="traceability-grid"><div><h3>Affected change IDs</h3><ul id="decision-affected-change-ids"></ul></div><div><h3>Revision requests</h3><ul id="decision-revision-requests"></ul></div><div><h3>Evidence requests</h3><ul id="decision-evidence-requests"></ul></div><div><h3>Blockers</h3><ul id="decision-blockers"></ul></div><div><h3>Decline reasons</h3><ul id="decision-decline-reasons"></ul></div></div></section>
+      <section class="panel" data-testid="decision-restrictions"><h2>Risk and implementation restrictions</h2><dl class="compact-grid"><dt>Migration dependency</dt><dd id="decision-migration-dependency">—</dd><dt>Rollback obligations</dt><dd><pre id="decision-rollback-obligations"></pre></dd><dt>Compatibility restrictions</dt><dd><pre id="decision-compatibility-restrictions"></pre></dd></dl></section>
+      <section class="panel" data-testid="decision-audit"><h2>Immutable audit</h2><pre id="decision-audit-log"></pre></section>
+
+      <section class="panel lifecycle" data-testid="decision-actions"><h2>Decision lifecycle</h2><p>Commands follow the computed domain outcome. There is no manual authorize, outcome, readiness, risk, source, or application control.</p><div class="command-bar"><button type="button" data-command="create">Create decision</button><button type="button" data-command="start">Start deciding</button><button type="button" data-command="ready">Mark ready</button><button type="button" data-command="finalize">Finalize computed decision</button><button type="button" data-command="cancel">Cancel</button><button type="button" data-command="revalidate">Create revalidated successor</button><button type="button" data-command="open-latest">Open latest</button></div></section>
+      <nav class="page-nav" aria-label="Pattern evolution decision navigation"><a id="decision-back-review" data-testid="back-to-proposal-review" href="/pattern-evolution-proposal-review">Back to proposal review</a><a id="decision-open-execution" data-testid="open-evolution-execution" href="/pattern-evolution-execution" hidden aria-disabled="true">Open execution envelope</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>

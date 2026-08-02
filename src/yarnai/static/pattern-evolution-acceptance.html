@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Pattern evolution acceptance</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-evolution-acceptance.css">
+  <script src="/static/pattern-evolution-execution.js" defer></script>
+  <script src="/static/pattern-evolution-execution-verification.js" defer></script>
+  <script src="/static/pattern-evolution-acceptance.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-evolution-acceptance-assistant.js" defer></script>
+</head>
+<body>
+  <main class="acceptance-shell" data-testid="pattern-evolution-acceptance-page">
+    <header class="acceptance-hero">
+      <p class="eyebrow">PATTERN_EVOLUTION_ACCEPTANCE</p>
+      <h1>Decide whether the verified result may advance</h1>
+      <p class="lead">A deterministic governance gate that independently proves the live initiation-to-verification chain, evaluates structured acceptance criteria, evidence, conditions, residual risk, governance, authorization, provenance, integrity, and readiness—without promoting, migrating, rolling back, or executing anything.</p>
+      <p id="acceptance-context" aria-live="polite">Loading acceptance context…</p>
+    </header>
+
+    <section id="acceptance-fatal" class="panel state state--invalid" hidden role="alert" data-testid="acceptance-fatal-state"><h2>Acceptance unavailable</h2><p id="acceptance-fatal-message"></p></section>
+    <div id="acceptance-workflow">
+      <section id="acceptance-missing-context-state" class="panel state state--missing" data-testid="acceptance-missing-context-state"><h2>Terminal verification context required</h2><p>Open this page from a locally proven terminal execution verification. URL parameters and embedded snapshots never establish domain truth.</p></section>
+      <section id="acceptance-source-ineligible-state" class="panel state state--invalid" hidden data-testid="acceptance-source-ineligible-state"><h2>Source gate blocked</h2><p>The live verification or canonical chain failed integrity, provenance, authorization, trust, freshness, revision, collision, quarantine, or superseding checks.</p></section>
+      <section id="acceptance-imported-unproven-state" class="panel state state--unproven" hidden data-testid="acceptance-imported-unproven-state"><h2>Imported acceptance is unproven</h2><p>Local revalidation must preserve this record and create an immutable successor from the live canonical chain.</p></section>
+      <section id="acceptance-stale-state" class="panel state state--stale" hidden data-testid="acceptance-stale-state"><h2>Acceptance is stale</h2><p>This record can never become current again; reassessment creates a successor.</p></section>
+      <section id="acceptance-accepted-state" class="panel state state--accepted" hidden data-testid="acceptance-accepted-state"><h2>Candidate accepted</h2></section>
+      <section id="acceptance-accepted-with-conditions-state" class="panel state state--conditional" hidden data-testid="acceptance-accepted-with-conditions-state"><h2>Candidate accepted with bounded conditions</h2></section>
+      <section id="acceptance-revision-required-state" class="panel state state--revision" hidden data-testid="acceptance-revision-required-state"><h2>Immutable successor revision required</h2></section>
+      <section id="acceptance-evidence-required-state" class="panel state state--evidence" hidden data-testid="acceptance-evidence-required-state"><h2>Additional trusted evidence required</h2></section>
+      <section id="acceptance-rollback-required-state" class="panel state state--rollback" hidden data-testid="acceptance-rollback-required-state"><h2>Separate rollback workflow required</h2></section>
+      <section id="acceptance-rejected-state" class="panel state state--invalid" hidden data-testid="acceptance-rejected-state"><h2>Candidate rejected without asserting rollback</h2></section>
+      <section id="acceptance-blocked-state" class="panel state state--blocked" hidden data-testid="acceptance-blocked-state"><h2>Acceptance blocked</h2></section>
+      <section id="acceptance-failed-state" class="panel state state--invalid" hidden data-testid="acceptance-failed-state"><h2>Acceptance computation failed</h2></section>
+      <section id="acceptance-cancelled-state" class="panel state state--cancelled" hidden data-testid="acceptance-cancelled-state"><h2>Acceptance assessment cancelled</h2></section>
+
+      <section class="panel" data-testid="acceptance-identity">
+        <div class="status-line"><span id="acceptance-lifecycle" class="chip">missing</span><span id="acceptance-status" class="chip">pending</span><span id="acceptance-verdict" class="chip">blocked</span><span id="acceptance-risk" class="chip">indeterminate</span><span id="acceptance-proof-status" class="chip">unproven</span></div>
+        <h2>Immutable acceptance identity</h2>
+        <dl class="identity-grid"><div><dt>Acceptance ID</dt><dd id="acceptance-id">—</dd></div><div><dt>Identity</dt><dd><code id="acceptance-identity-value">—</code></dd></div><div><dt>Semantic identity</dt><dd><code id="acceptance-semantic-identity">—</code></dd></div><div><dt>Digest</dt><dd><code id="acceptance-digest">—</code></dd></div><div><dt>Revision</dt><dd id="acceptance-revision">—</dd></div></dl>
+        <p id="acceptance-policy">Loading deterministic acceptance policy…</p>
+      </section>
+
+      <section class="panel" data-testid="acceptance-source-summary">
+        <h2>Live canonical source chain</h2>
+        <dl class="source-grid"><div><dt>Project</dt><dd id="acceptance-project-id">—</dd></div><div><dt>Pattern</dt><dd id="acceptance-pattern-id">—</dd></div><div><dt>Initiation</dt><dd id="acceptance-initiation-id">—</dd></div><div><dt>Proposal</dt><dd id="acceptance-proposal-id">—</dd></div><div><dt>Review</dt><dd id="acceptance-review-id">—</dd></div><div><dt>Decision</dt><dd id="acceptance-decision-id">—</dd></div><div><dt>Execution</dt><dd id="acceptance-execution-id">—</dd></div><div><dt>Verification</dt><dd id="acceptance-verification-id">—</dd></div><div><dt>Verification outcome</dt><dd id="acceptance-verification-outcome">—</dd></div></dl>
+        <dl class="compact-grid"><dt>Source gate</dt><dd id="acceptance-source-gate">missing</dd><dt>Chain integrity</dt><dd id="acceptance-chain-integrity">unproven</dd><dt>Verification digest</dt><dd><code id="acceptance-source-verification-digest">—</code></dd><dt>Source chain digest</dt><dd><code id="acceptance-source-chain-digest">—</code></dd></dl>
+        <details><summary>Canonical source binding</summary><pre id="acceptance-source-binding"></pre></details>
+      </section>
+
+      <section class="panel outcome-card" data-testid="acceptance-outcome"><div><p class="label">Computed verdict</p><output id="acceptance-verdict-output">blocked</output></div><div><p class="label">Computed status</p><output id="acceptance-status-output">blocked</output></div><div><p class="label">Computed risk</p><output id="acceptance-risk-output">indeterminate</output></div><div><p class="label">Next action</p><output id="acceptance-next-action">resolve_acceptance_blocker</output></div></section>
+
+      <section class="panel assessment-grid" data-testid="acceptance-conformance"><article><h2>Source verification</h2><pre id="acceptance-source-assessment"></pre></article><article><h2>Decision conformance</h2><pre id="acceptance-decision-conformance"></pre></article><article><h2>Execution conformance</h2><pre id="acceptance-execution-conformance"></pre></article><article><h2>Verification conformance</h2><pre id="acceptance-verification-conformance"></pre></article></section>
+      <section class="panel assessment-grid" data-testid="acceptance-contract"><article><h2>Acceptance criteria</h2><pre id="acceptance-criteria"></pre></article><article><h2>Mandatory conditions</h2><pre id="acceptance-mandatory-conditions"></pre></article><article><h2>Residual conditions</h2><pre id="acceptance-residual-conditions"></pre></article><article><h2>Evidence assessment</h2><pre id="acceptance-evidence"></pre></article><article><h2>Risk acceptance</h2><pre id="acceptance-risk-assessment"></pre></article><article><h2>Benefit assessment</h2><pre id="acceptance-benefit-assessment"></pre></article><article><h2>Cost assessment</h2><pre id="acceptance-cost-assessment"></pre></article><article><h2>Compatibility</h2><pre id="acceptance-compatibility-assessment"></pre></article><article><h2>Migration readiness (assessment only)</h2><pre id="acceptance-migration-readiness"></pre></article><article><h2>Rollback readiness (assessment only)</h2><pre id="acceptance-rollback-readiness"></pre></article><article><h2>Operational readiness</h2><pre id="acceptance-operational-readiness"></pre></article><article><h2>Governance</h2><pre id="acceptance-governance-assessment"></pre></article><article><h2>Authorization</h2><pre id="acceptance-authorization-assessment"></pre></article><article><h2>Provenance</h2><pre id="acceptance-provenance-assessment"></pre></article><article><h2>Integrity</h2><pre id="acceptance-integrity-assessment"></pre></article><article><h2>Post-acceptance obligations</h2><pre id="acceptance-post-obligations"></pre></article><article><h2>Stop conditions</h2><pre id="acceptance-stop-conditions"></pre></article><article><h2>Rejection reasons</h2><pre id="acceptance-rejection-reasons"></pre></article><article><h2>Audit information</h2><pre id="acceptance-audit-information"></pre></article></section>
+      <section class="panel quality-grid" data-testid="acceptance-quality"><article><h2>Completeness</h2><pre id="acceptance-completeness"></pre></article><article><h2>Consistency</h2><pre id="acceptance-consistency"></pre></article><article><h2>Coverage</h2><pre id="acceptance-coverage"></pre></article></section>
+      <section class="panel" data-testid="acceptance-findings"><h2>Deterministic reasons and unresolved findings</h2><ul id="acceptance-reason-list"></ul><pre id="acceptance-unresolved-findings"></pre></section>
+
+      <a id="acceptance-open-closure" data-testid="open-evolution-closure" href="/pattern-evolution-closure" hidden>Open administrative closure</a>
+      <nav class="page-nav" aria-label="Pattern evolution acceptance navigation"><a id="acceptance-back-verification" data-testid="back-to-evolution-execution-verification" href="/pattern-evolution-execution-verification">Back to execution verification</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>

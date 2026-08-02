@@ -1,0 +1,44 @@
+:root { color-scheme: light; --review-ink: #251f2a; --review-muted: #6f6672; --review-paper: #fffdf9; --review-line: #ddd3dc; --review-accent: #6c3a66; --review-ok: #236449; --review-warn: #946116; --review-bad: #973c45; --review-stale: #62517c; }
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--review-ink); background: radial-gradient(circle at top left, #f5e9f1, transparent 30rem), #f6f2ee; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+.review-shell { width: min(1180px, calc(100% - 2rem)); margin: 0 auto; padding: 2rem 0 4rem; }
+.review-hero { padding: 1.5rem 0 1rem; }
+.review-hero h1 { max-width: 18ch; margin: .25rem 0 .75rem; font-family: Georgia, serif; font-size: clamp(2.2rem, 6vw, 4.8rem); line-height: .98; }
+.eyebrow, .label { color: var(--review-accent); font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.lead { max-width: 70ch; color: var(--review-muted); font-size: 1.05rem; line-height: 1.65; }
+.panel { margin-top: 1rem; padding: clamp(1rem, 3vw, 1.6rem); border: 1px solid var(--review-line); border-radius: 18px; background: color-mix(in srgb, var(--review-paper) 96%, transparent); box-shadow: 0 12px 32px rgb(48 33 46 / 7%); }
+.panel h2 { margin-top: 0; font-family: Georgia, serif; font-size: 1.45rem; }
+.status-line { display: flex; flex-wrap: wrap; gap: .55rem; align-items: center; margin-bottom: 1rem; color: var(--review-muted); }
+.chip { display: inline-flex; padding: .35rem .65rem; border-radius: 999px; background: #eee5ed; color: var(--review-accent); font-size: .78rem; font-weight: 800; }
+.identity-grid, .compact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .75rem; margin: 0; }
+.identity-grid div { min-width: 0; padding: .8rem; border: 1px solid var(--review-line); border-radius: 12px; background: #fff; }
+dt { color: var(--review-muted); font-size: .78rem; font-weight: 700; text-transform: uppercase; }
+dd { margin: .25rem 0 0; overflow-wrap: anywhere; }
+pre { max-height: 28rem; overflow: auto; padding: 1rem; border-radius: 12px; background: #211e23; color: #f7edf4; font: .78rem/1.55 ui-monospace, monospace; white-space: pre-wrap; }
+.verdict-card { display: grid; grid-template-columns: 1.2fr 1.4fr .7fr; gap: 1rem; }
+.verdict-card > div { padding: 1rem; border-radius: 14px; background: #f7f0f5; }
+.verdict-card output { display: block; color: var(--review-accent); font: 700 clamp(1.4rem, 4vw, 2.3rem)/1 Georgia, serif; }
+.compact-grid { grid-template-columns: 1fr auto; gap: .25rem .75rem; margin-top: .8rem; font-size: .8rem; }
+.compact-grid dd { margin: 0; }
+.dimension-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .7rem; }
+.dimension { padding: .9rem; border: 1px solid var(--review-line); border-left: 5px solid var(--review-ok); border-radius: 12px; background: #fff; }
+.dimension[data-state="block"], .dimension[data-state="reject"], .dimension[data-state="stale"], .dimension[data-state="not_ready"] { border-left-color: var(--review-bad); }
+.dimension[data-state="change"], .dimension[data-state="evidence"], .dimension[data-state="moderate"], .dimension[data-state="high"], .dimension[data-state="critical"] { border-left-color: var(--review-warn); }
+.dimension h3 { margin: 0 0 .4rem; font-size: .92rem; overflow-wrap: anywhere; }
+.dimension strong { color: var(--review-accent); }
+.dimension p { margin: .45rem 0 0; color: var(--review-muted); font-size: .78rem; line-height: 1.45; }
+.finding-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+ul { padding-left: 1.15rem; }
+li { margin: .35rem 0; line-height: 1.45; }
+.state { border-left: 6px solid var(--review-accent); }
+.state--blocked { border-left-color: var(--review-warn); }
+.state--stale, .state--unproven { border-left-color: var(--review-stale); }
+.state--invalid { border-left-color: var(--review-bad); }
+.error { color: var(--review-bad); font-weight: 700; }
+.command-bar, .page-nav { display: flex; flex-wrap: wrap; gap: .65rem; }
+button, .page-nav a { border: 1px solid var(--review-accent); border-radius: 999px; padding: .65rem .9rem; background: var(--review-accent); color: #fff; font: inherit; font-weight: 750; text-decoration: none; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .4; }
+.page-nav { margin-top: 1.2rem; }
+.page-nav a { background: transparent; color: var(--review-accent); }
+[hidden] { display: none !important; }
+@media (max-width: 760px) { .verdict-card, .finding-columns { grid-template-columns: 1fr; } .review-shell { width: min(100% - 1rem, 1180px); } }

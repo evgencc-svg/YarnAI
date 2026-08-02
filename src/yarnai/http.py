@@ -604,6 +604,78 @@ async def pattern_execution_adaptation_closure(_request: Request) -> FileRespons
     )
 
 
+async def pattern_evolution_initiation(_request: Request) -> FileResponse:
+    """Return the evidence-bound initiation of a new pattern evolution cycle."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-evolution-initiation.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_evolution_proposal(_request: Request) -> FileResponse:
+    """Return a traceable proposal based on one approved evolution initiation."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-evolution-proposal.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_evolution_proposal_review(_request: Request) -> FileResponse:
+    """Return an independent deterministic review of one submitted proposal."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-evolution-proposal-review.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_evolution_decision(_request: Request) -> FileResponse:
+    """Return the deterministic governance decision for one reviewed proposal."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-evolution-decision.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_evolution_execution(_request: Request) -> FileResponse:
+    """Return the deterministic execution envelope for one authorized decision."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-evolution-execution.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_evolution_execution_verification(_request: Request) -> FileResponse:
+    """Return the deterministic verification of one terminal evolution execution."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-evolution-execution-verification.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_evolution_acceptance(_request: Request) -> FileResponse:
+    """Return the deterministic governance acceptance for one verified evolution."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-evolution-acceptance.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_evolution_closure(_request: Request) -> FileResponse:
+    """Return the deterministic administrative closure for one evolution cycle."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-evolution-closure.html",
+        media_type="text/html",
+    )
+
+
 async def extract_pattern_pdf(request: Request) -> JSONResponse:
     """Extract only the local text layer of one PDF."""
 
@@ -893,6 +965,46 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/pattern-execution-adaptation-closure",
             pattern_execution_adaptation_closure,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-evolution-initiation",
+            pattern_evolution_initiation,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-evolution-proposal",
+            pattern_evolution_proposal,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-evolution-proposal-review",
+            pattern_evolution_proposal_review,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-evolution-decision",
+            pattern_evolution_decision,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-evolution-execution",
+            pattern_evolution_execution,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-evolution-execution-verification",
+            pattern_evolution_execution_verification,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-evolution-acceptance",
+            pattern_evolution_acceptance,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-evolution-closure",
+            pattern_evolution_closure,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),

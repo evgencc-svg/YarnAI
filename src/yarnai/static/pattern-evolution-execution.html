@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Pattern evolution execution</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-evolution-execution.css">
+  <script src="/static/pattern-evolution-initiation.js" defer></script>
+  <script src="/static/pattern-evolution-proposal.js" defer></script>
+  <script src="/static/pattern-evolution-proposal-review.js" defer></script>
+  <script src="/static/pattern-evolution-decision.js" defer></script>
+  <script src="/static/pattern-evolution-execution.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-evolution-execution-assistant.js" defer></script>
+</head>
+<body>
+  <main class="execution-shell" data-testid="pattern-evolution-execution-page">
+    <header class="execution-hero">
+      <p class="eyebrow">PATTERN_EVOLUTION_EXECUTION · Stage 49</p>
+      <h1>Verify the authorized evolution execution</h1>
+      <p class="lead">A deterministic execution envelope for one immutable authorized decision. This page never mutates the source pattern, applies a data migration, upgrades the schema, or treats UI state as authorization.</p>
+      <p id="execution-context" aria-live="polite">Loading execution context…</p>
+    </header>
+
+    <section id="execution-fatal" class="panel state state--invalid" hidden role="alert" data-testid="execution-fatal-state"><h2>Execution unavailable</h2><p id="execution-fatal-message"></p></section>
+    <div id="execution-workflow">
+      <section class="panel" data-testid="execution-identity">
+        <div class="status-line"><span id="execution-lifecycle" class="chip">missing</span><span id="execution-status" class="chip">pending</span><span id="execution-proof-status" class="chip">unproven</span><span id="execution-revision">Epoch — · revision —</span></div>
+        <h2>Execution identity and policies</h2>
+        <dl class="identity-grid"><div><dt>Execution ID</dt><dd id="execution-id">—</dd></div><div><dt>Identity</dt><dd><code id="execution-identity-value">—</code></dd></div><div><dt>Semantic identity</dt><dd><code id="execution-semantic-identity">—</code></dd></div><div><dt>Digest</dt><dd><code id="execution-digest">—</code></dd></div><div><dt>Execution policy</dt><dd id="execution-policy">—</dd></div><div><dt>Risk policy</dt><dd id="execution-risk-policy">—</dd></div><div><dt>Evidence policy</dt><dd id="execution-evidence-policy">—</dd></div></dl>
+        <p id="execution-message" aria-live="polite"></p><p id="execution-error" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel" data-testid="execution-source-chain">
+        <h2>Immutable source chain</h2>
+        <div class="source-grid">
+          <article><h3>Project and pattern</h3><dl><dt>Project ID</dt><dd id="execution-project-id">—</dd><dt>Pattern ID</dt><dd id="execution-pattern-id">—</dd></dl></article>
+          <article><h3>Stage 45 initiation</h3><dl><dt>ID</dt><dd id="execution-initiation-id">—</dd><dt>Revision / digest</dt><dd id="execution-initiation-proof">—</dd></dl></article>
+          <article><h3>Stage 46 proposal</h3><dl><dt>ID</dt><dd id="execution-proposal-id">—</dd><dt>Revision / digest</dt><dd id="execution-proposal-proof">—</dd></dl></article>
+          <article><h3>Stage 47 review</h3><dl><dt>ID</dt><dd id="execution-review-id">—</dd><dt>Revision / digest</dt><dd id="execution-review-proof">—</dd></dl></article>
+          <article><h3>Stage 48 decision</h3><dl><dt>ID</dt><dd id="execution-decision-id">—</dd><dt>Revision / digest</dt><dd id="execution-decision-proof">—</dd><dt>Outcome</dt><dd id="execution-decision-outcome">—</dd></dl></article>
+        </div>
+        <dl class="compact-grid"><dt>Source gate</dt><dd id="execution-source-gate">missing</dd><dt>Freshness</dt><dd id="execution-source-freshness">missing</dd><dt>Import trust</dt><dd id="execution-import-trust">unproven</dd><dt>Collision</dt><dd id="execution-collision">false</dd><dt>Quarantine</dt><dd id="execution-quarantine">false</dd></dl>
+        <details><summary>Canonical source envelope</summary><pre id="execution-source-envelope"></pre></details>
+        <details><summary>Full immutable source snapshots</summary><pre id="execution-source-snapshots"></pre></details>
+      </section>
+
+      <section id="execution-missing-context-state" class="panel state state--missing" data-testid="execution-missing-context-state"><h2>Project and decision context required</h2><p>Open this page from a locally proven authorized decision. No execution was created from query parameters alone.</p></section>
+      <section id="execution-missing-decision-state" class="panel state state--missing" hidden data-testid="execution-missing-decision-state"><h2>Decision missing</h2><p>The referenced decision does not exist in the local repository.</p></section>
+      <section id="execution-invalid-source-state" class="panel state state--invalid" hidden data-testid="execution-invalid-source-state"><h2>Invalid source chain</h2><p>The immutable source chain, policy, identity, revision, digest, readiness, or provenance gate failed.</p></section>
+      <section id="execution-nonterminal-decision-state" class="panel state state--blocked" hidden data-testid="execution-nonterminal-decision-state"><h2>Decision is not terminal</h2><p>Execution cannot begin before the governance decision is terminal.</p></section>
+      <section id="execution-nonauthorized-decision-state" class="panel state state--blocked" hidden data-testid="execution-nonauthorized-decision-state"><h2>Decision is not authorized</h2><p>Revision, evidence, block, decline, cancellation, and stale decisions cannot execute.</p></section>
+      <section id="execution-stale-state" class="panel state state--stale" hidden data-testid="execution-stale-state"><h2>Stale execution</h2><p>A superseding source or digest mismatch made this record permanently stale.</p></section>
+      <section id="execution-imported-unproven-state" class="panel state state--unproven" hidden data-testid="execution-imported-unproven-state"><h2>Imported execution is unproven</h2><p>Local semantic revalidation must create a successor; imported completion is not trusted.</p></section>
+      <section id="execution-collision-state" class="panel state state--invalid" hidden data-testid="execution-collision-state"><h2>Identity collision</h2><p>No record was overwritten and no collision was disguised as a duplicate.</p></section>
+      <section id="execution-quarantine-state" class="panel state state--invalid" hidden data-testid="execution-quarantine-state"><h2>Quarantined execution</h2><p>The record is isolated from trusted execution state.</p></section>
+      <section id="execution-blocked-state" class="panel state state--blocked" hidden data-testid="execution-blocked-state"><h2>Execution blocked</h2><p>Source, operation, risk, precondition, dependency, migration, rollback, or compatibility proof is incomplete.</p></section>
+      <section id="execution-revision-required-state" class="panel state state--revision" hidden data-testid="execution-revision-required-state"><h2>Execution plan revision required</h2></section>
+      <section id="execution-evidence-required-state" class="panel state state--evidence" hidden data-testid="execution-evidence-required-state"><h2>Execution evidence required</h2></section>
+      <section id="execution-rollback-required-state" class="panel state state--blocked" hidden data-testid="execution-rollback-required-state"><h2>Rollback required</h2></section>
+      <section id="execution-failed-state" class="panel state state--invalid" hidden data-testid="execution-failed-state"><h2>Execution failed</h2></section>
+      <section id="execution-ready-state" class="panel state state--authorized" hidden data-testid="execution-ready-state"><h2>Ready under the recorded plan</h2></section>
+      <section id="execution-executing-state" class="panel state" hidden data-testid="execution-executing-state"><h2>Execution in progress</h2></section>
+      <section id="execution-verifying-state" class="panel state" hidden data-testid="execution-verifying-state"><h2>Verifying observations and evidence</h2></section>
+      <section id="execution-completed-state" class="panel state state--authorized" hidden data-testid="execution-completed-state"><h2>Execution completely proven</h2></section>
+      <section id="execution-cancelled-state" class="panel state state--cancelled" hidden data-testid="execution-cancelled-state"><h2>Execution cancelled</h2></section>
+
+      <section class="panel outcome-card" data-testid="execution-verdict"><div><p class="label">Computed status</p><output id="execution-status-output">pending</output></div><div><p class="label">Canonical next action</p><output id="execution-next-action">resolve_source_chain</output></div><div><p class="label">Inherited risk</p><output id="execution-risk">invalid</output></div></section>
+      <section class="panel" data-testid="execution-reasons"><h2>Deterministic reason codes</h2><ul id="execution-reason-list"></ul></section>
+      <section class="panel plan-grid" data-testid="execution-plan"><article><h2>Operations</h2><pre id="execution-operations"></pre></article><article><h2>Preconditions</h2><pre id="execution-preconditions"></pre></article><article><h2>Dependencies</h2><pre id="execution-dependencies"></pre></article><article><h2>Mandatory conditions</h2><pre id="execution-mandatory-conditions"></pre></article><article><h2>Expected outputs</h2><pre id="execution-expected-outputs"></pre></article><article><h2>Evidence requirements</h2><pre id="execution-evidence-requirements"></pre></article><article><h2>Risk controls</h2><pre id="execution-risk-controls"></pre></article><article><h2>Stop conditions</h2><pre id="execution-stop-conditions"></pre></article></section>
+      <section class="panel contract-grid" data-testid="execution-contracts"><article><h2>Rollback contract</h2><pre id="execution-rollback-contract"></pre></article><article><h2>Migration contract (descriptive only)</h2><pre id="execution-migration-contract"></pre></article><article><h2>Compatibility contract</h2><pre id="execution-compatibility-contract"></pre></article><article><h2>Verification contract</h2><pre id="execution-verification-contract"></pre></article></section>
+      <section class="panel" data-testid="execution-observations"><h2>Structured observations</h2><pre id="execution-observation-list"></pre><h2>Evidence</h2><pre id="execution-evidence-list"></pre></section>
+      <section class="panel" data-testid="execution-audit"><h2>Immutable audit</h2><pre id="execution-audit-log"></pre></section>
+
+      <nav class="page-nav" aria-label="Pattern evolution execution navigation"><a id="execution-back-decision" data-testid="back-to-evolution-decision" href="/pattern-evolution-decision">Back to evolution decision</a><a id="execution-open-verification" data-testid="open-execution-verification" href="/pattern-evolution-execution-verification" hidden>Open execution verification</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>

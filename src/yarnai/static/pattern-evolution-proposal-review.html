@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Pattern evolution proposal review</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-evolution-proposal-review.css">
+  <script src="/static/pattern-evolution-initiation.js" defer></script>
+  <script src="/static/pattern-evolution-proposal.js" defer></script>
+  <script src="/static/pattern-evolution-proposal-review.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-evolution-proposal-review-assistant.js" defer></script>
+</head>
+<body>
+  <main class="review-shell" data-testid="pattern-evolution-proposal-review-page">
+    <header class="review-hero">
+      <p class="eyebrow">PATTERN_EVOLUTION_PROPOSAL_REVIEW · Stage 47</p>
+      <h1>Review an immutable evolution proposal</h1>
+      <p class="lead">Verify the submitted proposal independently. This review records evidence and a deterministic verdict; it does not implement or authorize the proposed pattern change.</p>
+      <p id="review-context" aria-live="polite">Loading submitted proposal…</p>
+    </header>
+
+    <section id="review-fatal" class="panel state state--invalid" hidden role="alert" data-testid="review-fatal-state"><h2>Review unavailable</h2><p id="review-fatal-message"></p></section>
+    <div id="review-workflow">
+      <section class="panel source-card" data-testid="review-source-card">
+        <div class="status-line"><span id="review-status" class="chip">draft</span><span id="review-proof-status" class="chip">unproven</span><span id="review-revision">Epoch — · revision —</span></div>
+        <h2>Immutable source proposal</h2>
+        <dl class="identity-grid">
+          <div><dt>Proposal ID</dt><dd id="review-source-proposal-id">—</dd></div>
+          <div><dt>Proposal revision</dt><dd id="review-source-proposal-revision">—</dd></div>
+          <div><dt>Proposal digest</dt><dd><code id="review-source-proposal-digest">—</code></dd></div>
+          <div><dt>Initiation ID</dt><dd id="review-source-initiation-id">—</dd></div>
+          <div><dt>Proposal status / verdict</dt><dd id="review-source-status">—</dd></div>
+          <div><dt>Source validity</dt><dd id="review-source-validity">—</dd></div>
+          <div><dt>Provenance</dt><dd id="review-source-provenance">—</dd></div>
+          <div><dt>Import / stale state</dt><dd id="review-source-freshness">—</dd></div>
+        </dl>
+        <details><summary>Immutable proposal snapshot</summary><pre id="review-source-snapshot"></pre></details>
+        <p id="review-message" aria-live="polite"></p><p id="review-error" class="error" role="alert"></p>
+      </section>
+
+      <section id="review-empty-state" class="panel state" data-testid="review-empty-state"><h2>No review yet</h2><p>Create a deterministic draft from the submitted proposal snapshot.</p></section>
+      <section id="review-missing-proposal-state" class="panel state state--missing" hidden data-testid="review-missing-proposal-state"><h2>Proposal required</h2><p>No Stage 46 proposal is available for this context. No review placeholder was created.</p></section>
+      <section id="review-not-submitted-state" class="panel state state--blocked" hidden data-testid="review-not-submitted-state"><h2>Submitted proposal required</h2><p>The proposal exists, but it has not passed the submitted/submit source gate.</p></section>
+      <section id="review-stale-state" class="panel state state--stale" hidden data-testid="review-stale-state"><h2>Stale source chain</h2><p>The current proposal revision or digest no longer matches the immutable review snapshot.</p></section>
+      <section id="review-imported-state" class="panel state state--unproven" hidden data-testid="review-imported-state"><h2>Imported source is unproven</h2><p>A matching ID is not proof. Local semantic revalidation must create a successor review.</p></section>
+      <section id="review-blocked-state" class="panel state state--blocked" hidden data-testid="review-blocked-state"><h2>Review blocked</h2><p>At least one hard domain constraint prevents approval.</p></section>
+      <section id="review-quarantine-state" class="panel state state--invalid" hidden data-testid="review-quarantine-state"><h2>Invalid or quarantined review</h2><p>The persisted artifact failed structural or deterministic validation and was isolated.</p></section>
+      <section id="review-collision-state" class="panel state state--invalid" hidden data-testid="review-collision-state"><h2>Identity collision</h2><p>A review identity resolves to incompatible semantic payloads.</p></section>
+
+      <section class="panel verdict-card" data-testid="review-verdict-readiness">
+        <div><p class="label">Computed aggregate verdict</p><output id="review-verdict" data-testid="review-verdict">blocked</output><ul id="review-verdict-reasons"></ul></div>
+        <div><p class="label">Implementation readiness</p><output id="review-readiness">not ready</output><dl id="review-readiness-details" class="compact-grid"></dl></div>
+        <div><p class="label">Deterministic risk</p><output id="review-risk">—</output><p id="review-risk-score"></p></div>
+      </section>
+
+      <section class="panel" data-testid="review-dimensions"><h2>Independent review dimensions</h2><div id="review-dimension-grid" class="dimension-grid"></div></section>
+      <section class="panel findings" data-testid="review-findings"><h2>Findings and traceability</h2><div class="finding-columns"><div><h3>Blocking findings</h3><ul id="review-blocking-findings"></ul></div><div><h3>Revision requests</h3><ul id="review-revision-requests"></ul></div><div><h3>Evidence requests</h3><ul id="review-evidence-requests"></ul></div></div><h3>All reason codes</h3><ul id="review-all-findings"></ul></section>
+      <section class="panel" data-testid="review-affected-changes"><h2>Affected change IDs and evidence references</h2><div class="finding-columns"><div><h3>Affected changes</h3><ul id="review-affected-change-ids"></ul></div><div><h3>Evidence references</h3><ul id="review-evidence-references"></ul></div><div><h3>Conflicts</h3><ul id="review-conflicts"></ul></div></div></section>
+      <section class="panel" data-testid="review-audit"><h2>Immutable audit</h2><pre id="review-audit-log"></pre></section>
+
+      <section class="panel lifecycle" data-testid="review-actions"><h2>Review lifecycle</h2><p>Finalization follows the computed verdict. There is no manual approve, verdict, readiness, or risk control.</p><div class="command-bar"><button type="button" data-command="create">Create review</button><button type="button" data-command="start">Start review</button><button type="button" data-command="ready">Mark ready</button><button type="button" data-command="finalize">Finalize computed result</button><button type="button" data-command="cancel">Cancel</button><button type="button" data-command="revalidate">Create revalidated successor</button><button type="button" data-command="open-latest">Open latest</button></div></section>
+      <nav class="page-nav" aria-label="Pattern evolution proposal review navigation"><a id="review-back-proposal" data-testid="back-to-evolution-proposal" href="/pattern-evolution-proposal">Back to evolution proposal</a><a id="review-open-decision" data-testid="open-evolution-decision" href="/pattern-evolution-decision" aria-disabled="true">Open formal decision</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>

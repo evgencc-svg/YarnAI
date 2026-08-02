@@ -1,0 +1,59 @@
+"use strict";
+
+(function initializePatternEvolutionAcceptanceAssistant(globalObject) {
+  const api = globalObject.YarnAIPatternEvolutionAcceptance;
+  const verificationApi = globalObject.YarnAIPatternEvolutionExecutionVerification;
+  const system = globalObject.YarnAIProjectSystem;
+  if (!api || !verificationApi || !system) return;
+
+  const byId = (id) => globalObject.document.getElementById(id);
+  const params = new URLSearchParams(globalObject.location.search);
+  const projectId = params.get("projectId") || params.get("project") || "";
+  const requestedVerificationId = params.get("verificationId") || null;
+  const requestedAcceptanceId = params.get("acceptanceId") || null;
+  const explicitNow = params.get("now") || null;
+  const repository = new system.ProjectRepository();
+  let source = null; let progress = null; let record = null; let projection = null; let loadFailure = null;
+
+  function text(id, value) { const element = byId(id); if (element) element.textContent = value ?? "—"; }
+  function pretty(value) { return JSON.stringify(value ?? null, null, 2); }
+  function show(id, visible) { const element = byId(id); if (element) element.hidden = !visible; }
+  function list(id, values) { const element = byId(id); if (!element) return; element.replaceChildren(); for (const value of values || []) { const item = globalObject.document.createElement("li"); item.textContent = typeof value === "object" ? `${value.code || value.id || "finding"}${value.message ? `: ${value.message}` : ""}` : String(value); element.append(item); } }
+  function navigationContext(shown) { const query = new URLSearchParams(); if (projectId) query.set("projectId", projectId); if (shown?.patternId || source?.patternId) query.set("patternId", shown?.patternId || source.patternId); if (shown?.sourceInitiationId) query.set("initiationId", shown.sourceInitiationId); if (shown?.sourceProposalId) query.set("proposalId", shown.sourceProposalId); if (shown?.sourceReviewId) query.set("reviewId", shown.sourceReviewId); if (shown?.sourceDecisionId) query.set("decisionId", shown.sourceDecisionId); if (shown?.sourceExecutionId) query.set("executionId", shown.sourceExecutionId); if (shown?.sourceVerificationId || source?.verification?.id) query.set("verificationId", shown?.sourceVerificationId || source.verification.id); return query.toString() ? `?${query}` : ""; }
+  function closureEligible(shown, gate, currentProjection, records) {
+    if (!shown || shown.kind !== "PATTERN_EVOLUTION_ACCEPTANCE" || shown.type !== "PATTERN_EVOLUTION_ACCEPTANCE") return false;
+    if (!api.TERMINAL_LIFECYCLES.includes(shown.lifecycle) || !api.VERDICTS.includes(shown.verdict)) return false;
+    if (!api.validatePatternEvolutionAcceptance(shown).valid || !gate?.valid || currentProjection?.stale) return false;
+    if (shown.proofStatus !== "proven" || shown.sourceProof?.valid !== true || shown.sourceProof?.current !== true || shown.sourceProof?.provenanceProven !== true) return false;
+    if (shown.imported || shown.importedUnproven || shown.quarantined || shown.collision || shown.identityCollision || shown.superseded || shown.stale || shown.status === "stale") return false;
+    const competitors = (records || []).map((item) => item?.state || item).filter((item) => item?.id !== shown.id && item?.sourceVerificationId === shown.sourceVerificationId && api.TERMINAL_LIFECYCLES.includes(item?.lifecycle));
+    if (competitors.some((item) => item.identity === shown.identity || item.semanticIdentity === shown.semanticIdentity || item.acceptanceId === shown.acceptanceId)) return false;
+    if ((records || []).map((item) => item?.state || item).some((item) => item?.predecessorAcceptanceId === shown.id || item?.supersedesAcceptanceId === shown.id)) return false;
+    return ["accepted", "accepted_with_conditions", "revision_required", "evidence_required", "rollback_required", "rejected", "blocked", "failed", "cancelled"].includes(shown.verdict);
+  }
+  function renderContract(contract) {
+    const fields = [["acceptance-source-assessment", "sourceVerificationAssessment"], ["acceptance-decision-conformance", "decisionConformanceAssessment"], ["acceptance-execution-conformance", "executionConformanceAssessment"], ["acceptance-verification-conformance", "verificationConformanceAssessment"], ["acceptance-criteria", "acceptanceCriteria"], ["acceptance-mandatory-conditions", "mandatoryConditions"], ["acceptance-residual-conditions", "residualConditions"], ["acceptance-evidence", "evidenceAssessment"], ["acceptance-risk-assessment", "riskAcceptance"], ["acceptance-benefit-assessment", "benefitAssessment"], ["acceptance-cost-assessment", "costAssessment"], ["acceptance-compatibility-assessment", "compatibilityAssessment"], ["acceptance-migration-readiness", "migrationReadinessAssessment"], ["acceptance-rollback-readiness", "rollbackReadinessAssessment"], ["acceptance-operational-readiness", "operationalReadinessAssessment"], ["acceptance-governance-assessment", "governanceAssessment"], ["acceptance-authorization-assessment", "authorizationAssessment"], ["acceptance-provenance-assessment", "provenanceAssessment"], ["acceptance-integrity-assessment", "integrityAssessment"], ["acceptance-post-obligations", "postAcceptanceObligations"], ["acceptance-stop-conditions", "stopConditions"], ["acceptance-rejection-reasons", "rejectionReasons"], ["acceptance-audit-information", "auditInformation"]];
+    for (const [id, field] of fields) text(id, pretty(contract?.[field]));
+  }
+  function render() {
+    try { projection = record && source ? api.projectPatternEvolutionAcceptance(record, source) : null; } catch (error) { loadFailure = error; projection = null; }
+    const shown = projection?.record || record; const gate = source ? api.calculateSourceGate(source, shown) : null; const contract = shown?.acceptanceContract || (source?.verification ? api.calculateAcceptanceContract(source) : null); const verification = source?.verification || shown?.sourceSnapshots?.verification || null;
+    const lifecycle = projection?.lifecycle || shown?.lifecycle || "missing"; const status = projection?.status || shown?.status || contract?.status || "blocked"; const verdict = projection?.verdict || shown?.verdict || contract?.verdict || "blocked"; const risk = projection?.risk || shown?.risk || contract?.risk || { level: "indeterminate" }; const reasons = projection?.reasons || shown?.reasons || contract?.reasons || gate?.reasons || [];
+    text("acceptance-context", projectId ? verification ? `Project ${projectId} · verification ${verification.id} · ${verification.lifecycle} / ${verification.verdict}` : `Project ${projectId} · terminal verification required` : "No project context. Open this page from an eligible terminal verification.");
+    text("acceptance-lifecycle", lifecycle); text("acceptance-status", status); text("acceptance-status-output", status); text("acceptance-verdict", verdict); text("acceptance-verdict-output", verdict); text("acceptance-proof-status", shown?.proofStatus || "unproven"); text("acceptance-risk", risk.level); text("acceptance-risk-output", risk.level); text("acceptance-id", shown?.id); text("acceptance-identity-value", shown?.identity); text("acceptance-semantic-identity", shown?.semanticIdentity); text("acceptance-digest", shown?.digest); text("acceptance-revision", shown ? `Epoch ${shown.epoch} · revision ${shown.revision}` : "—");
+    text("acceptance-policy", `${api.POLICY_VERSION} · verdict, status, and risk are computed from the live canonical chain and immutable structured assessments.`);
+    text("acceptance-project-id", shown?.projectId || source?.projectId || projectId); text("acceptance-pattern-id", shown?.patternId || source?.patternId); text("acceptance-initiation-id", shown?.sourceInitiationId || source?.initiation?.id); text("acceptance-proposal-id", shown?.sourceProposalId || source?.proposal?.id); text("acceptance-review-id", shown?.sourceReviewId || source?.review?.id); text("acceptance-decision-id", shown?.sourceDecisionId || source?.decision?.id); text("acceptance-execution-id", shown?.sourceExecutionId || source?.execution?.id); text("acceptance-verification-id", shown?.sourceVerificationId || verification?.id); text("acceptance-verification-outcome", verification ? `${verification.lifecycle} / ${verification.verdict}` : "—");
+    text("acceptance-source-gate", gate?.valid ? "valid, current, terminal, locally proven, and canonical" : gate?.reasons?.map((item) => item.code).join(", ") || loadFailure?.code || "missing"); text("acceptance-chain-integrity", gate?.valid ? "all six live records match immutable bindings" : "unproven"); text("acceptance-source-verification-digest", shown?.sourceVerificationDigest || verification?.digest); text("acceptance-source-chain-digest", shown?.sourceChainDigest); text("acceptance-source-binding", pretty(shown?.sourceBinding || gate?.binding)); text("acceptance-next-action", projection?.nextAction || shown?.nextAction || contract?.nextAction || "resolve_acceptance_blocker");
+    renderContract(contract); text("acceptance-completeness", pretty(contract?.completeness)); text("acceptance-consistency", pretty(contract?.consistency)); text("acceptance-coverage", pretty(contract?.coverage)); list("acceptance-reason-list", reasons); text("acceptance-unresolved-findings", pretty(contract?.unresolvedFindings));
+    const codes = new Set((gate?.reasons || []).map((item) => item.code)); show("acceptance-missing-context-state", !projectId || !verification); show("acceptance-source-ineligible-state", Boolean(projectId && verification && gate && !gate.valid)); show("acceptance-imported-unproven-state", shown?.importedUnproven === true || codes.has("verification_imported_unproven")); show("acceptance-stale-state", lifecycle === "stale" || status === "stale"); for (const value of ["accepted", "accepted_with_conditions", "revision_required", "evidence_required", "rollback_required", "rejected", "blocked", "failed", "cancelled"]) show(`acceptance-${value.replaceAll("_", "-")}-state`, lifecycle === value || verdict === value);
+    const back = byId("acceptance-back-verification"); if (back) back.href = `/pattern-evolution-execution-verification${navigationContext(shown)}`;
+    const forward = byId("acceptance-open-closure"); if (forward) { forward.hidden = !closureEligible(shown, gate, projection, source?.acceptances); if (!forward.hidden) { const query = new URLSearchParams(navigationContext(shown).replace(/^\?/, "")); query.set("acceptanceId", shown.id); forward.href = `/pattern-evolution-closure?${query}`; } }
+  }
+  async function initialize() {
+    await repository.initialize();
+    if (!projectId) { render(); return; }
+    try { source = await api.loadSource(repository, projectId, requestedVerificationId); if (!source.verification) { render(); return; } const gate = api.calculateSourceGate(source); progress = requestedAcceptanceId ? await repository.getPatternEvolutionAcceptance(projectId, requestedAcceptanceId, source.calculationId, source.verification.id) : await repository.getLatestPatternEvolutionAcceptanceForVerification(projectId, source.verification.id, source.calculationId); record = progress?.state || null; if (!record && gate.valid) { const result = await repository.createPatternEvolutionAcceptance(projectId, { verificationId: source.verification.id, now: explicitNow || source.verification.updatedAt }); progress = result.acceptanceRecord; record = result.rawAcceptance; source = await api.loadSource(repository, projectId, source.verification.id); } } catch (error) { loadFailure = error; }
+    render();
+  }
+  initialize().catch((error) => { show("acceptance-fatal", true); show("acceptance-workflow", false); text("acceptance-fatal-message", error?.userMessage || error?.message || "Acceptance could not be opened."); });
+})(typeof window !== "undefined" ? window : globalThis);

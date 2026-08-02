@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Pattern evolution initiation</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-evolution-initiation.css">
+  <script src="/static/pattern-execution-retrospective.js" defer></script>
+  <script src="/static/pattern-execution-learning.js" defer></script>
+  <script src="/static/pattern-execution-adaptation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-validation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-promotion.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-rollout.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-rollout-evaluation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-closure.js" defer></script>
+  <script src="/static/pattern-evolution-initiation.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-evolution-initiation-assistant.js" defer></script>
+</head>
+<body>
+  <main class="evolution-shell" data-testid="pattern-evolution-initiation-page">
+    <header class="page-header"><p class="eyebrow">PATTERN_EVOLUTION_INITIATION · Stage 45</p><h1>Open a controlled evolution cycle</h1><p class="lead">Decide whether the completed adaptation workflow provides enough evidence, then bind the next cycle to an explicit hypothesis, scope, safeguards and measurable outcome.</p><p id="evolution-context" aria-live="polite">Loading closure context…</p></header>
+    <section id="evolution-fatal" class="panel fatal" hidden role="alert"><h2>Initiation unavailable</h2><p id="evolution-fatal-message"></p></section>
+    <div id="evolution-workflow">
+      <section class="panel" data-testid="source-closure-card"><div class="status-row"><span id="evolution-status" class="status-chip">draft</span><span id="evolution-revision">Epoch — · revision —</span></div><h2>Source closure and provenance</h2><output id="evolution-proof-status" data-testid="evolution-proof-status">unproven</output><ol id="evolution-chain" class="evidence-chain"></ol><ul id="evolution-proof-issues"></ul><pre id="evolution-evidence-summary"></pre><p id="evolution-imported-warning" class="warning" hidden>Imported evidence is unproven. Revalidate it against the local chain before approval.</p><p id="evolution-stale-warning" class="warning" hidden>The source chain is stale. Approval is unavailable.</p><p id="evolution-message" aria-live="polite"></p><p id="evolution-error" class="error" role="alert"></p></section>
+      <section class="panel editor" data-testid="evolution-hypothesis-form"><h2>Evolution hypothesis</h2><label for="evolution-hypothesis">Hypothesis</label><textarea id="evolution-hypothesis" rows="4" required></textarea><label for="evolution-rationale">Rationale</label><textarea id="evolution-rationale" rows="4"></textarea></section>
+      <section class="panel split editor" data-testid="evolution-scope-safeguards"><div><h2>Evolution scope</h2><textarea id="evolution-scope" rows="12" spellcheck="false"></textarea></div><div><h2>Protected areas</h2><textarea id="evolution-protected" rows="7" spellcheck="false"></textarea><h3>Allowed change classes</h3><textarea id="evolution-allowed" rows="7" spellcheck="false"></textarea><h3>Forbidden change classes</h3><textarea id="evolution-forbidden" rows="7" spellcheck="false"></textarea></div></section>
+      <section class="panel split editor" data-testid="evolution-value-criteria"><div><h2>Expected value</h2><textarea id="evolution-expected-value" rows="10" spellcheck="false"></textarea></div><div><h2>Measurable success criteria</h2><textarea id="evolution-success-criteria" rows="14" spellcheck="false"></textarea></div></section>
+      <section class="panel split editor" data-testid="evolution-risks-constraints"><div><h2>Risks and mitigation</h2><textarea id="evolution-risks" rows="14" spellcheck="false"></textarea></div><div><h2>Constraints</h2><textarea id="evolution-constraints" rows="7" spellcheck="false"></textarea><h3>Assumptions</h3><textarea id="evolution-assumptions" rows="7" spellcheck="false"></textarea><h3>Unresolved questions</h3><textarea id="evolution-questions" rows="7" spellcheck="false"></textarea></div></section>
+      <section class="panel result-grid" data-testid="evolution-decision"><div><h2>Readiness</h2><ul id="evolution-readiness" class="readiness-list"></ul></div><div><h2>Computed verdict</h2><output id="evolution-verdict" data-testid="evolution-verdict">needs_evidence</output><ul id="evolution-verdict-reasons"></ul></div></section>
+      <section class="panel"><h2>Audit</h2><pre id="evolution-audit"></pre></section>
+      <section class="panel lifecycle"><h2>Lifecycle</h2><div class="command-bar" data-testid="evolution-actions"><button type="button" data-command="create">Create draft</button><button type="button" data-command="save">Save revision</button><button type="button" data-command="assess">Assess</button><button type="button" data-command="ready">Mark ready</button><button type="button" data-command="approve">Approve</button><button type="button" data-command="reject">Reject</button><button type="button" data-command="cancel">Cancel</button><button type="button" data-command="revalidate">Revalidate evidence</button><button type="button" data-command="open-latest">Open latest</button></div></section>
+      <nav class="page-nav" aria-label="Pattern evolution initiation navigation"><a id="evolution-back-closure" data-testid="back-to-adaptation-closure" href="/pattern-execution-adaptation-closure">Back to adaptation closure</a><a id="evolution-open-proposal" data-testid="open-evolution-proposal" href="/pattern-evolution-proposal" hidden>Compose evolution proposal</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>

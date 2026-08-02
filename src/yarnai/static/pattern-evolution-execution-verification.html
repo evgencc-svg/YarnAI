@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Pattern evolution execution verification</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-evolution-execution-verification.css">
+  <script src="/static/pattern-evolution-execution.js" defer></script>
+  <script src="/static/pattern-evolution-execution-verification.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-evolution-execution-verification-assistant.js" defer></script>
+</head>
+<body>
+  <main class="verification-shell" data-testid="pattern-evolution-execution-verification-page">
+    <header class="verification-hero">
+      <p class="eyebrow">PATTERN_EVOLUTION_EXECUTION_VERIFICATION</p>
+      <h1>Verify the actual evolution outcome</h1>
+      <p class="lead">Independent, deterministic proof that one terminal execution matches its authorized decision, execution plan, evidence, outputs, postconditions, compatibility, risk, migration, and rollback contracts.</p>
+      <p id="verification-context" aria-live="polite">Loading verification context…</p>
+    </header>
+
+    <section id="verification-fatal" class="panel state state--invalid" hidden role="alert" data-testid="verification-fatal-state"><h2>Verification unavailable</h2><p id="verification-fatal-message"></p></section>
+    <div id="verification-workflow">
+      <section id="verification-missing-context-state" class="panel state state--missing" data-testid="verification-missing-context-state"><h2>Terminal execution context required</h2><p>Open this page from a locally proven terminal evolution execution. Query parameters alone never establish trust.</p></section>
+      <section id="verification-invalid-source-state" class="panel state state--invalid" hidden data-testid="verification-invalid-source-state"><h2>Source gate blocked</h2><p>The execution or its immutable source chain failed integrity, provenance, authorization, freshness, trust, collision, quarantine, or latest-revision checks.</p></section>
+      <section id="verification-imported-unproven-state" class="panel state state--unproven" hidden data-testid="verification-imported-unproven-state"><h2>Imported verification is unproven</h2><p>Local revalidation must create a successor from the live source chain.</p></section>
+      <section id="verification-stale-state" class="panel state state--stale" hidden data-testid="verification-stale-state"><h2>Verification is stale</h2><p>A successor or changed source binding makes this record permanently non-current.</p></section>
+      <section id="verification-blocked-state" class="panel state state--blocked" hidden data-testid="verification-blocked-state"><h2>Verification blocked</h2></section>
+      <section id="verification-evidence-required-state" class="panel state state--evidence" hidden data-testid="verification-evidence-required-state"><h2>More execution evidence is required</h2></section>
+      <section id="verification-revision-required-state" class="panel state state--revision" hidden data-testid="verification-revision-required-state"><h2>Execution revision is required</h2></section>
+      <section id="verification-rollback-required-state" class="panel state state--invalid" hidden data-testid="verification-rollback-required-state"><h2>Rollback is required</h2></section>
+      <section id="verification-failed-state" class="panel state state--invalid" hidden data-testid="verification-failed-state"><h2>Execution failure confirmed</h2></section>
+      <section id="verification-cancelled-state" class="panel state state--cancelled" hidden data-testid="verification-cancelled-state"><h2>Execution cancellation confirmed</h2></section>
+      <section id="verification-completed-state" class="panel state state--authorized" hidden data-testid="verification-completed-state"><h2>Execution outcome verified</h2></section>
+
+      <section class="panel" data-testid="verification-identity">
+        <div class="status-line"><span id="verification-lifecycle" class="chip">missing</span><span id="verification-status" class="chip">pending</span><span id="verification-verdict" class="chip">blocked</span><span id="verification-proof-status" class="chip">unproven</span></div>
+        <h2>Immutable verification identity</h2>
+        <dl class="identity-grid"><div><dt>Verification ID</dt><dd id="verification-id">—</dd></div><div><dt>Identity</dt><dd><code id="verification-identity-value">—</code></dd></div><div><dt>Semantic identity</dt><dd><code id="verification-semantic-identity">—</code></dd></div><div><dt>Digest</dt><dd><code id="verification-digest">—</code></dd></div><div><dt>Revision</dt><dd id="verification-revision">—</dd></div><div><dt>Inherited risk</dt><dd id="verification-risk">invalid</dd></div></dl>
+        <p id="verification-policy">Loading deterministic verification policy…</p>
+      </section>
+
+      <section class="panel" data-testid="verification-source-summary">
+        <h2>Source execution and full chain</h2>
+        <dl class="source-grid"><div><dt>Project</dt><dd id="verification-project-id">—</dd></div><div><dt>Pattern</dt><dd id="verification-pattern-id">—</dd></div><div><dt>Initiation</dt><dd id="verification-initiation-id">—</dd></div><div><dt>Proposal</dt><dd id="verification-proposal-id">—</dd></div><div><dt>Review</dt><dd id="verification-review-id">—</dd></div><div><dt>Decision</dt><dd id="verification-decision-id">—</dd></div><div><dt>Execution</dt><dd id="verification-execution-id">—</dd></div><div><dt>Execution outcome</dt><dd id="verification-execution-outcome">—</dd></div></dl>
+        <dl class="compact-grid"><dt>Source gate</dt><dd id="verification-source-gate">missing</dd><dt>Chain integrity</dt><dd id="verification-chain-integrity">unproven</dd><dt>Source execution digest</dt><dd><code id="verification-source-execution-digest">—</code></dd><dt>Source chain digest</dt><dd><code id="verification-source-chain-digest">—</code></dd></dl>
+        <details><summary>Canonical source binding</summary><pre id="verification-source-binding"></pre></details>
+      </section>
+
+      <section class="panel outcome-card" data-testid="verification-outcome"><div><p class="label">Computed verdict</p><output id="verification-verdict-output">blocked</output></div><div><p class="label">Computed status</p><output id="verification-status-output">blocked</output></div><div><p class="label">Next action</p><output id="verification-next-action">resolve_source_chain</output></div></section>
+      <section class="panel comparison-grid" data-testid="verification-scope-outcomes"><article><h2>Verification scope</h2><pre id="verification-scope"></pre></article><article><h2>Expected outcome</h2><pre id="verification-expected-outcome"></pre></article><article><h2>Actual outcome</h2><pre id="verification-actual-outcome"></pre></article></section>
+      <section class="panel coverage-grid" data-testid="verification-coverage"><article><h2>Completeness</h2><pre id="verification-completeness"></pre></article><article><h2>Consistency</h2><pre id="verification-consistency"></pre></article><article><h2>Coverage</h2><pre id="verification-coverage-values"></pre></article></section>
+      <section class="panel check-grid" data-testid="verification-checks"><article><h2>Operations</h2><pre id="verification-operation-checks"></pre></article><article><h2>Preconditions</h2><pre id="verification-precondition-checks"></pre></article><article><h2>Dependencies</h2><pre id="verification-dependency-checks"></pre></article><article><h2>Mandatory conditions</h2><pre id="verification-mandatory-condition-checks"></pre></article><article><h2>Outputs</h2><pre id="verification-output-checks"></pre></article><article><h2>Evidence</h2><pre id="verification-evidence-checks"></pre></article><article><h2>Postconditions</h2><pre id="verification-postcondition-checks"></pre></article><article><h2>Compatibility</h2><pre id="verification-compatibility-checks"></pre></article><article><h2>Migration (descriptive only)</h2><pre id="verification-migration-checks"></pre></article><article><h2>Rollback</h2><pre id="verification-rollback-checks"></pre></article><article><h2>Risk controls</h2><pre id="verification-risk-control-checks"></pre></article><article><h2>Stop conditions</h2><pre id="verification-stop-condition-checks"></pre></article><article><h2>Provenance</h2><pre id="verification-provenance-checks"></pre></article><article><h2>Integrity</h2><pre id="verification-integrity-checks"></pre></article></section>
+      <section class="panel" data-testid="verification-findings"><h2>Deterministic reasons and unresolved findings</h2><ul id="verification-reason-list"></ul><pre id="verification-unresolved-findings"></pre></section>
+
+      <nav class="page-nav" aria-label="Execution verification navigation"><a id="verification-back-execution" data-testid="back-to-evolution-execution" href="/pattern-evolution-execution">Back to evolution execution</a><a id="verification-open-acceptance" data-testid="open-evolution-acceptance" href="/pattern-evolution-acceptance" hidden>Open governance acceptance</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>
