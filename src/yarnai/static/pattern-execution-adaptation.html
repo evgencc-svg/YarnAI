@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Execution adaptation</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-execution-adaptation.css">
+  <script src="/static/pattern-execution-retrospective.js" defer></script>
+  <script src="/static/pattern-execution-learning.js" defer></script>
+  <script src="/static/pattern-execution-adaptation.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-assistant.js" defer></script>
+</head>
+<body>
+  <main class="adaptation-shell" data-testid="pattern-execution-adaptation-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_ADAPTATION · Stage 39</p>
+      <h1 id="adaptation-title">Execution adaptation proposal</h1>
+      <p class="lead">Prepare and review a deterministic proposal. This workflow never mutates the source pattern, calculation, runtime, result, follow-up, retrospective, or learning.</p>
+      <p id="adaptation-context" class="context" aria-live="polite">Loading the completed learning…</p>
+    </header>
+
+    <section id="adaptation-fatal" class="panel fatal" hidden>
+      <h2>Adaptation is unavailable</h2>
+      <p id="adaptation-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="adaptation-workflow">
+      <section class="panel overview" aria-labelledby="adaptation-state-heading">
+        <div class="status-row">
+          <span id="adaptation-status" data-testid="adaptation-status" class="status-chip" data-status="draft" role="status">draft</span>
+          <span id="adaptation-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="adaptation-state-heading">Integrity</h2>
+        <dl id="adaptation-source-chain" data-testid="adaptation-source-chain" class="summary-grid"></dl>
+        <ul id="adaptation-integrity-errors" data-testid="adaptation-integrity-errors"></ul>
+        <p id="adaptation-message" data-testid="adaptation-live-region" class="message" aria-live="polite" role="status"></p>
+        <p id="adaptation-error" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel source-learning" data-testid="adaptation-learning" aria-labelledby="adaptation-learning-heading">
+        <h2 id="adaptation-learning-heading">Linked completed learning</h2>
+        <p id="adaptation-learning-value">No proven learning is available.</p>
+        <ul id="adaptation-learning-references"></ul>
+      </section>
+
+      <section class="panel editor" data-testid="adaptation-targets" aria-labelledby="adaptation-targets-heading">
+        <h2 id="adaptation-targets-heading">Adaptation targets</h2>
+        <p>Required array: targetType, targetReference, rationale, sourceLearningReferences.</p>
+        <textarea id="adaptation-targets-input" rows="9" spellcheck="false" aria-label="Adaptation targets JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="proposed-changes" aria-labelledby="proposed-changes-heading">
+        <h2 id="proposed-changes-heading">Proposed changes</h2>
+        <p>Required array: changeId, targetType, targetReference, operation, before, after, rationale, sourceLessonReferences, riskLevel, reversible.</p>
+        <textarea id="proposed-changes-input" rows="13" spellcheck="false" aria-label="Proposed changes JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="preserved-constraints" aria-labelledby="preserved-constraints-heading">
+        <h2 id="preserved-constraints-heading">Preserved constraints</h2>
+        <p>List every identity, deterministic, safety, evidence, measurement, and historical constraint that must remain intact.</p>
+        <textarea id="preserved-constraints-input" rows="9" spellcheck="false" aria-label="Preserved constraints JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="validation-plan" aria-labelledby="validation-plan-heading">
+        <h2 id="validation-plan-heading">Validation plan</h2>
+        <p>Use separate checks, acceptanceCriteria, and rollbackCriteria. Checks and acceptance criteria must cover every change ID.</p>
+        <textarea id="validation-plan-input" rows="13" spellcheck="false" aria-label="Validation plan JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="expected-impact" aria-labelledby="expected-impact-heading">
+        <h2 id="expected-impact-heading">Expected impact</h2>
+        <p>Explain correctness, usability, safety, repeatability, and observability independently.</p>
+        <textarea id="expected-impact-input" rows="13" spellcheck="false" aria-label="Expected impact JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="confidence-assessment" aria-labelledby="confidence-assessment-heading">
+        <h2 id="confidence-assessment-heading">Confidence assessment</h2>
+        <p>Provide level, rationale, supportingReferences, and uncertaintyReferences.</p>
+        <textarea id="confidence-assessment-input" rows="9" spellcheck="false" aria-label="Confidence assessment JSON"></textarea>
+      </section>
+
+      <section class="panel lifecycle" aria-labelledby="adaptation-lifecycle-heading">
+        <h2 id="adaptation-lifecycle-heading">Lifecycle</h2>
+        <div class="command-bar">
+          <button type="button" data-command="create-draft">Create draft adaptation</button>
+          <button type="button" data-command="save-sections">Save structured sections</button>
+          <button type="button" data-command="start-review">Start review</button>
+          <button type="button" data-command="return-draft">Return to draft</button>
+          <button type="button" data-command="complete">Complete adaptation</button>
+        </div>
+        <p id="adaptation-terminal" data-testid="adaptation-terminal" class="terminal" hidden>Completed adaptation is terminal and immutable. The proposal has not been applied to the source project.</p>
+      </section>
+
+      <nav class="page-nav" aria-label="Adaptation navigation">
+        <a id="adaptation-back-learning" data-testid="back-to-learning" href="/pattern-execution-learning">Back to learning</a>
+        <a id="adaptation-validation-route" data-testid="open-adaptation-validation" href="/pattern-execution-adaptation-validation" hidden>Validate completed adaptation</a>
+        <a href="/">Projects</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

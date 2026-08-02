@@ -532,6 +532,78 @@ async def pattern_execution_follow_up(_request: Request) -> FileResponse:
     )
 
 
+async def pattern_execution_retrospective(_request: Request) -> FileResponse:
+    """Return the deterministic retrospective of a completed execution cycle."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-retrospective.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_learning(_request: Request) -> FileResponse:
+    """Return structured learning derived from a completed retrospective."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-learning.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_adaptation(_request: Request) -> FileResponse:
+    """Return a deterministic proposal for adapting future pattern execution."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-adaptation.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_adaptation_validation(_request: Request) -> FileResponse:
+    """Return an evidence-bound validation of one completed adaptation."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-adaptation-validation.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_adaptation_promotion(_request: Request) -> FileResponse:
+    """Return the deterministic promotion decision for a validated adaptation."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-adaptation-promotion.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_adaptation_rollout(_request: Request) -> FileResponse:
+    """Return the controlled rollout of one promoted adaptation."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-adaptation-rollout.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_adaptation_rollout_evaluation(_request: Request) -> FileResponse:
+    """Return the evidence-bound evaluation of one completed adaptation rollout."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-adaptation-rollout-evaluation.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_adaptation_closure(_request: Request) -> FileResponse:
+    """Return the evidence-bound final closure of one adaptation cycle."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-adaptation-closure.html",
+        media_type="text/html",
+    )
+
+
 async def extract_pattern_pdf(request: Request) -> JSONResponse:
     """Extract only the local text layer of one PDF."""
 
@@ -781,6 +853,46 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
         Route(
             "/pattern-execution-follow-up",
             pattern_execution_follow_up,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-retrospective",
+            pattern_execution_retrospective,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-learning",
+            pattern_execution_learning,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-adaptation",
+            pattern_execution_adaptation,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-adaptation-validation",
+            pattern_execution_adaptation_validation,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-adaptation-promotion",
+            pattern_execution_adaptation_promotion,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-adaptation-rollout",
+            pattern_execution_adaptation_rollout,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-adaptation-rollout-evaluation",
+            pattern_execution_adaptation_rollout_evaluation,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-adaptation-closure",
+            pattern_execution_adaptation_closure,
             methods=["GET"],
         ),
         Route("/test", tester_start, methods=["GET"]),

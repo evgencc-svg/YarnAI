@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Adaptation closure</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-execution-adaptation-closure.css">
+  <script src="/static/pattern-execution-retrospective.js" defer></script>
+  <script src="/static/pattern-execution-learning.js" defer></script>
+  <script src="/static/pattern-execution-adaptation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-validation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-promotion.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-rollout.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-rollout-evaluation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-closure.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-closure-assistant.js" defer></script>
+</head>
+<body>
+  <main class="closure-shell" data-testid="pattern-execution-adaptation-closure-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_ADAPTATION_CLOSURE · Stage 44</p>
+      <h1>Close the adaptation cycle</h1>
+      <p class="lead">Turn a proven rollout evaluation into an immutable final decision, with explicit residual constraints, risks, obligations and follow-up.</p>
+      <p id="closure-context" aria-live="polite">Loading evaluation context…</p>
+    </header>
+
+    <section id="closure-fatal" class="panel fatal" hidden role="alert"><h2>Closure unavailable</h2><p id="closure-fatal-message"></p></section>
+    <div id="closure-workflow">
+      <section class="panel" aria-labelledby="closure-proof-heading">
+        <div class="status-row"><span id="closure-lifecycle" data-testid="adaptation-closure-lifecycle" class="status-chip">draft</span><span id="closure-revision">Epoch — · revision —</span></div>
+        <h2 id="closure-proof-heading">Complete local source proof</h2>
+        <output id="closure-proof-status" data-testid="adaptation-closure-source-proof">unproven</output>
+        <ul id="closure-proof-issues"></ul>
+        <p id="closure-reason" class="warning" role="alert"></p>
+        <p id="closure-message" aria-live="polite"></p><p id="closure-error" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel result-grid" data-testid="closure-derived-decision">
+        <div><h2>Evaluation verdict</h2><output id="closure-evaluation-verdict">undetermined</output></div>
+        <div><h2>Closure type</h2><output id="closure-type">—</output></div>
+        <div><h2>Derived decision</h2><output id="closure-decision">pending</output></div>
+        <div><h2>Closure verdict</h2><output id="closure-verdict">undetermined</output></div>
+      </section>
+
+      <section class="panel editor" data-testid="closure-scope-controls"><h2>Closure scope</h2><p>Only rollout items and targets actually evaluated in the previous stage can be closed.</p><textarea id="closure-scope-input" rows="12" spellcheck="false"></textarea><button type="button" data-command="save-scope">Save scope</button></section>
+      <section class="panel comparison" data-testid="closure-outcome"><h2>Accepted or rejected outcome</h2><div class="comparison-grid"><div><h3>Accepted outcome</h3><pre id="closure-accepted-outcome"></pre></div><div><h3>Rejected outcome</h3><pre id="closure-rejected-outcome"></pre></div></div></section>
+      <section class="panel split editor" data-testid="closure-permanent-reverted-changes"><div><h2>Permanent changes</h2><textarea id="closure-permanent-input" rows="12" spellcheck="false"></textarea></div><div><h2>Reverted changes</h2><textarea id="closure-reverted-input" rows="12" spellcheck="false"></textarea></div><button type="button" data-command="save-changes">Save change disposition</button></section>
+      <section class="panel split editor" data-testid="closure-constraints"><div><h2>Retained constraints</h2><textarea id="closure-retained-constraints-input" rows="12" spellcheck="false"></textarea></div><div><h2>Resolved constraints</h2><textarea id="closure-resolved-constraints-input" rows="12" spellcheck="false"></textarea></div><button type="button" data-command="save-constraints">Save constraint disposition</button></section>
+      <section class="panel editor" data-testid="closure-residual-risks"><h2>Residual risks and issues</h2><textarea id="closure-risks-input" rows="12" spellcheck="false"></textarea><label for="closure-issues-input">Residual issues JSON</label><textarea id="closure-issues-input" rows="6" spellcheck="false"></textarea><button type="button" data-command="save-risks">Save risks and issues</button></section>
+      <section class="panel editor" data-testid="closure-obligations"><h2>Obligations</h2><textarea id="closure-obligations-input" rows="12" spellcheck="false"></textarea><button type="button" data-command="save-obligations">Save obligations</button></section>
+      <section class="panel editor" data-testid="closure-monitoring-commitments"><h2>Monitoring commitments</h2><textarea id="closure-monitoring-input" rows="12" spellcheck="false"></textarea><button type="button" data-command="save-monitoring">Save monitoring commitments</button></section>
+      <section class="panel editor" data-testid="closure-ownership"><h2>Ownership</h2><textarea id="closure-ownership-input" rows="8" spellcheck="false"></textarea><button type="button" data-command="save-ownership">Save ownership</button></section>
+
+      <section class="panel result-grid" data-testid="closure-resolutions">
+        <div><h2>Rollback resolution</h2><output id="closure-rollback-resolution">not_applicable</output></div>
+        <div><h2>Follow-up resolution</h2><output id="closure-follow-up-resolution">none</output></div>
+        <div><h2>Snapshot digest</h2><output id="closure-digest">—</output></div>
+      </section>
+      <section class="panel" data-testid="closure-blocking-reasons"><h2>Blocking reasons</h2><ul id="closure-blocking-list"></ul></section>
+
+      <section class="panel lifecycle"><h2>Lifecycle</h2><div class="command-bar" data-testid="closure-lifecycle-controls"><button type="button" data-command="create">Create closure</button><button type="button" data-command="prepare">Prepare</button><button type="button" data-command="decide">Decide</button><button type="button" data-command="finalize">Finalize</button><button type="button" data-command="close">Close</button><button type="button" data-command="reject">Reject</button><button type="button" data-command="abort">Abort</button><button type="button" data-command="supersede">Supersede</button><button type="button" data-command="open-latest">Open latest</button></div><label for="closure-terminal-reason">Terminal reason</label><input id="closure-terminal-reason" type="text"><label for="closure-superseding-adaptation">Superseding adaptation identity</label><input id="closure-superseding-adaptation" type="text"><p id="closure-terminal" hidden>Terminal closure is immutable. Source stages and the final closure snapshot cannot be changed.</p></section>
+      <nav class="page-nav" aria-label="Adaptation closure navigation"><a id="closure-back-evaluation" data-testid="back-to-rollout-evaluation" href="/pattern-execution-adaptation-rollout-evaluation">Back to rollout evaluation</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>

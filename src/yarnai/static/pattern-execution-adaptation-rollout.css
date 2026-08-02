@@ -1,0 +1,11 @@
+:root { color-scheme: light; --ink: #211d19; --paper: #fbf7f0; --panel: #fffdf9; --line: #d8cbbb; --accent: #704b2f; --danger: #8b251f; --warning: #72520e; }
+body { margin: 0; color: var(--ink); background: var(--paper); font-family: system-ui, sans-serif; }
+.rollout-shell { width: min(72rem, calc(100% - 2rem)); margin: 0 auto; padding: 2rem 0 4rem; }
+.page-header { margin-bottom: 1.5rem; }.eyebrow { color: var(--accent); font-weight: 700; letter-spacing: .05em; }.lead { max-width: 68ch; }
+.panel { margin: 1rem 0; padding: 1.25rem; border: 1px solid var(--line); border-radius: .75rem; background: var(--panel); box-shadow: 0 .15rem .7rem rgb(64 43 25 / .06); }
+.fatal,.error { color: var(--danger); }.warning { padding: .75rem; border-left: .3rem solid #c89523; color: var(--warning); background: #fff6d9; }
+.status-row,.command-bar,.page-nav { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; }.status-chip { padding: .3rem .65rem; border-radius: 999px; background: #e7ded1; font-weight: 700; }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(13rem,1fr)); gap: .75rem; }.summary-grid div { border-left: .2rem solid var(--line); padding-left: .65rem; }.summary-grid dt { font-size: .82rem; color: #695f55; }.summary-grid dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+.editor label { display: block; margin: .7rem 0 .3rem; font-weight: 650; } textarea,select,input { box-sizing: border-box; width: 100%; padding: .65rem; border: 1px solid #9e8d7c; border-radius: .35rem; background: white; color: inherit; font: inherit; } textarea { font-family: ui-monospace, monospace; font-size: .88rem; }
+button,a { min-height: 2.5rem; } button { padding: .55rem .85rem; border: 1px solid var(--accent); border-radius: .4rem; background: var(--accent); color: white; cursor: pointer; } button:disabled { opacity: .55; cursor: not-allowed; }.verdict output { display: block; font-size: 1.35rem; font-weight: 750; color: var(--accent); }.page-nav { justify-content: flex-start; margin-top: 1.5rem; }
+@media (max-width: 42rem) { .rollout-shell { width: min(100% - 1rem,72rem); padding-top: 1rem; }.panel { padding: .9rem; }.command-bar { align-items: stretch; }.command-bar button { flex: 1 1 100%; } }

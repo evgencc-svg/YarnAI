@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Adaptation promotion</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-execution-adaptation-promotion.css">
+  <script src="/static/pattern-execution-retrospective.js" defer></script>
+  <script src="/static/pattern-execution-learning.js" defer></script>
+  <script src="/static/pattern-execution-adaptation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-validation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-promotion.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-promotion-assistant.js" defer></script>
+</head>
+<body>
+  <main class="promotion-shell" data-testid="pattern-execution-adaptation-promotion-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_ADAPTATION_PROMOTION · Stage 41</p>
+      <h1 id="promotion-title">Decide adaptation promotion</h1>
+      <p class="lead">Create an immutable, evidence-bound decision without applying the adaptation or changing its validation.</p>
+      <p id="promotion-context" class="context" aria-live="polite">Loading the completed adaptation and validation…</p>
+    </header>
+
+    <section id="promotion-fatal" class="panel fatal" hidden>
+      <h2>Adaptation promotion is unavailable</h2>
+      <p id="promotion-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="promotion-workflow">
+      <section class="panel overview" aria-labelledby="promotion-state-heading">
+        <div class="status-row">
+          <span id="promotion-lifecycle" data-testid="adaptation-promotion-lifecycle" class="status-chip" data-status="draft" role="status">draft</span>
+          <span id="promotion-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="promotion-state-heading">Source chain and proof</h2>
+        <dl id="promotion-source-chain" data-testid="adaptation-promotion-source-chain" class="summary-grid"></dl>
+        <div id="promotion-proof-warning" data-testid="adaptation-promotion-proof-warning" class="warning" role="alert" hidden>Promotion is stale, imported-unproven, or no longer linked to the recorded source revisions. A positive verdict is blocked.</div>
+        <ul id="promotion-proof-errors" data-testid="adaptation-promotion-proof-errors"></ul>
+        <p id="promotion-message" class="message" aria-live="polite" role="status"></p>
+        <p id="promotion-error" data-testid="adaptation-promotion-errors" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel coverage" data-testid="promotion-coverage" aria-labelledby="promotion-coverage-heading">
+        <h2 id="promotion-coverage-heading">Coverage</h2>
+        <dl id="promotion-coverage-values" class="summary-grid"></dl>
+      </section>
+
+      <section class="panel" data-testid="promotion-constraints" aria-labelledby="promotion-constraints-heading">
+        <h2 id="promotion-constraints-heading">Constraints</h2>
+        <ul id="promotion-constraints-values"></ul>
+      </section>
+
+      <section class="panel" data-testid="promotion-regressions" aria-labelledby="promotion-regressions-heading">
+        <h2 id="promotion-regressions-heading">Regressions</h2>
+        <ul id="promotion-regressions-values"></ul>
+      </section>
+
+      <section class="panel" data-testid="promotion-expected-impact" aria-labelledby="promotion-impact-heading">
+        <h2 id="promotion-impact-heading">Expected impact</h2>
+        <dl id="promotion-impact-values" class="summary-grid"></dl>
+      </section>
+
+      <section class="panel editor" data-testid="promotion-decision-conditions" aria-labelledby="promotion-conditions-heading">
+        <h2 id="promotion-conditions-heading">Decision conditions</h2>
+        <p>Conditions may restrict a decision, but cannot override source proof, coverage, constraints, regressions, expected impact, or the validation verdict.</p>
+        <textarea id="promotion-conditions-input" rows="10" spellcheck="false" aria-label="Decision conditions JSON"></textarea>
+      </section>
+
+      <section class="panel verdict" data-testid="promotion-verdict" aria-labelledby="promotion-verdict-heading">
+        <h2 id="promotion-verdict-heading">Derived promotion verdict</h2>
+        <output id="promotion-verdict-value">undetermined</output>
+        <ul id="promotion-verdict-reasons" data-testid="promotion-verdict-reasons"></ul>
+        <p id="promotion-return-required" data-testid="promotion-return-to-adaptation" hidden>The adaptation must return for revision.</p>
+      </section>
+
+      <section class="panel lifecycle" aria-labelledby="promotion-lifecycle-heading">
+        <h2 id="promotion-lifecycle-heading">Lifecycle</h2>
+        <div class="command-bar" data-testid="promotion-lifecycle-controls">
+          <button type="button" data-command="create-draft">Create draft promotion</button>
+          <button type="button" data-command="start-evaluation">Start evaluation</button>
+          <button type="button" data-command="save-conditions">Save decision conditions</button>
+          <button type="button" data-command="start-decision">Calculate decision</button>
+          <button type="button" data-command="complete">Complete promotion</button>
+        </div>
+        <p id="promotion-completion-blockers" data-testid="promotion-completion-blockers"></p>
+        <p id="promotion-terminal" data-testid="adaptation-promotion-terminal" class="terminal" hidden>Completed promotion is immutable. Source adaptation and validation records remain unchanged.</p>
+      </section>
+
+      <nav class="page-nav" aria-label="Adaptation promotion navigation">
+        <a id="promotion-back-validation" data-testid="back-to-adaptation-validation" href="/pattern-execution-adaptation-validation">Back to adaptation validation</a>
+        <a id="promotion-forward-rollout" data-testid="forward-to-adaptation-rollout" href="/pattern-execution-adaptation-rollout" hidden>Roll out promoted adaptation</a>
+        <a href="/">Projects</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

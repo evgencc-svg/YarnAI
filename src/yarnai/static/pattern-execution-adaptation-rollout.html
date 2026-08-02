@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Adaptation rollout</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-execution-adaptation-rollout.css">
+  <script src="/static/pattern-execution-retrospective.js" defer></script>
+  <script src="/static/pattern-execution-learning.js" defer></script>
+  <script src="/static/pattern-execution-adaptation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-validation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-promotion.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-rollout.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-rollout-assistant.js" defer></script>
+</head>
+<body>
+  <main class="rollout-shell" data-testid="pattern-execution-adaptation-rollout-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_ADAPTATION_ROLLOUT · Stage 42</p>
+      <h1 id="rollout-title">Deploy promoted adaptation</h1>
+      <p class="lead">Plan, deploy, observe and assess an immutable promoted adaptation without changing its source records.</p>
+      <p id="rollout-context" aria-live="polite">Loading promotion context…</p>
+    </header>
+
+    <section id="rollout-fatal" class="panel fatal" hidden role="alert"><h2>Rollout unavailable</h2><p id="rollout-fatal-message"></p></section>
+    <div id="rollout-workflow">
+      <section class="panel" aria-labelledby="source-heading">
+        <div class="status-row"><span id="rollout-lifecycle" data-testid="adaptation-rollout-lifecycle" class="status-chip" role="status">draft</span><span id="rollout-revision">Epoch — · revision —</span></div>
+        <h2 id="source-heading">Local source proof</h2>
+        <dl id="rollout-source-chain" data-testid="adaptation-rollout-source-chain" class="summary-grid"></dl>
+        <p id="rollout-proof-warning" data-testid="adaptation-rollout-proof-warning" class="warning" role="alert" hidden>Rollout is stale, imported-unproven, collided, or no longer bound to the complete local source chain.</p>
+        <ul id="rollout-proof-errors" data-testid="adaptation-rollout-proof-errors"></ul>
+        <p id="rollout-message" aria-live="polite" role="status"></p>
+        <p id="rollout-error" data-testid="adaptation-rollout-errors" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel" data-testid="rollout-promotion-verdict"><h2>Promotion decision</h2><output id="rollout-promotion-verdict">undetermined</output><p id="rollout-promotion-gate" role="alert"></p></section>
+
+      <section class="panel editor" data-testid="rollout-strategy-scope">
+        <h2>Strategy and scope</h2>
+        <label for="rollout-strategy">Strategy</label>
+        <select id="rollout-strategy"><option>full</option><option>phased</option><option>canary</option><option>limited</option><option>shadow</option></select>
+        <label for="rollout-scope-input">Canonical scope JSON</label>
+        <textarea id="rollout-scope-input" rows="8" spellcheck="false"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="rollout-plan"><h2>Rollout plan</h2><textarea id="rollout-plan-input" rows="14" spellcheck="false" aria-label="Rollout plan JSON"></textarea></section>
+      <section class="panel editor" data-testid="rollout-promotion-constraints"><h2>Promotion constraints</h2><textarea id="rollout-constraints-input" rows="10" spellcheck="false" aria-label="Promotion constraint assessments JSON"></textarea></section>
+      <section class="panel editor" data-testid="rollout-deployment-evidence"><h2>Deployment evidence</h2><textarea id="rollout-evidence-input" rows="12" spellcheck="false" aria-label="Deployment evidence JSON"></textarea></section>
+      <section class="panel editor" data-testid="rollout-observations"><h2>Monitoring observations</h2><textarea id="rollout-observations-input" rows="12" spellcheck="false" aria-label="Rollout observations JSON"></textarea></section>
+      <section class="panel editor" data-testid="rollout-rollback-assessment"><h2>Rollback assessment</h2><textarea id="rollout-rollback-input" rows="6" spellcheck="false" aria-label="Rollback assessment JSON"></textarea></section>
+
+      <section class="panel" data-testid="rollout-expected-impact"><h2>Derived expected impact</h2><dl id="rollout-impact-values" class="summary-grid"></dl></section>
+      <section class="panel verdict" data-testid="rollout-verdict"><h2>Derived rollout verdict</h2><output id="rollout-verdict-value">undetermined</output><p>The verdict is computed from proof, plan execution, trusted evidence, constraints, observations, rollback and impact.</p></section>
+
+      <section class="panel lifecycle">
+        <h2>Lifecycle</h2>
+        <div class="command-bar" data-testid="rollout-lifecycle-controls">
+          <button type="button" data-command="create-draft">Create rollout</button>
+          <button type="button" data-command="save-plan">Save plan</button>
+          <button type="button" data-command="start-preparing">Start preparing</button>
+          <button type="button" data-command="start-deploying">Start deploying</button>
+          <button type="button" data-command="save-item-statuses">Save item statuses</button>
+          <button type="button" data-command="save-evidence">Save evidence</button>
+          <button type="button" data-command="start-monitoring">Start monitoring</button>
+          <button type="button" data-command="save-constraints">Save constraints</button>
+          <button type="button" data-command="save-observations">Save observations</button>
+          <button type="button" data-command="save-rollback">Save rollback assessment</button>
+          <button type="button" data-command="complete">Complete rollout</button>
+          <button type="button" data-command="abort">Abort rollout</button>
+        </div>
+        <label for="rollout-abort-reason">Explicit abort reason</label><input id="rollout-abort-reason" type="text">
+        <p id="rollout-terminal" data-testid="adaptation-rollout-terminal" hidden>Terminal rollout is read-only. Stage 39 adaptation, Stage 40 validation and Stage 41 promotion remain unchanged.</p>
+      </section>
+
+      <nav class="page-nav" aria-label="Adaptation rollout navigation"><a id="rollout-back-promotion" data-testid="back-to-adaptation-promotion" href="/pattern-execution-adaptation-promotion">Back to promotion</a><a id="rollout-open-evaluation" data-testid="open-rollout-evaluation" href="/pattern-execution-adaptation-rollout-evaluation">Evaluate rollout</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>

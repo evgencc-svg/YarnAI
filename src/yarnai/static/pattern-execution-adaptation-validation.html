@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Adaptation validation</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-execution-adaptation-validation.css">
+  <script src="/static/pattern-execution-retrospective.js" defer></script>
+  <script src="/static/pattern-execution-learning.js" defer></script>
+  <script src="/static/pattern-execution-adaptation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-validation.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-validation-assistant.js" defer></script>
+</head>
+<body>
+  <main class="validation-shell" data-testid="pattern-execution-adaptation-validation-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_ADAPTATION_VALIDATION · Stage 40</p>
+      <h1 id="validation-title">Validate a completed adaptation</h1>
+      <p class="lead">Record checks and evidence without applying proposed changes or changing any source execution record.</p>
+      <p id="validation-context" class="context" aria-live="polite">Loading the latest completed adaptation…</p>
+    </header>
+
+    <section id="validation-fatal" class="panel fatal" hidden>
+      <h2>Adaptation validation is unavailable</h2>
+      <p id="validation-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="validation-workflow">
+      <section class="panel overview" aria-labelledby="validation-state-heading">
+        <div class="status-row">
+          <span id="validation-status" data-testid="adaptation-validation-status" class="status-chip" data-status="draft" role="status">draft</span>
+          <span id="validation-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="validation-state-heading">Chain integrity and trust</h2>
+        <dl id="validation-source-chain" data-testid="adaptation-validation-source-chain" class="summary-grid"></dl>
+        <div id="validation-stale-warning" data-testid="adaptation-validation-stale-warning" class="warning" role="alert" hidden>The validation is stale, imported-unproven, quarantined, or linked to a changed adaptation. Completion is blocked.</div>
+        <ul id="validation-integrity-errors" data-testid="adaptation-validation-integrity-errors"></ul>
+        <p id="validation-message" class="message" aria-live="polite" role="status"></p>
+        <p id="validation-error" data-testid="adaptation-validation-errors" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel source-adaptation" data-testid="selected-completed-adaptation" aria-labelledby="selected-adaptation-heading">
+        <h2 id="selected-adaptation-heading">Selected completed adaptation</h2>
+        <p id="selected-adaptation-value">No proven completed adaptation is available.</p>
+        <h3>Adaptation targets</h3><pre id="adaptation-targets-view" data-testid="adaptation-targets-view"></pre>
+        <h3>Proposed changes</h3><pre id="proposed-changes-view" data-testid="proposed-changes-view"></pre>
+        <h3>Preserved constraints</h3><pre id="preserved-constraints-view" data-testid="preserved-constraints-view"></pre>
+        <h3>Declared validation plan</h3><pre id="declared-validation-plan-view" data-testid="declared-validation-plan-view"></pre>
+      </section>
+
+      <section class="panel coverage" data-testid="validation-coverage" aria-labelledby="validation-coverage-heading">
+        <h2 id="validation-coverage-heading">Validation coverage</h2>
+        <dl id="validation-coverage-values" class="summary-grid"></dl>
+      </section>
+
+      <section class="panel editor" data-testid="executed-validations" aria-labelledby="executed-validations-heading">
+        <h2 id="executed-validations-heading">Executed validations and evidence</h2>
+        <p>Each entry is structured by planItemId, type, target, method, inputs, outcomes, evidenceReferences, timestamps, status, and issues. Blocked, failed, or skipped checks require a reason.</p>
+        <textarea id="executed-validations-input" rows="18" spellcheck="false" aria-label="Executed validations JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="constraint-results" aria-labelledby="constraint-results-heading">
+        <h2 id="constraint-results-heading">Preserved constraint results</h2>
+        <p>Record source-bound evidence and observed impact for every preserved constraint.</p>
+        <textarea id="constraint-results-input" rows="13" spellcheck="false" aria-label="Constraint results JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="regression-results" aria-labelledby="regression-results-heading">
+        <h2 id="regression-results-heading">Regression results</h2>
+        <p>Use model, calculation, fixture, rule, human-reviewed, or unavailable/blocked checks. Absence of a discovered error is not evidence of pass.</p>
+        <textarea id="regression-results-input" rows="15" spellcheck="false" aria-label="Regression results JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="expected-impact-results" aria-labelledby="expected-impact-results-heading">
+        <h2 id="expected-impact-results-heading">Expected impact results</h2>
+        <p>Compare adaptation.expectedImpact with observed evidence. Use partial or not-yet-observable when repeat execution would be required.</p>
+        <textarea id="expected-impact-results-input" rows="15" spellcheck="false" aria-label="Expected impact results JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="unresolved-items" aria-labelledby="unresolved-items-heading">
+        <h2 id="unresolved-items-heading">Unresolved items and limitations</h2>
+        <textarea id="unresolved-items-input" rows="9" spellcheck="false" aria-label="Unresolved items JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="evidence-summary" aria-labelledby="evidence-summary-heading">
+        <h2 id="evidence-summary-heading">Evidence findings</h2>
+        <p>Store structured findings, evidence references, and limitations; no free-text summary is created.</p>
+        <textarea id="evidence-summary-input" rows="11" spellcheck="false" aria-label="Evidence findings JSON"></textarea>
+      </section>
+
+      <section class="panel editor" data-testid="validation-confidence" aria-labelledby="validation-confidence-heading">
+        <h2 id="validation-confidence-heading">Confidence assessment</h2>
+        <textarea id="validation-confidence-input" rows="9" spellcheck="false" aria-label="Validation confidence JSON"></textarea>
+      </section>
+
+      <section class="panel verdict" data-testid="final-verdict" aria-labelledby="final-verdict-heading">
+        <h2 id="final-verdict-heading">Final verdict</h2>
+        <output id="final-verdict-value">Not completed</output>
+        <ul id="verdict-reasons" data-testid="verdict-reasons"></ul>
+      </section>
+
+      <section class="panel lifecycle" aria-labelledby="validation-lifecycle-heading">
+        <h2 id="validation-lifecycle-heading">Lifecycle</h2>
+        <div class="command-bar">
+          <button type="button" data-command="create-draft">Create draft validation</button>
+          <button type="button" data-command="start-validation">Start validation</button>
+          <button type="button" data-command="save-results">Save validation results</button>
+          <button type="button" data-command="return-draft">Return to draft</button>
+          <button type="button" data-command="start-review">Move to reviewing</button>
+          <button type="button" data-command="return-running">Return to running</button>
+          <button type="button" data-command="complete">Complete validation</button>
+        </div>
+        <p id="validation-terminal" data-testid="adaptation-validation-terminal" class="terminal" hidden>Completed validation is immutable. The adaptation remains unapplied and every source record remains unchanged.</p>
+      </section>
+
+      <nav class="page-nav" aria-label="Adaptation validation navigation">
+        <a id="validation-back-adaptation" data-testid="back-to-adaptation" href="/pattern-execution-adaptation">Back to adaptation</a>
+        <a id="validation-forward-promotion" data-testid="continue-to-adaptation-promotion" href="/pattern-execution-adaptation-promotion" hidden>Continue to promotion decision</a>
+        <a href="/">Projects</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

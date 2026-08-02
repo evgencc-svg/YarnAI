@@ -8,7 +8,7 @@
     summary: byId("execution-follow-up-summary"), problem: byId("execution-follow-up-problem"), outcome: byId("execution-follow-up-outcome"), decisionId: byId("execution-follow-up-decision-id"),
     recommendation: byId("execution-follow-up-recommendation"), route: byId("execution-follow-up-route"), criteria: byId("execution-follow-up-criteria"), evidence: byId("execution-follow-up-evidence"), actions: byId("execution-follow-up-actions"),
     kind: byId("execution-follow-up-kind"), reason: byId("execution-follow-up-reason"), confirmation: byId("execution-follow-up-confirm"), commandError: byId("execution-follow-up-command-error"),
-    backDecision: byId("execution-follow-up-back-decision"), evidenceRoute: byId("execution-follow-up-evidence-route"), actionRoute: byId("execution-follow-up-action-route"),
+    backDecision: byId("execution-follow-up-back-decision"), evidenceRoute: byId("execution-follow-up-evidence-route"), actionRoute: byId("execution-follow-up-action-route"), retrospectiveRoute: byId("execution-follow-up-retrospective-route"),
   };
   const system = globalObject.YarnAIProjectSystem;
   const api = globalObject.YarnAIPatternExecutionFollowUp;
@@ -32,6 +32,7 @@
     ui.backDecision.href = `/pattern-execution-decision${query}`;
     ui.evidenceRoute.href = `/pattern-execution-evidence${query}`;
     ui.actionRoute.href = `/pattern-execution-action${query}`;
+    ui.retrospectiveRoute.href = `/pattern-execution-retrospective${query}`;
     render();
   }
 
@@ -71,6 +72,7 @@
     const routeKind = snapshot?.followUpKind || ui.kind.value || recommendation;
     ui.evidenceRoute.hidden = !(status !== "stale" && status !== "blocked" && routeKind === "collect_evidence");
     ui.actionRoute.hidden = !(status !== "stale" && status !== "blocked" && routeKind === "corrective_action");
+    ui.retrospectiveRoute.hidden = !(snapshot && status === "completed" && snapshot.status === "completed" && snapshot.projectId === projectId && Boolean(snapshot.inputFingerprint) && Boolean(snapshot.fingerprint));
   }
 
   function renderKinds(snapshot, allowedKinds, recommended) {

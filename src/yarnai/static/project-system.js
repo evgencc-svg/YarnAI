@@ -53,6 +53,14 @@
     "PATTERN_EXECUTION_VERIFICATION",
     "PATTERN_EXECUTION_DECISION",
     "PATTERN_EXECUTION_FOLLOW_UP",
+    "PATTERN_EXECUTION_RETROSPECTIVE",
+    "PATTERN_EXECUTION_LEARNING",
+    "PATTERN_EXECUTION_ADAPTATION",
+    "PATTERN_EXECUTION_ADAPTATION_VALIDATION",
+    "PATTERN_EXECUTION_ADAPTATION_PROMOTION",
+    "PATTERN_EXECUTION_ADAPTATION_ROLLOUT",
+    "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION",
+    "PATTERN_EXECUTION_ADAPTATION_CLOSURE",
   ]);
   const ALL_STATUSES = new Set([...ACTIVE_STATUSES, "ARCHIVED", "DELETED"]);
   const RESTORABLE_STATUSES = new Set([
@@ -1540,6 +1548,137 @@
     if (!report.valid || state.fingerprint !== api.fingerprintPatternExecutionFollowUp(state)) invalid("INVALID_IMPORT_EXECUTION_FOLLOW_UP", "Follow-up failed domain validation.");
   }
 
+  function validateImportedPatternExecutionRetrospective(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionRetrospective;
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_RETROSPECTIVE" || state.kind !== "PATTERN_EXECUTION_RETROSPECTIVE" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId ||
+      !state.id || !state.calculationId || !state.sourceResultId || !state.sourceRuntimeId || !state.sourceFollowUpId ||
+      !state.sourceIdentity || !state.sourceSnapshotFingerprint || !state.identity ||
+      !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1
+    ) invalid("INVALID_IMPORT_EXECUTION_RETROSPECTIVE", "Imported execution retrospective is corrupted.");
+    if (!api?.validatePatternExecutionRetrospective) invalid("PATTERN_EXECUTION_RETROSPECTIVE_API_MISSING", "Execution retrospective module is not loaded.");
+    const report = api.validatePatternExecutionRetrospective(state);
+    if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_RETROSPECTIVE", "Retrospective failed domain validation.");
+  }
+
+  function validateImportedPatternExecutionLearning(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionLearning;
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_LEARNING" || state.kind !== "PATTERN_EXECUTION_LEARNING" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId ||
+      !state.id || !state.calculationId || !state.sourceResultId || !state.sourceRuntimeId ||
+      !state.sourceFollowUpId || !state.sourceRetrospectiveId || !state.sourceRetrospectiveIdentity ||
+      !state.sourceSnapshotFingerprint || !state.identity || !Number.isInteger(state.revision) || state.revision < 1 ||
+      !Number.isInteger(state.epoch) || state.epoch < 1
+    ) invalid("INVALID_IMPORT_EXECUTION_LEARNING", "Imported execution learning is corrupted.");
+    if (!api?.validatePatternExecutionLearning) invalid("PATTERN_EXECUTION_LEARNING_API_MISSING", "Execution learning module is not loaded.");
+    const report = api.validatePatternExecutionLearning(state);
+    if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_LEARNING", "Learning failed domain validation.");
+  }
+
+  function validateImportedPatternExecutionAdaptation(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionAdaptation;
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_ADAPTATION" || state.kind !== "PATTERN_EXECUTION_ADAPTATION" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId ||
+      !state.id || !state.calculationId || !state.resultId || !state.runtimeId || !state.followUpId ||
+      !state.retrospectiveId || !state.learningId || !state.sourceIdentities || !state.learningSnapshot ||
+      !Array.isArray(state.criticalReferences) || !state.identity || !Number.isInteger(state.revision) || state.revision < 1 ||
+      !Number.isInteger(state.epoch) || state.epoch < 1
+    ) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION", "Imported execution adaptation is corrupted.");
+    if (!api?.validatePatternExecutionAdaptation) invalid("PATTERN_EXECUTION_ADAPTATION_API_MISSING", "Execution adaptation module is not loaded.");
+    const report = api.validatePatternExecutionAdaptation(state);
+    if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION", "Adaptation failed domain validation.");
+  }
+
+  function validateImportedPatternExecutionAdaptationValidation(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionAdaptationValidation;
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_ADAPTATION_VALIDATION" || state.kind !== "PATTERN_EXECUTION_ADAPTATION_VALIDATION" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId ||
+      !state.id || state.adaptationValidationId !== state.id || !state.calculationId || !state.resultId || !state.runtimeId ||
+      !state.followUpId || !state.retrospectiveId || !state.learningId || !state.adaptationId || !state.adaptationIdentity ||
+      !state.sourceIdentities || !state.adaptationSnapshot || !Array.isArray(state.criticalReferences) || !state.identity ||
+      !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1
+    ) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_VALIDATION", "Imported execution adaptation validation is corrupted.");
+    if (!api?.validatePatternExecutionAdaptationValidation) invalid("PATTERN_EXECUTION_ADAPTATION_VALIDATION_API_MISSING", "Execution adaptation validation module is not loaded.");
+    const report = api.validatePatternExecutionAdaptationValidation(state);
+    if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_VALIDATION", "Adaptation validation failed domain validation.");
+  }
+
+  function validateImportedPatternExecutionAdaptationPromotion(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionAdaptationPromotion;
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_ADAPTATION_PROMOTION" || state.kind !== "PATTERN_EXECUTION_ADAPTATION_PROMOTION" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId ||
+      !state.id || state.adaptationPromotionId !== state.id || !state.calculationId || !state.patternExecutionId ||
+      !state.adaptationId || !state.adaptationValidationId || !state.sourceIdentities || !state.adaptationSnapshot ||
+      !state.validationSnapshot || !state.sourceProof || !state.coverage || !state.expectedImpact || !state.identity ||
+      !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1
+    ) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_PROMOTION", "Imported execution adaptation promotion is corrupted.");
+    if (!api?.validatePatternExecutionAdaptationPromotion) invalid("PATTERN_EXECUTION_ADAPTATION_PROMOTION_API_MISSING", "Execution adaptation promotion module is not loaded.");
+    const report = api.validatePatternExecutionAdaptationPromotion(state);
+    if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_PROMOTION", "Adaptation promotion failed domain validation.");
+  }
+
+  function validateImportedPatternExecutionAdaptationRollout(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionAdaptationRollout;
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT" || state.kind !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId ||
+      !state.id || state.adaptationRolloutId !== state.id || !state.calculationId || !state.patternExecutionId ||
+      !state.adaptationId || !state.adaptationValidationId || !state.adaptationPromotionId || !state.sourceIdentities ||
+      !state.projectSnapshot || !state.calculationSnapshot || !state.runtimeSnapshot || !state.adaptationSnapshot ||
+      !state.validationSnapshot || !state.promotionSnapshot || !state.sourceProof || !state.expectedImpact || !state.identity ||
+      !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1
+    ) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT", "Imported execution adaptation rollout is corrupted.");
+    if (!api?.validatePatternExecutionAdaptationRollout) invalid("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_API_MISSING", "Execution adaptation rollout module is not loaded.");
+    const report = api.validatePatternExecutionAdaptationRollout(state);
+    if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT", "Adaptation rollout failed domain validation.");
+  }
+
+  function validateImportedPatternExecutionAdaptationRolloutEvaluation(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionAdaptationRolloutEvaluation;
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION" || state.kind !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId ||
+      !state.id || state.evaluationId !== state.id || state.adaptationRolloutEvaluationId !== state.id ||
+      !state.calculationId || !state.runtimeId || !state.adaptationId || !state.validationId || !state.promotionId || !state.rolloutId ||
+      !state.sourceIdentities || !state.projectSnapshot || !state.calculationSnapshot || !state.runtimeSnapshot ||
+      !state.adaptationSnapshot || !state.validationSnapshot || !state.promotionSnapshot || !state.rolloutSnapshot ||
+      !state.sourceProof || !state.expectedImpact || !state.impactComparison || !state.identity ||
+      !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1
+    ) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION", "Imported rollout evaluation is corrupted.");
+    if (!api?.validatePatternExecutionAdaptationRolloutEvaluation) invalid("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_API_MISSING", "Rollout evaluation module is not loaded.");
+    const report = api.validatePatternExecutionAdaptationRolloutEvaluation(state);
+    if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION", "Rollout evaluation failed domain validation.");
+  }
+
+  function validateImportedPatternExecutionAdaptationClosure(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    const api = global.YarnAIPatternExecutionAdaptationClosure;
+    if (
+      !state || state.type !== "PATTERN_EXECUTION_ADAPTATION_CLOSURE" || state.kind !== "PATTERN_EXECUTION_ADAPTATION_CLOSURE" ||
+      state.schemaVersion !== 1 || state.version !== 1 || state.projectId !== sourceProjectId ||
+      !state.id || state.closureId !== state.id || state.adaptationClosureId !== state.id ||
+      !state.calculationId || !state.runtimeId || !state.adaptationId || !state.validationId || !state.promotionId || !state.rolloutId || !state.evaluationId ||
+      !state.sourceIdentities || !state.sourceRevisions || !state.sourceDigests || !state.projectSnapshot || !state.calculationSnapshot ||
+      !state.runtimeSnapshot || !state.adaptationSnapshot || !state.validationSnapshot || !state.promotionSnapshot || !state.rolloutSnapshot || !state.evaluationSnapshot ||
+      !state.sourceProof || !state.closureScope || !state.acceptedOutcome || !state.identity ||
+      !Number.isInteger(state.revision) || state.revision < 1 || !Number.isInteger(state.epoch) || state.epoch < 1
+    ) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_CLOSURE", "Imported adaptation closure is corrupted.");
+    if (!api?.validatePatternExecutionAdaptationClosure) invalid("PATTERN_EXECUTION_ADAPTATION_CLOSURE_API_MISSING", "Adaptation closure module is not loaded.");
+    const report = api.validatePatternExecutionAdaptationClosure(state);
+    if (!report.valid) invalid("INVALID_IMPORT_EXECUTION_ADAPTATION_CLOSURE", "Adaptation closure failed domain validation.");
+  }
   async function sha256Text(text) {
     if (!global.crypto?.subtle) {
       throw new ProjectRepositoryError(
@@ -5721,6 +5860,851 @@
       return api.rebuildForProject(this, projectId, followUpId, input);
     }
 
+    async _quarantinePatternExecutionRetrospective(record, reasonCode) {
+      const api = global.YarnAIPatternExecutionRetrospective;
+      const identity = api?.fingerprint ? api.fingerprint({ progressId: record?.progress_id || null, state: record?.state || null, reasonCode }) : canonicalize({ progressId: record?.progress_id || null, reasonCode });
+      const timestamp = record?.state?.updatedAt || record?.updated_at || "1970-01-01T00:00:00.000Z";
+      const quarantine = {
+        quarantine_id: `retrospective-quarantine:${identity}`, source_store: "progress",
+        source_key: record?.progress_id || null, reason_code: reasonCode, record: clone(record),
+        created_at: timestamp, expires_at: timestamp,
+      };
+      const database = await this._database();
+      const transaction = database.transaction("quarantine", "readwrite");
+      transaction.objectStore("quarantine").put(quarantine);
+      await transactionComplete(transaction);
+      return clone(quarantine);
+    }
+
+    async listPatternExecutionRetrospectives(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(
+        transaction.objectStore("progress").index("by_calculation_kind").getAll(
+          global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_RETROSPECTIVE"]),
+        ),
+      );
+      await transactionComplete(transaction);
+      const valid = [];
+      for (const entry of records.filter((item) => item.project_id === projectId).sort((left, right) => left.epoch - right.epoch)) {
+        try {
+          validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_RETROSPECTIVE");
+          validateImportedPatternExecutionRetrospective(entry.state, projectId);
+          valid.push(clone(entry));
+        } catch (error) {
+          await this._quarantinePatternExecutionRetrospective(entry, error?.code || "INVALID_PATTERN_EXECUTION_RETROSPECTIVE");
+        }
+      }
+      return valid;
+    }
+
+    async getPatternExecutionRetrospective(projectId, retrospectiveId = null, calculationId = null) {
+      const records = await this.listPatternExecutionRetrospectives(projectId, calculationId);
+      if (retrospectiveId) return records.find((entry) => entry.progress_id === retrospectiveId || entry.state?.id === retrospectiveId) || null;
+      return records.at(-1) || null;
+    }
+
+    async _assertPatternExecutionRetrospectiveReferences(projectId, calculationId, state) {
+      const api = global.YarnAIPatternExecutionRetrospective;
+      if (!api?.loadSource || !api?.calculateIntegrity) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_API_MISSING", "Execution retrospective module is not loaded.");
+      const source = await api.loadSource(this, projectId);
+      if (source.calculationId !== calculationId) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_SCOPE_INVALID", "Retrospective does not belong to the active calculation.");
+      const integrity = api.calculateIntegrity(source, state);
+      if (!integrity.valid) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_INTEGRITY_INVALID", "Critical retrospective source references are missing, stale, or inconsistent.", { details: { issues: integrity.criticalIssues } });
+    }
+
+    async savePatternExecutionRetrospective(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object";
+      const state = directState ? calculationOrState : stateOrOptions;
+      const calculationId = directState ? state.calculationId : calculationOrState;
+      const options = directState ? stateOrOptions : maybeOptions;
+      const api = global.YarnAIPatternExecutionRetrospective;
+      const report = api?.validatePatternExecutionRetrospective?.(state);
+      if (!api || state?.kind !== "PATTERN_EXECUTION_RETROSPECTIVE" || state?.type !== "PATTERN_EXECUTION_RETROSPECTIVE" || state?.projectId !== projectId || state?.calculationId !== calculationId || !report?.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_RETROSPECTIVE_STATE", "Execution retrospective snapshot is corrupted.");
+      validateImportedPatternExecutionRetrospective(state, projectId);
+      await this._assertPatternExecutionRetrospectiveReferences(projectId, calculationId, state);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Retrospective does not belong to the active calculation.");
+        const existing = await this.listPatternExecutionRetrospectives(projectId, calculationId);
+        const duplicate = existing.find((entry) => entry.state?.identity === state.identity && entry.state?.id !== state.id);
+        if (duplicate) return clone(duplicate);
+        const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id);
+        const timestamp = options.timestamp || state.updatedAt;
+        if (current) {
+          if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision || options.expectedIdentity !== undefined && options.expectedIdentity !== current.state.identity) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_REVISION_CONFLICT", "Retrospective was changed by another operation.");
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          if (current.state.status === "completed") throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_TERMINAL", "Completed retrospective is immutable; create a new retrospective.");
+          if (state.id !== current.state.id || state.epoch !== current.state.epoch || state.revision <= current.state.revision) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_REVISION_CONFLICT", "Retrospective revision or identity is invalid.");
+          const immutableFields = ["projectId", "calculationId", "sourceResultId", "sourceRuntimeId", "sourceMonitoringId", "sourceFollowUpId", "sourceIdentity", "sourceFollowUpIdentity", "sourceSnapshot", "sourceSnapshotFingerprint", "epoch", "createdAt"];
+          if (immutableFields.some((field) => canonicalize(state[field]) !== canonicalize(current.state[field]))) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_SOURCE_IMMUTABLE", "Retrospective source snapshot is immutable.");
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_retrospective_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+          nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_RETROSPECTIVE_${state.status.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database();
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try {
+            const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+            const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id));
+            if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_REVISION_CONFLICT", "Retrospective changed concurrently."); }
+            await allocateOperationMetadata(transaction, operation);
+            transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject);
+            transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+            await transactionComplete(transaction);
+          } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind);
+          return clone(nextProgress);
+        }
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_RETROSPECTIVE", timestamp);
+        progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1;
+        progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_EPOCH_CONFLICT", "Retrospective epoch differs from progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_retrospective_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+        nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_RETROSPECTIVE_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database();
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+          if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_REVISION_CONFLICT", "Project changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject);
+          transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
+    async createPatternExecutionRetrospective(projectId, input = {}) {
+      const api = global.YarnAIPatternExecutionRetrospective;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_API_MISSING", "Execution retrospective module is not loaded.");
+      return api.createForProject(this, projectId, input);
+    }
+    async readPatternExecutionRetrospective(projectId, retrospectiveId = null) {
+      const api = global.YarnAIPatternExecutionRetrospective;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_API_MISSING", "Execution retrospective module is not loaded.");
+      return api.readForProject(this, projectId, retrospectiveId);
+    }
+
+    async _quarantinePatternExecutionLearning(record, reasonCode) {
+      const api = global.YarnAIPatternExecutionLearning;
+      const identity = api?.fingerprint ? api.fingerprint({ progressId: record?.progress_id || null, state: record?.state || null, reasonCode }) : canonicalize({ progressId: record?.progress_id || null, reasonCode });
+      const timestamp = record?.state?.updatedAt || record?.updated_at || "1970-01-01T00:00:00.000Z";
+      const quarantine = {
+        quarantine_id: `learning-quarantine:${identity}`, source_store: "progress", source_key: record?.progress_id || null,
+        reason_code: reasonCode, record: clone(record), created_at: timestamp, expires_at: timestamp,
+      };
+      const database = await this._database();
+      const transaction = database.transaction("quarantine", "readwrite");
+      transaction.objectStore("quarantine").put(quarantine);
+      await transactionComplete(transaction);
+      return clone(quarantine);
+    }
+
+    async listPatternExecutionLearnings(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_LEARNING"])));
+      await transactionComplete(transaction);
+      const valid = [];
+      for (const entry of records.filter((item) => item.project_id === projectId).sort((left, right) => left.epoch - right.epoch)) {
+        try {
+          validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_LEARNING");
+          validateImportedPatternExecutionLearning(entry.state, projectId);
+          valid.push(clone(entry));
+        } catch (error) {
+          await this._quarantinePatternExecutionLearning(entry, error?.code || "INVALID_PATTERN_EXECUTION_LEARNING");
+        }
+      }
+      return valid;
+    }
+
+    async getPatternExecutionLearning(projectId, learningId = null, calculationId = null) {
+      const records = await this.listPatternExecutionLearnings(projectId, calculationId);
+      if (learningId) return records.find((entry) => entry.progress_id === learningId || entry.state?.id === learningId) || null;
+      return records.at(-1) || null;
+    }
+
+    async _assertPatternExecutionLearningReferences(projectId, calculationId, state) {
+      const api = global.YarnAIPatternExecutionLearning;
+      if (!api?.loadSource || !api?.calculateIntegrity) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_API_MISSING", "Execution learning module is not loaded.");
+      const source = await api.loadSource(this, projectId);
+      if (source.calculationId !== calculationId) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_SCOPE_INVALID", "Learning does not belong to the active calculation.");
+      const integrity = api.calculateIntegrity(source, state);
+      if (!integrity.valid) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_INTEGRITY_INVALID", "Critical learning source references are missing, stale, or inconsistent.", { details: { issues: integrity.criticalIssues } });
+    }
+
+    async savePatternExecutionLearning(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object";
+      const state = directState ? calculationOrState : stateOrOptions;
+      const calculationId = directState ? state.calculationId : calculationOrState;
+      const options = directState ? stateOrOptions : maybeOptions;
+      const api = global.YarnAIPatternExecutionLearning;
+      const report = api?.validatePatternExecutionLearning?.(state);
+      if (!api || state?.kind !== "PATTERN_EXECUTION_LEARNING" || state?.type !== "PATTERN_EXECUTION_LEARNING" || state?.projectId !== projectId || state?.calculationId !== calculationId || !report?.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_LEARNING_STATE", "Execution learning snapshot is corrupted.");
+      validateImportedPatternExecutionLearning(state, projectId);
+      await this._assertPatternExecutionLearningReferences(projectId, calculationId, state);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Learning does not belong to the active calculation.");
+        const existing = await this.listPatternExecutionLearnings(projectId, calculationId);
+        const duplicate = existing.find((entry) => entry.state?.identity === state.identity && entry.state?.id !== state.id);
+        if (duplicate) return clone(duplicate);
+        const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id);
+        const timestamp = options.timestamp || state.updatedAt;
+        if (current) {
+          if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision || options.expectedIdentity !== undefined && options.expectedIdentity !== current.state.identity) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_REVISION_CONFLICT", "Learning was changed by another operation.");
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          if (current.state.status === "completed") throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_TERMINAL", "Completed learning is immutable; create a new learning record.");
+          if (state.id !== current.state.id || state.epoch !== current.state.epoch || state.revision <= current.state.revision) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_REVISION_CONFLICT", "Learning revision or identity is invalid.");
+          const immutableFields = ["projectId", "calculationId", "sourceResultId", "sourceRuntimeId", "sourceFollowUpId", "sourceRetrospectiveId", "sourceRetrospectiveIdentity", "sourceSnapshot", "sourceSnapshotFingerprint", "epoch", "createdAt"];
+          if (immutableFields.some((field) => canonicalize(state[field]) !== canonicalize(current.state[field]))) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_SOURCE_IMMUTABLE", "Learning source snapshot is immutable.");
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_learning_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+          nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_LEARNING_${state.status.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database();
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try {
+            const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+            const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id));
+            if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_REVISION_CONFLICT", "Learning changed concurrently."); }
+            await allocateOperationMetadata(transaction, operation);
+            transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+            await transactionComplete(transaction);
+          } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind);
+          return clone(nextProgress);
+        }
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_LEARNING", timestamp);
+        progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1;
+        progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_EPOCH_CONFLICT", "Learning epoch differs from progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_learning_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+        nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_LEARNING_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database();
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+          if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_REVISION_CONFLICT", "Project changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
+    async createPatternExecutionLearning(projectId, input = {}) {
+      const api = global.YarnAIPatternExecutionLearning;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_API_MISSING", "Execution learning module is not loaded.");
+      return api.createForProject(this, projectId, input);
+    }
+    async readPatternExecutionLearning(projectId, learningId = null) {
+      const api = global.YarnAIPatternExecutionLearning;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_API_MISSING", "Execution learning module is not loaded.");
+      return api.readForProject(this, projectId, learningId);
+    }
+
+    async _quarantinePatternExecutionAdaptation(record, reasonCode) {
+      const api = global.YarnAIPatternExecutionAdaptation;
+      const identity = api?.fingerprint ? api.fingerprint({ progressId: record?.progress_id || null, state: record?.state || null, reasonCode }) : canonicalize({ progressId: record?.progress_id || null, reasonCode });
+      const timestamp = record?.state?.updatedAt || record?.updated_at || "1970-01-01T00:00:00.000Z";
+      const quarantine = {
+        quarantine_id: `adaptation-quarantine:${identity}`, source_store: "progress", source_key: record?.progress_id || null,
+        reason_code: reasonCode, record: clone(record), created_at: timestamp, expires_at: timestamp,
+      };
+      const database = await this._database();
+      const transaction = database.transaction("quarantine", "readwrite");
+      transaction.objectStore("quarantine").put(quarantine);
+      await transactionComplete(transaction);
+      return clone(quarantine);
+    }
+
+    async listPatternExecutionAdaptations(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION"])));
+      await transactionComplete(transaction);
+      const valid = [];
+      for (const entry of records.filter((item) => item.project_id === projectId).sort((left, right) => left.epoch - right.epoch || left.state.revision - right.state.revision || (String(left.state.id) < String(right.state.id) ? -1 : String(left.state.id) > String(right.state.id) ? 1 : 0))) {
+        try {
+          validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION");
+          validateImportedPatternExecutionAdaptation(entry.state, projectId);
+          valid.push(clone(entry));
+        } catch (error) {
+          await this._quarantinePatternExecutionAdaptation(entry, error?.code || "INVALID_PATTERN_EXECUTION_ADAPTATION");
+        }
+      }
+      return valid;
+    }
+
+    async getPatternExecutionAdaptation(projectId, adaptationId = null, calculationId = null) {
+      const records = await this.listPatternExecutionAdaptations(projectId, calculationId);
+      if (adaptationId) return records.find((entry) => entry.progress_id === adaptationId || entry.state?.id === adaptationId) || null;
+      return records.at(-1) || null;
+    }
+
+    async _assertPatternExecutionAdaptationReferences(projectId, calculationId, state) {
+      const api = global.YarnAIPatternExecutionAdaptation;
+      if (!api?.loadSource || !api?.calculateIntegrity) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_API_MISSING", "Execution adaptation module is not loaded.");
+      const source = await api.loadSource(this, projectId);
+      if (source.calculationId !== calculationId) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_SCOPE_INVALID", "Adaptation does not belong to the active calculation.");
+      const integrity = api.calculateIntegrity(source, state, { includeContent: false });
+      if (!integrity.valid) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_INTEGRITY_INVALID", "Critical adaptation source references are missing, stale, or inconsistent.", { details: { issues: integrity.criticalIssues } });
+    }
+
+    async savePatternExecutionAdaptation(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object";
+      const state = directState ? calculationOrState : stateOrOptions;
+      const calculationId = directState ? state.calculationId : calculationOrState;
+      const options = directState ? stateOrOptions : maybeOptions;
+      const api = global.YarnAIPatternExecutionAdaptation;
+      const report = api?.validatePatternExecutionAdaptation?.(state);
+      if (!api || state?.kind !== "PATTERN_EXECUTION_ADAPTATION" || state?.type !== "PATTERN_EXECUTION_ADAPTATION" || state?.projectId !== projectId || state?.calculationId !== calculationId || !report?.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_ADAPTATION_STATE", "Execution adaptation snapshot is corrupted.");
+      validateImportedPatternExecutionAdaptation(state, projectId);
+      await this._assertPatternExecutionAdaptationReferences(projectId, calculationId, state);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Adaptation does not belong to the active calculation.");
+        const existing = await this.listPatternExecutionAdaptations(projectId, calculationId);
+        const sameIdentity = existing.find((entry) => entry.state?.identity === state.identity && entry.state?.id !== state.id);
+        if (sameIdentity) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_IDENTITY_COLLISION", "Adaptation identity collides with another record; no record was overwritten.");
+        const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id);
+        const timestamp = options.timestamp || state.updatedAt;
+        if (current) {
+          if (options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision || options.expectedIdentity !== undefined && options.expectedIdentity !== current.state.identity) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_REVISION_CONFLICT", "Adaptation was changed by another operation.");
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          if (current.state.status === "completed") throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_TERMINAL", "Completed adaptation is immutable.");
+          if (state.id !== current.state.id || state.epoch !== current.state.epoch || state.revision <= current.state.revision) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_REVISION_CONFLICT", "Adaptation revision or identity is invalid.");
+          const immutableFields = ["projectId", "calculationId", "resultId", "runtimeId", "followUpId", "retrospectiveId", "learningId", "sourceIdentities", "learningSnapshot", "criticalReferences", "epoch", "createdAt"];
+          if (immutableFields.some((field) => canonicalize(state[field]) !== canonicalize(current.state[field]))) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_SOURCE_IMMUTABLE", "Adaptation source proof is immutable.");
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+          nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_ADAPTATION_${state.status.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database();
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try {
+            const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+            const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id));
+            if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_REVISION_CONFLICT", "Adaptation changed concurrently."); }
+            await allocateOperationMetadata(transaction, operation);
+            transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+            await transactionComplete(transaction);
+          } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind);
+          return clone(nextProgress);
+        }
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_ADAPTATION", timestamp);
+        progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1;
+        progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_EPOCH_CONFLICT", "Adaptation epoch differs from progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+        nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_ADAPTATION_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database();
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+          if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_REVISION_CONFLICT", "Project changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
+    async createPatternExecutionAdaptation(projectId, input = {}) {
+      const api = global.YarnAIPatternExecutionAdaptation;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_API_MISSING", "Execution adaptation module is not loaded.");
+      return api.createForProject(this, projectId, input);
+    }
+
+    async readPatternExecutionAdaptation(projectId, adaptationId = null) {
+      const api = global.YarnAIPatternExecutionAdaptation;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_API_MISSING", "Execution adaptation module is not loaded.");
+      return api.readForProject(this, projectId, adaptationId);
+    }
+
+    async _quarantinePatternExecutionAdaptationValidation(record, reasonCode) {
+      const api = global.YarnAIPatternExecutionAdaptationValidation;
+      const identity = api?.fingerprint ? api.fingerprint({ progressId: record?.progress_id || null, state: record?.state || null, reasonCode }) : canonicalize({ progressId: record?.progress_id || null, reasonCode });
+      const timestamp = record?.state?.updatedAt || record?.updated_at || "1970-01-01T00:00:00.000Z";
+      const quarantine = {
+        quarantine_id: `adaptation-validation-quarantine:${identity}`, source_store: "progress", source_key: record?.progress_id || null,
+        reason_code: reasonCode, record: clone(record), created_at: timestamp, expires_at: timestamp,
+      };
+      const database = await this._database();
+      const transaction = database.transaction("quarantine", "readwrite");
+      transaction.objectStore("quarantine").put(quarantine);
+      await transactionComplete(transaction);
+      return clone(quarantine);
+    }
+
+    async listPatternExecutionAdaptationValidations(projectId, calculationId = null, adaptationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_VALIDATION"])));
+      await transactionComplete(transaction);
+      const valid = [];
+      for (const entry of records.filter((item) => item.project_id === projectId && (!adaptationId || item.state?.adaptationId === adaptationId)).sort((left, right) => left.epoch - right.epoch || left.state.revision - right.state.revision || (String(left.state.id) < String(right.state.id) ? -1 : String(left.state.id) > String(right.state.id) ? 1 : 0))) {
+        try {
+          validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_VALIDATION");
+          validateImportedPatternExecutionAdaptationValidation(entry.state, projectId);
+          valid.push(clone(entry));
+        } catch (error) {
+          await this._quarantinePatternExecutionAdaptationValidation(entry, error?.code || "INVALID_PATTERN_EXECUTION_ADAPTATION_VALIDATION");
+        }
+      }
+      return valid;
+    }
+
+    async getPatternExecutionAdaptationValidation(projectId, adaptationValidationId = null, calculationId = null, adaptationId = null) {
+      const records = await this.listPatternExecutionAdaptationValidations(projectId, calculationId, adaptationId);
+      if (adaptationValidationId) return records.find((entry) => entry.progress_id === adaptationValidationId || entry.state?.id === adaptationValidationId || entry.state?.adaptationValidationId === adaptationValidationId) || null;
+      return records.at(-1) || null;
+    }
+
+    async _assertPatternExecutionAdaptationValidationReferences(projectId, calculationId, state) {
+      const api = global.YarnAIPatternExecutionAdaptationValidation;
+      if (!api?.loadSource || !api?.calculateIntegrity) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_API_MISSING", "Execution adaptation validation module is not loaded.");
+      const source = await api.loadSource(this, projectId, state.adaptationId);
+      if (source.calculationId !== calculationId) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_SCOPE_INVALID", "Adaptation validation does not belong to the active calculation.");
+      const integrity = api.calculateIntegrity(source, state);
+      if (!integrity.valid) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_INTEGRITY_INVALID", "Critical validation source references are missing, stale, or inconsistent.", { details: { issues: integrity.criticalIssues } });
+    }
+
+    async savePatternExecutionAdaptationValidation(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object";
+      const state = directState ? calculationOrState : stateOrOptions;
+      const calculationId = directState ? state.calculationId : calculationOrState;
+      const options = directState ? stateOrOptions : maybeOptions;
+      const api = global.YarnAIPatternExecutionAdaptationValidation;
+      const report = api?.validatePatternExecutionAdaptationValidation?.(state);
+      if (!api || state?.kind !== "PATTERN_EXECUTION_ADAPTATION_VALIDATION" || state?.type !== "PATTERN_EXECUTION_ADAPTATION_VALIDATION" || state?.projectId !== projectId || state?.calculationId !== calculationId || !report?.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_ADAPTATION_VALIDATION_STATE", "Execution adaptation validation snapshot is corrupted.");
+      validateImportedPatternExecutionAdaptationValidation(state, projectId);
+      await this._assertPatternExecutionAdaptationValidationReferences(projectId, calculationId, state);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Adaptation validation does not belong to the active calculation.");
+        const existing = await this.listPatternExecutionAdaptationValidations(projectId, calculationId);
+        const sameIdentity = existing.find((entry) => entry.state?.identity === state.identity && entry.state?.id !== state.id);
+        if (sameIdentity) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_IDENTITY_COLLISION", "Validation identity collides with another record; no record was overwritten.");
+        const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id);
+        const timestamp = options.timestamp || state.updatedAt;
+        if (current) {
+          if ((options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision) || (options.expectedIdentity !== undefined && options.expectedIdentity !== current.state.identity)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_REVISION_CONFLICT", "Validation was changed by another operation.");
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          if (current.state.status === "completed") throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_TERMINAL", "Completed validation is immutable.");
+          if (state.id !== current.state.id || state.adaptationValidationId !== current.state.adaptationValidationId || state.epoch !== current.state.epoch || state.revision <= current.state.revision) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_REVISION_CONFLICT", "Validation revision or identity is invalid.");
+          const immutableFields = ["projectId", "calculationId", "resultId", "runtimeId", "followUpId", "retrospectiveId", "learningId", "adaptationId", "adaptationValidationId", "scope", "sourceIdentities", "adaptationIdentity", "adaptationSnapshot", "declaredValidationPlan", "criticalReferences", "epoch", "createdAt"];
+          if (immutableFields.some((field) => canonicalize(state[field]) !== canonicalize(current.state[field]))) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_SOURCE_IMMUTABLE", "Validation source proof is immutable.");
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_validation_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+          nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_ADAPTATION_VALIDATION_${state.status.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database();
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try {
+            const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+            const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id));
+            if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_REVISION_CONFLICT", "Validation changed concurrently."); }
+            await allocateOperationMetadata(transaction, operation);
+            transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+            await transactionComplete(transaction);
+          } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind);
+          return clone(nextProgress);
+        }
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_ADAPTATION_VALIDATION", timestamp);
+        progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1;
+        progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_EPOCH_CONFLICT", "Validation epoch differs from progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_validation_${state.status}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+        nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_ADAPTATION_VALIDATION_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database();
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+          if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_REVISION_CONFLICT", "Project changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
+    async createPatternExecutionAdaptationValidation(projectId, input = {}) {
+      const api = global.YarnAIPatternExecutionAdaptationValidation;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_API_MISSING", "Execution adaptation validation module is not loaded.");
+      return api.createForProject(this, projectId, input);
+    }
+
+    async readPatternExecutionAdaptationValidation(projectId, adaptationValidationId = null, adaptationId = null) {
+      const api = global.YarnAIPatternExecutionAdaptationValidation;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_API_MISSING", "Execution adaptation validation module is not loaded.");
+      return api.readForProject(this, projectId, adaptationValidationId, adaptationId);
+    }
+
+    async _quarantinePatternExecutionAdaptationPromotion(record, reasonCode) {
+      const api = global.YarnAIPatternExecutionAdaptationPromotion;
+      const identity = api?.fingerprint ? api.fingerprint({ progressId: record?.progress_id || null, state: record?.state || null, reasonCode }) : canonicalize({ progressId: record?.progress_id || null, reasonCode });
+      const timestamp = record?.state?.updatedAt || record?.updated_at || "1970-01-01T00:00:00.000Z";
+      const quarantine = {
+        quarantine_id: `adaptation-promotion-quarantine:${identity}`, source_store: "progress", source_key: record?.progress_id || null,
+        reason_code: reasonCode, record: clone(record), created_at: timestamp, expires_at: timestamp,
+      };
+      const database = await this._database();
+      const transaction = database.transaction("quarantine", "readwrite");
+      transaction.objectStore("quarantine").put(quarantine);
+      await transactionComplete(transaction);
+      return clone(quarantine);
+    }
+
+    async listPatternExecutionAdaptationPromotions(projectId, calculationId = null, adaptationId = null, adaptationValidationId = null, patternExecutionId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_PROMOTION"])));
+      await transactionComplete(transaction);
+      const valid = [];
+      const filtered = records.filter((entry) => entry.project_id === projectId && (!adaptationId || entry.state?.adaptationId === adaptationId) && (!adaptationValidationId || entry.state?.adaptationValidationId === adaptationValidationId) && (!patternExecutionId || entry.state?.patternExecutionId === patternExecutionId));
+      filtered.sort((left, right) => left.epoch - right.epoch || left.state.revision - right.state.revision || (String(left.state.id) < String(right.state.id) ? -1 : String(left.state.id) > String(right.state.id) ? 1 : 0));
+      for (const entry of filtered) {
+        try {
+          validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_PROMOTION");
+          validateImportedPatternExecutionAdaptationPromotion(entry.state, projectId);
+          valid.push(clone(entry));
+        } catch (error) {
+          await this._quarantinePatternExecutionAdaptationPromotion(entry, error?.code || "INVALID_PATTERN_EXECUTION_ADAPTATION_PROMOTION");
+        }
+      }
+      return valid;
+    }
+
+    async getPatternExecutionAdaptationPromotion(projectId, adaptationPromotionId = null, calculationId = null, adaptationId = null, adaptationValidationId = null) {
+      const records = await this.listPatternExecutionAdaptationPromotions(projectId, calculationId, adaptationId, adaptationValidationId);
+      if (adaptationPromotionId) return records.find((entry) => entry.progress_id === adaptationPromotionId || entry.state?.id === adaptationPromotionId || entry.state?.adaptationPromotionId === adaptationPromotionId) || null;
+      return records.at(-1) || null;
+    }
+
+    async getLatestPatternExecutionAdaptationPromotion(projectId, calculationId = null, adaptationId = null, adaptationValidationId = null, patternExecutionId = null) {
+      const records = await this.listPatternExecutionAdaptationPromotions(projectId, calculationId, adaptationId, adaptationValidationId, patternExecutionId);
+      return records.at(-1) || null;
+    }
+
+    async _assertPatternExecutionAdaptationPromotionReferences(projectId, calculationId, state) {
+      const api = global.YarnAIPatternExecutionAdaptationPromotion;
+      if (!api?.loadSource || !api?.calculateSourceProof) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_API_MISSING", "Execution adaptation promotion module is not loaded.");
+      const source = await api.loadSource(this, projectId, state.adaptationId, state.adaptationValidationId);
+      if (source.calculationId !== calculationId) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_SCOPE_INVALID", "Adaptation promotion does not belong to the active calculation.");
+      const proof = api.calculateSourceProof(source, state);
+      if (["promote", "promote_with_constraints"].includes(state.promotionVerdict) && !proof.fullChainProven) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_PROOF_INVALID", "A positive promotion verdict requires the current full source chain.", { details: { issues: proof.issues } });
+      if (!proof.adaptationResolved || !proof.validationResolved || !proof.sameProject || !proof.samePatternExecution || !proof.validationTargetsAdaptation) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_REFERENCE_INVALID", "Promotion references do not resolve to one adaptation and its validation.", { details: { issues: proof.issues } });
+    }
+
+    async savePatternExecutionAdaptationPromotion(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object";
+      const state = directState ? calculationOrState : stateOrOptions;
+      const calculationId = directState ? state.calculationId : calculationOrState;
+      const options = directState ? stateOrOptions : maybeOptions;
+      const api = global.YarnAIPatternExecutionAdaptationPromotion;
+      const report = api?.validatePatternExecutionAdaptationPromotion?.(state);
+      if (!api || state?.kind !== "PATTERN_EXECUTION_ADAPTATION_PROMOTION" || state?.type !== "PATTERN_EXECUTION_ADAPTATION_PROMOTION" || state?.projectId !== projectId || state?.calculationId !== calculationId || !report?.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_ADAPTATION_PROMOTION_STATE", "Execution adaptation promotion snapshot is corrupted.");
+      validateImportedPatternExecutionAdaptationPromotion(state, projectId);
+      await this._assertPatternExecutionAdaptationPromotionReferences(projectId, calculationId, state);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Adaptation promotion does not belong to the active calculation.");
+        const existing = await this.listPatternExecutionAdaptationPromotions(projectId, calculationId);
+        const sameIdentity = existing.find((entry) => entry.state?.identity === state.identity && entry.state?.id !== state.id);
+        if (sameIdentity) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_IDENTITY_COLLISION", "Promotion identity collides with another record; no record was overwritten.");
+        const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id);
+        const timestamp = options.timestamp || state.updatedAt;
+        if (current) {
+          if ((options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision) || (options.expectedIdentity !== undefined && options.expectedIdentity !== current.state.identity)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_REVISION_CONFLICT", "Promotion was changed by another operation.");
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_TERMINAL", "Completed promotion is immutable.");
+          if (state.id !== current.state.id || state.adaptationPromotionId !== current.state.adaptationPromotionId || state.epoch !== current.state.epoch || state.revision <= current.state.revision) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_REVISION_CONFLICT", "Promotion revision or identity is invalid.");
+          const immutableFields = ["projectId", "calculationId", "patternExecutionId", "adaptationId", "adaptationValidationId", "adaptationPromotionId", "sourceIdentities", "adaptationSnapshot", "validationSnapshot", "epoch", "createdAt"];
+          if (immutableFields.some((field) => canonicalize(state[field]) !== canonicalize(current.state[field]))) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_SOURCE_IMMUTABLE", "Promotion source proof is immutable.");
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_promotion_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+          nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_ADAPTATION_PROMOTION_${state.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database();
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try {
+            const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+            const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id));
+            if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_REVISION_CONFLICT", "Promotion changed concurrently."); }
+            await allocateOperationMetadata(transaction, operation);
+            transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+            await transactionComplete(transaction);
+          } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind);
+          return clone(nextProgress);
+        }
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_ADAPTATION_PROMOTION", timestamp);
+        progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1;
+        progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_EPOCH_CONFLICT", "Promotion epoch differs from progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_promotion_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1;
+        nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_ADAPTATION_PROMOTION_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database();
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId));
+          if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_REVISION_CONFLICT", "Project changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return clone(progress);
+      });
+    }
+
+    async createPatternExecutionAdaptationPromotion(projectId, input = {}) {
+      const api = global.YarnAIPatternExecutionAdaptationPromotion;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_API_MISSING", "Execution adaptation promotion module is not loaded.");
+      return api.createForProject(this, projectId, input);
+    }
+
+    async readPatternExecutionAdaptationPromotion(projectId, adaptationPromotionId = null, adaptationId = null, adaptationValidationId = null) {
+      const api = global.YarnAIPatternExecutionAdaptationPromotion;
+      if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_API_MISSING", "Execution adaptation promotion module is not loaded.");
+      return api.readForProject(this, projectId, adaptationPromotionId, adaptationId, adaptationValidationId);
+    }
+
+    async _quarantinePatternExecutionAdaptationRollout(record, reasonCode) {
+      const api = global.YarnAIPatternExecutionAdaptationRollout;
+      const identity = api?.fingerprint ? api.fingerprint({ progressId: record?.progress_id || null, state: record?.state || null, reasonCode }) : canonicalize({ progressId: record?.progress_id || null, reasonCode });
+      const timestamp = record?.state?.updatedAt || record?.updated_at || "1970-01-01T00:00:00.000Z";
+      const quarantine = { quarantine_id: `adaptation-rollout-quarantine:${identity}`, source_store: "progress", source_key: record?.progress_id || null, reason_code: reasonCode, record: clone(record), created_at: timestamp, expires_at: timestamp };
+      const database = await this._database();
+      const transaction = database.transaction("quarantine", "readwrite");
+      transaction.objectStore("quarantine").put(quarantine);
+      await transactionComplete(transaction);
+      return clone(quarantine);
+    }
+
+    async listPatternExecutionAdaptationRollouts(projectId, calculationId = null, patternExecutionId = null, adaptationId = null, adaptationValidationId = null, adaptationPromotionId = null, filters = {}) {
+      if (calculationId && typeof calculationId === "object") { filters = calculationId; calculationId = filters.calculationId || null; patternExecutionId = filters.patternExecutionId || filters.runtimeId || null; adaptationId = filters.adaptationId || null; adaptationValidationId = filters.adaptationValidationId || null; adaptationPromotionId = filters.adaptationPromotionId || null; }
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_ROLLOUT"])));
+      await transactionComplete(transaction);
+      const valid = [];
+      const filtered = records.filter((entry) => entry.project_id === projectId && (!patternExecutionId || entry.state?.patternExecutionId === patternExecutionId || entry.state?.runtimeId === patternExecutionId) && (!adaptationId || entry.state?.adaptationId === adaptationId) && (!adaptationValidationId || entry.state?.adaptationValidationId === adaptationValidationId) && (!adaptationPromotionId || entry.state?.adaptationPromotionId === adaptationPromotionId) && (!filters.lifecycle || entry.state?.lifecycle === filters.lifecycle) && (!filters.verdict || entry.state?.rolloutVerdict === filters.verdict) && (filters.stale === undefined || entry.state?.stale === filters.stale) && (!filters.proofStatus || entry.state?.proofStatus === filters.proofStatus) && (filters.proven === undefined || (entry.state?.proofStatus === "proven") === filters.proven) && (filters.importedUnproven === undefined || (entry.state?.proofStatus === "imported-unproven") === filters.importedUnproven) && (filters.collision === undefined || entry.state?.collision === filters.collision));
+      filtered.sort((left, right) => left.epoch - right.epoch || left.state.revision - right.state.revision || (String(left.state.id) < String(right.state.id) ? -1 : String(left.state.id) > String(right.state.id) ? 1 : 0));
+      for (const entry of filtered) {
+        try { validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_ROLLOUT"); validateImportedPatternExecutionAdaptationRollout(entry.state, projectId); valid.push(clone(entry)); }
+        catch (error) { await this._quarantinePatternExecutionAdaptationRollout(entry, error?.code || "INVALID_PATTERN_EXECUTION_ADAPTATION_ROLLOUT"); }
+      }
+      return valid;
+    }
+
+    async getPatternExecutionAdaptationRollout(projectId, adaptationRolloutId = null, calculationId = null, adaptationId = null, adaptationValidationId = null, adaptationPromotionId = null) {
+      const records = await this.listPatternExecutionAdaptationRollouts(projectId, calculationId, null, adaptationId, adaptationValidationId, adaptationPromotionId);
+      if (adaptationRolloutId) return records.find((entry) => entry.progress_id === adaptationRolloutId || entry.state?.id === adaptationRolloutId || entry.state?.adaptationRolloutId === adaptationRolloutId) || null;
+      return records.at(-1) || null;
+    }
+
+    async getLatestPatternExecutionAdaptationRollout(projectId, calculationId = null, patternExecutionId = null, adaptationId = null, adaptationValidationId = null, adaptationPromotionId = null, filters = {}) {
+      const records = calculationId && typeof calculationId === "object" ? await this.listPatternExecutionAdaptationRollouts(projectId, calculationId) : await this.listPatternExecutionAdaptationRollouts(projectId, calculationId, patternExecutionId, adaptationId, adaptationValidationId, adaptationPromotionId, filters);
+      return records.at(-1) || null;
+    }
+
+    async _assertPatternExecutionAdaptationRolloutReferences(projectId, calculationId, state) {
+      const api = global.YarnAIPatternExecutionAdaptationRollout;
+      if (!api?.loadSource || !api?.calculateSourceProof) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_API_MISSING", "Execution adaptation rollout module is not loaded.");
+      const source = await api.loadSource(this, projectId, state.adaptationPromotionId);
+      if (source.calculationId !== calculationId) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_SCOPE_INVALID", "Adaptation rollout does not belong to the active calculation.");
+      const proof = api.calculateSourceProof(source, state);
+      if (!proof.projectResolved || !proof.calculationResolved || !proof.runtimeResolved || !proof.adaptationResolved || !proof.validationResolved || !proof.promotionResolved || !proof.sameProject || !proof.sameCalculation || !proof.samePatternExecution || !proof.adaptationTargetMatches || !proof.validationTargetMatches || !proof.promotionTargetMatches) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_REFERENCE_INVALID", "Rollout references do not resolve to one local source chain.", { details: { issues: proof.issues } });
+      if (!proof.promotionAllowsRollout) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_PROMOTION_BLOCKED", "Promotion verdict does not allow rollout.");
+      const expectedConstraints = api.constraintsFromPromotion(source.promotion).map((item) => ({ constraintId: item.constraintId, severity: item.severity, sourceStatus: item.sourceStatus }));
+      const actualConstraints = state.constraints.map((item) => ({ constraintId: item.constraintId, severity: item.severity, sourceStatus: item.sourceStatus }));
+      if (canonicalize(expectedConstraints) !== canonicalize(actualConstraints)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_CONSTRAINT_SOURCE_INVALID", "Rollout constraint identities must match the open promotion constraints.");
+      return { source, proof };
+    }
+
+    async savePatternExecutionAdaptationRollout(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object";
+      const state = directState ? calculationOrState : stateOrOptions;
+      const calculationId = directState ? state.calculationId : calculationOrState;
+      const options = directState ? stateOrOptions : maybeOptions;
+      const api = global.YarnAIPatternExecutionAdaptationRollout;
+      const report = api?.validatePatternExecutionAdaptationRollout?.(state);
+      if (!api || state?.kind !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT" || state?.type !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT" || state?.projectId !== projectId || state?.calculationId !== calculationId || !report?.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_ADAPTATION_ROLLOUT_STATE", "Execution adaptation rollout snapshot is corrupted.");
+      validateImportedPatternExecutionAdaptationRollout(state, projectId);
+      await this._assertPatternExecutionAdaptationRolloutReferences(projectId, calculationId, state);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Adaptation rollout does not belong to the active calculation.");
+        const existing = await this.listPatternExecutionAdaptationRollouts(projectId, calculationId);
+        if (existing.some((entry) => entry.state?.identity === state.identity && entry.state?.id !== state.id)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_IDENTITY_COLLISION", "Rollout identity collides with another record; no record was overwritten.");
+        const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id);
+        const timestamp = options.timestamp || state.updatedAt;
+        if (current) {
+          if ((options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision) || (options.expectedIdentity !== undefined && options.expectedIdentity !== current.state.identity)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_REVISION_CONFLICT", "Rollout was changed by another operation.");
+          if (canonicalize(state) === canonicalize(current.state)) return clone(current);
+          const proofReprojection = options.allowProofReprojection === true && options.operationKind === "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_PROOF_REPROJECTED";
+          if (["completed", "aborted"].includes(current.state.lifecycle) && !proofReprojection) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_TERMINAL", "Terminal rollout is immutable.");
+          if (state.id !== current.state.id || state.adaptationRolloutId !== current.state.adaptationRolloutId || state.epoch !== current.state.epoch || state.revision <= current.state.revision) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_REVISION_CONFLICT", "Rollout revision or identity is invalid.");
+          const lifecycleNext = { draft: "preparing", preparing: "deploying", deploying: "monitoring", monitoring: "completed" };
+          if (!proofReprojection && state.lifecycle !== current.state.lifecycle && state.lifecycle !== "aborted" && lifecycleNext[current.state.lifecycle] !== state.lifecycle) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_LIFECYCLE_CONFLICT", "Rollout lifecycle can only move one state forward or abort.");
+          const immutableFields = ["projectId", "calculationId", "patternExecutionId", "runtimeId", "adaptationId", "adaptationValidationId", "adaptationPromotionId", "sourceIdentities", "projectSnapshot", "calculationSnapshot", "runtimeSnapshot", "adaptationSnapshot", "validationSnapshot", "promotionSnapshot", "epoch", "createdAt"];
+          if (immutableFields.some((field) => canonicalize(state[field]) !== canonicalize(current.state[field]))) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_SOURCE_IMMUTABLE", "Rollout source snapshots are immutable.");
+          if (["deploying", "monitoring"].includes(current.state.lifecycle)) {
+            const planStructure = (value) => value.rolloutPlan.map((item) => ({ rolloutItemId: item.rolloutItemId, title: item.title, required: item.required, sequence: item.sequence, targetScope: item.targetScope, expectedOutcome: item.expectedOutcome, rollbackCondition: item.rollbackCondition }));
+            if (state.strategy !== current.state.strategy || canonicalize(state.scope) !== canonicalize(current.state.scope) || canonicalize(planStructure(state)) !== canonicalize(planStructure(current.state))) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_PLAN_LOCKED", "Rollout strategy, scope and plan structure are locked after deployment starts.");
+          }
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp;
+          const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_rollout_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_ADAPTATION_ROLLOUT_${state.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+          const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const database = await this._database(); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id)); if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_REVISION_CONFLICT", "Rollout changed concurrently."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind); return clone(nextProgress);
+        }
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_ADAPTATION_ROLLOUT", timestamp); progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1; progress.state = clone(state);
+        if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EPOCH_CONFLICT", "Rollout epoch differs from progress epoch.");
+        const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_rollout_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database(); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_REVISION_CONFLICT", "Project changed concurrently."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async createPatternExecutionAdaptationRollout(projectId, input = {}) { const api = global.YarnAIPatternExecutionAdaptationRollout; if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_API_MISSING", "Execution adaptation rollout module is not loaded."); return api.createForProject(this, projectId, input); }
+    async readPatternExecutionAdaptationRollout(projectId, adaptationRolloutId = null, adaptationPromotionId = null) { const api = global.YarnAIPatternExecutionAdaptationRollout; if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_API_MISSING", "Execution adaptation rollout module is not loaded."); return api.readForProject(this, projectId, adaptationRolloutId, adaptationPromotionId); }
+    async reprojectPatternExecutionAdaptationRolloutProof(projectId, adaptationRolloutId, options = {}) { const current = await this.getPatternExecutionAdaptationRollout(projectId, adaptationRolloutId); if (!current) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_NOT_FOUND", "Adaptation rollout was not found."); const api = global.YarnAIPatternExecutionAdaptationRollout; const source = await api.loadSource(this, projectId, current.state.adaptationPromotionId); const next = api.reprojectPatternExecutionAdaptationRollout(current.state, { ...source, rolloutStorageRevision: current.revision }, { now: options.timestamp || current.state.updatedAt }); return this.savePatternExecutionAdaptationRollout(projectId, next, { ...options, recordId: current.progress_id, expectedRevision: current.state.revision, expectedIdentity: current.state.identity, operationKind: "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_PROOF_REPROJECTED", allowProofReprojection: true }); }
+
+    async _quarantinePatternExecutionAdaptationRolloutEvaluation(record, reasonCode) {
+      const api = global.YarnAIPatternExecutionAdaptationRolloutEvaluation;
+      const identity = api?.fingerprint ? api.fingerprint({ progressId: record?.progress_id || null, state: record?.state || null, reasonCode }) : canonicalize({ progressId: record?.progress_id || null, reasonCode });
+      const timestamp = record?.state?.updatedAt || record?.updated_at || "1970-01-01T00:00:00.000Z";
+      const quarantine = { quarantine_id: `adaptation-rollout-evaluation-quarantine:${identity}`, source_store: "progress", source_key: record?.progress_id || null, reason_code: reasonCode, record: clone(record), created_at: timestamp, expires_at: timestamp };
+      const database = await this._database(); const transaction = database.transaction("quarantine", "readwrite"); transaction.objectStore("quarantine").put(quarantine); await transactionComplete(transaction); return clone(quarantine);
+    }
+
+    async listPatternExecutionAdaptationRolloutEvaluations(projectId, calculationId = null, rolloutId = null, filters = {}) {
+      if (calculationId && typeof calculationId === "object") { filters = calculationId; calculationId = filters.calculationId || null; rolloutId = filters.rolloutId || filters.adaptationRolloutId || null; }
+      const project = await this._validatedCurrentProject(projectId); const effectiveCalculationId = calculationId || project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const database = await this._database(); const transaction = database.transaction("progress", "readonly"); const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION"]))); await transactionComplete(transaction);
+      const filtered = records.filter((entry) => entry.project_id === projectId && (!rolloutId || entry.state?.rolloutId === rolloutId || entry.state?.adaptationRolloutId === rolloutId) && (!filters.lifecycle || entry.state?.lifecycle === filters.lifecycle) && (!filters.verdict || entry.state?.verdict === filters.verdict) && (!filters.strategy || entry.state?.strategy === filters.strategy) && (filters.stale === undefined || entry.state?.stale === filters.stale) && (!filters.proofStatus || entry.state?.proofStatus === filters.proofStatus) && (filters.proven === undefined || (entry.state?.proofStatus === "proven") === filters.proven) && (filters.importedUnproven === undefined || (entry.state?.proofStatus === "imported-unproven") === filters.importedUnproven) && (filters.collision === undefined || entry.state?.collision === filters.collision));
+      filtered.sort((a, b) => a.epoch - b.epoch || a.state.revision - b.state.revision || (String(a.state.id) < String(b.state.id) ? -1 : String(a.state.id) > String(b.state.id) ? 1 : 0)); const valid = [];
+      for (const entry of filtered) { try { validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION"); validateImportedPatternExecutionAdaptationRolloutEvaluation(entry.state, projectId); valid.push(clone(entry)); } catch (error) { await this._quarantinePatternExecutionAdaptationRolloutEvaluation(entry, error?.code || "INVALID_PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION"); } } return valid;
+    }
+
+    async getPatternExecutionAdaptationRolloutEvaluation(projectId, evaluationId = null, calculationId = null, rolloutId = null) { const records = await this.listPatternExecutionAdaptationRolloutEvaluations(projectId, calculationId, rolloutId); if (evaluationId) return records.find((entry) => entry.progress_id === evaluationId || entry.state?.id === evaluationId || entry.state?.evaluationId === evaluationId || entry.state?.adaptationRolloutEvaluationId === evaluationId) || null; return records.at(-1) || null; }
+    async getLatestPatternExecutionAdaptationRolloutEvaluation(projectId, calculationId = null, rolloutId = null, filters = {}) { const records = calculationId && typeof calculationId === "object" ? await this.listPatternExecutionAdaptationRolloutEvaluations(projectId, calculationId) : await this.listPatternExecutionAdaptationRolloutEvaluations(projectId, calculationId, rolloutId, filters); return records.at(-1) || null; }
+
+    async _assertPatternExecutionAdaptationRolloutEvaluationReferences(projectId, calculationId, state, evaluationStorageRevision = 0) {
+      const api = global.YarnAIPatternExecutionAdaptationRolloutEvaluation; if (!api?.loadSource || !api?.calculateSourceProof) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_API_MISSING", "Rollout evaluation module is not loaded.");
+      const source = await api.loadSource(this, projectId, state.rolloutId); if (source.calculationId !== calculationId) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_SCOPE_INVALID", "Rollout evaluation does not belong to the active calculation."); const proof = api.calculateSourceProof({ ...source, evaluationStorageRevision }, state); if (!proof.recordsResolved || !proof.sameProject || !proof.sameCalculation || !proof.identitiesMatch || !proof.rolloutTerminal || !proof.rolloutVerdictComputed || !proof.snapshotsMatch || !proof.collisionFree) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_REFERENCE_INVALID", "Rollout evaluation references do not resolve to one local source chain.", { details: { issues: proof.issues } }); return { source, proof };
+    }
+
+    async savePatternExecutionAdaptationRolloutEvaluation(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object"; const state = directState ? calculationOrState : stateOrOptions; const calculationId = directState ? state.calculationId : calculationOrState; const options = directState ? stateOrOptions : maybeOptions; const api = global.YarnAIPatternExecutionAdaptationRolloutEvaluation; const report = api?.validatePatternExecutionAdaptationRolloutEvaluation?.(state);
+      if (!api || state?.kind !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION" || state?.type !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION" || state?.projectId !== projectId || state?.calculationId !== calculationId || !report?.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_STATE", "Rollout evaluation snapshot is corrupted."); validateImportedPatternExecutionAdaptationRolloutEvaluation(state, projectId);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Rollout evaluation does not belong to the active calculation."); const existing = await this.listPatternExecutionAdaptationRolloutEvaluations(projectId, calculationId); if (existing.some((entry) => entry.state?.identity === state.identity && entry.state?.id !== state.id)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_IDENTITY_COLLISION", "Evaluation identity collides with another record."); const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id); await this._assertPatternExecutionAdaptationRolloutEvaluationReferences(projectId, calculationId, state, current?.revision || 0); const timestamp = options.timestamp || state.updatedAt;
+        if (current) {
+          if ((options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision) || (options.expectedIdentity !== undefined && options.expectedIdentity !== current.state.identity)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_REVISION_CONFLICT", "Evaluation was changed by another operation."); if (canonicalize(state) === canonicalize(current.state)) return clone(current); const proofReprojection = options.allowProofReprojection === true && options.operationKind === "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_PROOF_REPROJECTED"; if (["completed", "aborted"].includes(current.state.lifecycle) && !proofReprojection) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_TERMINAL", "Terminal evaluation is immutable."); if (state.id !== current.state.id || state.evaluationId !== current.state.evaluationId || state.epoch !== current.state.epoch || state.revision <= current.state.revision) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_REVISION_CONFLICT", "Evaluation revision or identity is invalid."); const lifecycleNext = { draft: "collecting", collecting: "analyzing", analyzing: "reviewing", reviewing: "completed" }; if (!proofReprojection && state.lifecycle !== current.state.lifecycle && state.lifecycle !== "aborted" && lifecycleNext[current.state.lifecycle] !== state.lifecycle) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_LIFECYCLE_CONFLICT", "Evaluation lifecycle can move only one state forward or abort."); const immutableFields = ["projectId", "calculationId", "runtimeId", "adaptationId", "validationId", "promotionId", "rolloutId", "sourceIdentities", "projectSnapshot", "calculationSnapshot", "runtimeSnapshot", "adaptationSnapshot", "validationSnapshot", "promotionSnapshot", "rolloutSnapshot", "expectedImpact", "epoch", "createdAt"]; if (immutableFields.some((field) => canonicalize(state[field]) !== canonicalize(current.state[field]))) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_SOURCE_IMMUTABLE", "Evaluation source snapshots and scope are immutable.");
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp; const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_rollout_evaluation_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject)); const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_${state.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const database = await this._database(); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite"); try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id)); if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_REVISION_CONFLICT", "Evaluation changed concurrently."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); } this._notify(projectId, nextProject.revision, operation.kind); return clone(nextProgress);
+        }
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION", timestamp); progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1; progress.state = clone(state); if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_EPOCH_CONFLICT", "Evaluation epoch differs from progress epoch."); const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_rollout_evaluation_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject)); const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const database = await this._database(); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite"); try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_REVISION_CONFLICT", "Evaluation changed concurrently."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); } this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async createPatternExecutionAdaptationRolloutEvaluation(projectId, input = {}) { const api = global.YarnAIPatternExecutionAdaptationRolloutEvaluation; if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_API_MISSING", "Rollout evaluation module is not loaded."); return api.createForProject(this, projectId, input); }
+    async readPatternExecutionAdaptationRolloutEvaluation(projectId, evaluationId = null, rolloutId = null) { const api = global.YarnAIPatternExecutionAdaptationRolloutEvaluation; if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_API_MISSING", "Rollout evaluation module is not loaded."); return api.readForProject(this, projectId, evaluationId, rolloutId); }
+    async reprojectPatternExecutionAdaptationRolloutEvaluationProof(projectId, evaluationId, options = {}) { const current = await this.getPatternExecutionAdaptationRolloutEvaluation(projectId, evaluationId); if (!current) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_NOT_FOUND", "Rollout evaluation was not found."); const api = global.YarnAIPatternExecutionAdaptationRolloutEvaluation; const source = await api.loadSource(this, projectId, current.state.rolloutId); const next = api.reprojectPatternExecutionAdaptationRolloutEvaluation(current.state, { ...source, evaluationStorageRevision: current.revision }, { ...options, now: options.timestamp || current.state.updatedAt }); return this.savePatternExecutionAdaptationRolloutEvaluation(projectId, next, { ...options, recordId: current.progress_id, expectedRevision: current.state.revision, expectedIdentity: current.state.identity, operationKind: "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_PROOF_REPROJECTED", allowProofReprojection: true }); }
+
+    async _quarantinePatternExecutionAdaptationClosure(record, reasonCode) {
+      const api = global.YarnAIPatternExecutionAdaptationClosure;
+      const identity = api?.fingerprint ? api.fingerprint({ progressId: record?.progress_id || null, state: record?.state || null, reasonCode }) : canonicalize({ progressId: record?.progress_id || null, reasonCode });
+      const timestamp = record?.state?.updatedAt || record?.updated_at || "1970-01-01T00:00:00.000Z";
+      const quarantine = { quarantine_id: `adaptation-closure-quarantine:${identity}`, source_store: "progress", source_key: record?.progress_id || null, reason_code: reasonCode, record: clone(record), created_at: timestamp, expires_at: timestamp };
+      const database = await this._database(); const transaction = database.transaction("quarantine", "readwrite"); transaction.objectStore("quarantine").put(quarantine); await transactionComplete(transaction); return clone(quarantine);
+    }
+
+    async listPatternExecutionAdaptationClosures(projectId, calculationId = null, evaluationId = null, filters = {}) {
+      if (calculationId && typeof calculationId === "object") { filters = calculationId; calculationId = filters.calculationId || null; evaluationId = filters.evaluationId || filters.adaptationRolloutEvaluationId || null; }
+      const project = await this._validatedCurrentProject(projectId); const effectiveCalculationId = calculationId || project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const database = await this._database(); const transaction = database.transaction("progress", "readonly"); const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_CLOSURE"]))); await transactionComplete(transaction);
+      const filtered = records.filter((entry) => entry.project_id === projectId && (!evaluationId || entry.state?.evaluationId === evaluationId || entry.state?.adaptationRolloutEvaluationId === evaluationId) && (!filters.lifecycle || entry.state?.lifecycle === filters.lifecycle) && (!filters.verdict || entry.state?.verdict === filters.verdict) && (!filters.decision || entry.state?.decision === filters.decision) && (!filters.closureType || entry.state?.closureType === filters.closureType) && (filters.stale === undefined || entry.state?.stale === filters.stale) && (!filters.proofStatus || entry.state?.proofStatus === filters.proofStatus) && (filters.proven === undefined || (entry.state?.proofStatus === "proven") === filters.proven) && (filters.importedUnproven === undefined || (entry.state?.proofStatus === "imported-unproven") === filters.importedUnproven) && (filters.collision === undefined || entry.state?.collision === filters.collision));
+      filtered.sort((a, b) => a.epoch - b.epoch || a.state.revision - b.state.revision || (String(a.state.id) < String(b.state.id) ? -1 : String(a.state.id) > String(b.state.id) ? 1 : 0)); const valid = [];
+      for (const entry of filtered) { try { validateProgressRecord(entry, projectId, effectiveCalculationId, "PATTERN_EXECUTION_ADAPTATION_CLOSURE"); validateImportedPatternExecutionAdaptationClosure(entry.state, projectId); valid.push(clone(entry)); } catch (error) { await this._quarantinePatternExecutionAdaptationClosure(entry, error?.code || "INVALID_PATTERN_EXECUTION_ADAPTATION_CLOSURE"); } } return valid;
+    }
+
+    async getPatternExecutionAdaptationClosure(projectId, closureId = null, calculationId = null, evaluationId = null) { const records = await this.listPatternExecutionAdaptationClosures(projectId, calculationId, evaluationId); if (closureId) return records.find((entry) => entry.progress_id === closureId || entry.state?.id === closureId || entry.state?.closureId === closureId || entry.state?.adaptationClosureId === closureId) || null; return records.at(-1) || null; }
+    async getLatestPatternExecutionAdaptationClosure(projectId, calculationId = null, evaluationId = null, filters = {}) { const records = calculationId && typeof calculationId === "object" ? await this.listPatternExecutionAdaptationClosures(projectId, calculationId) : await this.listPatternExecutionAdaptationClosures(projectId, calculationId, evaluationId, filters); return records.at(-1) || null; }
+
+    async _assertPatternExecutionAdaptationClosureReferences(projectId, calculationId, state, closureStorageRevision = 0) {
+      const api = global.YarnAIPatternExecutionAdaptationClosure; if (!api?.loadSource || !api?.calculateSourceProof) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_API_MISSING", "Adaptation closure module is not loaded.");
+      const source = await api.loadSource(this, projectId, state.evaluationId); if (source.calculationId !== calculationId) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_SCOPE_INVALID", "Adaptation closure does not belong to the active calculation."); const proof = api.calculateSourceProof({ ...source, closureStorageRevision }, state); if (!proof.recordsResolved || !proof.sameProject || !proof.sameCalculation || !proof.identitiesMatch || !proof.evaluationTerminal || !proof.evaluationVerdictComputed || !proof.snapshotsMatch || !proof.collisionFree || !proof.sourceDigestValid) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_REFERENCE_INVALID", "Adaptation closure references do not resolve to one local source chain.", { details: { issues: proof.issues } }); return { source, proof };
+    }
+
+    async savePatternExecutionAdaptationClosure(projectId, calculationOrState, stateOrOptions = {}, maybeOptions = {}) {
+      const directState = calculationOrState && typeof calculationOrState === "object"; const state = directState ? calculationOrState : stateOrOptions; const calculationId = directState ? state.calculationId : calculationOrState; const options = directState ? stateOrOptions : maybeOptions; const api = global.YarnAIPatternExecutionAdaptationClosure; const report = api?.validatePatternExecutionAdaptationClosure?.(state);
+      if (!api || state?.kind !== "PATTERN_EXECUTION_ADAPTATION_CLOSURE" || state?.type !== "PATTERN_EXECUTION_ADAPTATION_CLOSURE" || state?.projectId !== projectId || state?.calculationId !== calculationId || !report?.valid) throw new ProjectRepositoryError("INVALID_PATTERN_EXECUTION_ADAPTATION_CLOSURE_STATE", "Adaptation closure snapshot is corrupted."); validateImportedPatternExecutionAdaptationClosure(state, projectId);
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Adaptation closure does not belong to the active calculation."); const existing = await this.listPatternExecutionAdaptationClosures(projectId, calculationId); if (existing.some((entry) => entry.state?.identity === state.identity && entry.state?.id !== state.id)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_IDENTITY_COLLISION", "Closure identity collides with another record."); const current = options.recordId ? existing.find((entry) => entry.progress_id === options.recordId || entry.state?.id === options.recordId) : existing.find((entry) => entry.state?.id === state.id); await this._assertPatternExecutionAdaptationClosureReferences(projectId, calculationId, state, current?.revision || 0); const timestamp = options.timestamp || state.updatedAt;
+        if (current) {
+          if ((options.expectedRevision !== undefined && options.expectedRevision !== current.state.revision) || (options.expectedIdentity !== undefined && options.expectedIdentity !== current.state.identity)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_REVISION_CONFLICT", "Closure was changed by another operation."); if (canonicalize(state) === canonicalize(current.state)) return clone(current); const proofReprojection = options.allowProofReprojection === true && options.operationKind === "PATTERN_EXECUTION_ADAPTATION_CLOSURE_PROOF_REPROJECTED"; if (["closed", "rejected", "aborted", "superseded"].includes(current.state.lifecycle) && !proofReprojection) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_TERMINAL", "Terminal closure is immutable."); if (state.id !== current.state.id || state.closureId !== current.state.closureId || state.epoch !== current.state.epoch || state.revision <= current.state.revision) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_REVISION_CONFLICT", "Closure revision or identity is invalid."); const lifecycleNext = { draft: "preparing", preparing: "deciding", deciding: "finalizing", finalizing: "closed" }; if (!proofReprojection && state.lifecycle !== current.state.lifecycle && !["rejected", "aborted", "superseded"].includes(state.lifecycle) && lifecycleNext[current.state.lifecycle] !== state.lifecycle) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_LIFECYCLE_CONFLICT", "Closure lifecycle can move only one state forward or enter an allowed terminal state."); const immutableFields = ["projectId", "calculationId", "runtimeId", "adaptationId", "validationId", "promotionId", "rolloutId", "evaluationId", "sourceIdentities", "sourceRevisions", "projectSnapshot", "calculationSnapshot", "runtimeSnapshot", "adaptationSnapshot", "validationSnapshot", "promotionSnapshot", "rolloutSnapshot", "evaluationSnapshot", "epoch", "createdAt"]; if (immutableFields.some((field) => canonicalize(state[field]) !== canonicalize(current.state[field]))) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_SOURCE_IMMUTABLE", "Closure source snapshots are immutable."); if (current.state.lifecycle === "finalizing" && (canonicalize(state.closureScope) !== canonicalize(current.state.closureScope) || state.decision !== current.state.decision)) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_FINALIZING_IMMUTABLE", "Closure scope and decision are immutable while finalizing.");
+          const nextProgress = clone(current); nextProgress.state = clone(state); nextProgress.revision += 1; nextProgress.updated_at = timestamp; const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_closure_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject)); const operation = createOperation(nextProject, options.operationKind || `PATTERN_EXECUTION_ADAPTATION_CLOSURE_${state.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: current.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const database = await this._database(); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite"); try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = await requestResult(transaction.objectStore("progress").get(current.progress_id)); if (!storedProject || storedProject.revision !== before.revision || !storedProgress || storedProgress.revision !== current.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_REVISION_CONFLICT", "Closure changed concurrently."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); } this._notify(projectId, nextProject.revision, operation.kind); return clone(nextProgress);
+        }
+        const progress = this._initialProgress(projectId, calculationId, "PATTERN_EXECUTION_ADAPTATION_CLOSURE", timestamp); progress.epoch = existing.reduce((maximum, entry) => Math.max(maximum, entry.epoch), 0) + 1; progress.state = clone(state); if (progress.state.epoch !== progress.epoch) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_EPOCH_CONFLICT", "Closure epoch differs from progress epoch."); const nextProject = clone(before); nextProject.current_stage = `pattern_execution_adaptation_closure_${state.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject)); const operation = createOperation(nextProject, options.operationKind || "PATTERN_EXECUTION_ADAPTATION_CLOSURE_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const database = await this._database(); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite"); try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_REVISION_CONFLICT", "Project changed concurrently."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); } this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async createPatternExecutionAdaptationClosure(projectId, input = {}) { const api = global.YarnAIPatternExecutionAdaptationClosure; if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_API_MISSING", "Adaptation closure module is not loaded."); return api.createForProject(this, projectId, input); }
+    async readPatternExecutionAdaptationClosure(projectId, closureId = null, evaluationId = null) { const api = global.YarnAIPatternExecutionAdaptationClosure; if (!api) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_API_MISSING", "Adaptation closure module is not loaded."); return api.readForProject(this, projectId, closureId, evaluationId); }
+    async reprojectPatternExecutionAdaptationClosureProof(projectId, closureId, options = {}) { const current = await this.getPatternExecutionAdaptationClosure(projectId, closureId); if (!current) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_NOT_FOUND", "Adaptation closure was not found."); const api = global.YarnAIPatternExecutionAdaptationClosure; const source = await api.loadSource(this, projectId, current.state.evaluationId); const next = api.reprojectPatternExecutionAdaptationClosure(current.state, { ...source, closureStorageRevision: current.revision }, { ...options, now: options.timestamp || current.state.updatedAt }); return this.savePatternExecutionAdaptationClosure(projectId, next, { ...options, recordId: current.progress_id, expectedRevision: current.state.revision, expectedIdentity: current.state.identity, operationKind: "PATTERN_EXECUTION_ADAPTATION_CLOSURE_PROOF_REPROJECTED", allowProofReprojection: true }); }
     async addPhoto(projectId, blob, metadata = {}) {
       if (!(blob instanceof Blob) || !blob.type.startsWith("image/")) {
         throw new ProjectRepositoryError(
@@ -6259,6 +7243,30 @@
         if (entry.kind === "PATTERN_EXECUTION_FOLLOW_UP") {
           validateImportedPatternExecutionFollowUp(importedState, sourceProjectId);
         }
+        if (entry.kind === "PATTERN_EXECUTION_RETROSPECTIVE") {
+          validateImportedPatternExecutionRetrospective(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_LEARNING") {
+          validateImportedPatternExecutionLearning(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_ADAPTATION") {
+          validateImportedPatternExecutionAdaptation(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_ADAPTATION_VALIDATION") {
+          validateImportedPatternExecutionAdaptationValidation(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_ADAPTATION_PROMOTION") {
+          validateImportedPatternExecutionAdaptationPromotion(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_ADAPTATION_ROLLOUT") {
+          validateImportedPatternExecutionAdaptationRollout(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION") {
+          validateImportedPatternExecutionAdaptationRolloutEvaluation(importedState, sourceProjectId);
+        }
+        if (entry.kind === "PATTERN_EXECUTION_ADAPTATION_CLOSURE") {
+          validateImportedPatternExecutionAdaptationClosure(importedState, sourceProjectId);
+        }
         if (
           collision &&
           entry.kind !== "PATTERN_EXECUTION_INTERVENTION" &&
@@ -6267,6 +7275,14 @@
           entry.kind !== "PATTERN_EXECUTION_VERIFICATION" &&
           entry.kind !== "PATTERN_EXECUTION_DECISION" &&
           entry.kind !== "PATTERN_EXECUTION_FOLLOW_UP" &&
+          entry.kind !== "PATTERN_EXECUTION_RETROSPECTIVE" &&
+          entry.kind !== "PATTERN_EXECUTION_LEARNING" &&
+          entry.kind !== "PATTERN_EXECUTION_ADAPTATION" &&
+          entry.kind !== "PATTERN_EXECUTION_ADAPTATION_VALIDATION" &&
+          entry.kind !== "PATTERN_EXECUTION_ADAPTATION_PROMOTION" &&
+          entry.kind !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT" &&
+          entry.kind !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION" &&
+          entry.kind !== "PATTERN_EXECUTION_ADAPTATION_CLOSURE" &&
           importedState?.projectId === sourceProjectId
         ) {
           importedState.projectId = projectId;
@@ -7468,6 +8484,233 @@
         state = clone(followUpApi.makeImportedPatternExecutionFollowUpStale(state, { now: timestamp, collision, reason: "import_identity_unproven" }));
         entry.state = state;
         validateImportedPatternExecutionFollowUp(state, projectId);
+      });
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_EXECUTION_RETROSPECTIVE") return;
+        const retrospectiveApi = global.YarnAIPatternExecutionRetrospective;
+        if (!retrospectiveApi?.remapPatternExecutionRetrospective || !retrospectiveApi?.makeImportedPatternExecutionRetrospectiveStale) throw new ProjectRepositoryError("PATTERN_EXECUTION_RETROSPECTIVE_API_MISSING", "Execution retrospective module is not loaded.");
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(),
+            ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(),
+            ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(),
+            ...executionRuntimeStateIdMap.entries(), ...executionMonitoringStateIdMap.entries(),
+            ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(),
+            ...executionAttemptIdMap.entries(), ...executionRuntimeActionIdMap.entries(),
+            ...executionEvidenceStateIdMap.entries(), ...executionEvidenceItemIdMap.entries(),
+            ...executionCriterionIdMap.entries(), ...executionVerificationStateIdMap.entries(),
+            ...executionDecisionStateIdMap.entries(), ...executionFollowUpStateIdMap.entries(),
+          ]);
+          for (let index = 0; index < progress.length; index += 1) {
+            const originalState = progress[index]?.state;
+            const remappedState = importedProgress[index]?.state;
+            for (const field of ["fingerprint", "resultFingerprint", "runtimeFingerprint", "identity"]) if (originalState?.[field] && remappedState?.[field]) referenceMap.set(originalState[field], remappedState[field]);
+          }
+          state = clone(retrospectiveApi.remapPatternExecutionRetrospective(state, referenceMap));
+        }
+        const linkedResult = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RESULT" && candidate.state?.id === state.sourceResultId);
+        const linkedRuntime = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RUNTIME" && candidate.state?.id === state.sourceRuntimeId);
+        const linkedFollowUp = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_FOLLOW_UP" && candidate.state?.id === state.sourceFollowUpId);
+        if (!linkedResult || !linkedRuntime || !linkedFollowUp) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_RETROSPECTIVE_REFERENCE", "Retrospective references missing critical source records.");
+        state = clone(retrospectiveApi.makeImportedPatternExecutionRetrospectiveStale(state, { now: state.updatedAt, collision, reason: "import_identity_unproven" }));
+        entry.state = state;
+        validateImportedPatternExecutionRetrospective(state, projectId);
+      });
+      importedProgress.forEach((entry) => {
+        if (entry.kind !== "PATTERN_EXECUTION_LEARNING") return;
+        const learningApi = global.YarnAIPatternExecutionLearning;
+        if (!learningApi?.remapPatternExecutionLearning || !learningApi?.makeImportedPatternExecutionLearningStale) throw new ProjectRepositoryError("PATTERN_EXECUTION_LEARNING_API_MISSING", "Execution learning module is not loaded.");
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(), ...executionSessionStateIdMap.entries(),
+            ...executionStepStateIdMap.entries(), ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(), ...executionRuntimeStateIdMap.entries(),
+            ...executionMonitoringStateIdMap.entries(), ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(),
+            ...executionAttemptIdMap.entries(), ...executionRuntimeActionIdMap.entries(), ...executionEvidenceStateIdMap.entries(),
+            ...executionEvidenceItemIdMap.entries(), ...executionCriterionIdMap.entries(), ...executionVerificationStateIdMap.entries(),
+            ...executionDecisionStateIdMap.entries(), ...executionFollowUpStateIdMap.entries(),
+          ]);
+          for (let index = 0; index < progress.length; index += 1) {
+            const originalState = progress[index]?.state;
+            const remappedState = importedProgress[index]?.state;
+            for (const field of ["id", "fingerprint", "resultFingerprint", "runtimeFingerprint", "identity"]) if (originalState?.[field] && remappedState?.[field]) referenceMap.set(originalState[field], remappedState[field]);
+          }
+          state = clone(learningApi.remapPatternExecutionLearning(state, referenceMap));
+        }
+        const linkedResult = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RESULT" && candidate.state?.id === state.sourceResultId);
+        const linkedRuntime = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RUNTIME" && candidate.state?.id === state.sourceRuntimeId);
+        const linkedFollowUp = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_FOLLOW_UP" && candidate.state?.id === state.sourceFollowUpId);
+        const linkedRetrospective = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RETROSPECTIVE" && candidate.state?.id === state.sourceRetrospectiveId);
+        if (!linkedResult || !linkedRuntime || !linkedFollowUp || !linkedRetrospective) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_LEARNING_REFERENCE", "Learning references missing critical source records.");
+        state = clone(learningApi.makeImportedPatternExecutionLearningStale(state, { now: state.updatedAt, collision, reason: "import_identity_unproven" }));
+        entry.state = state;
+        validateImportedPatternExecutionLearning(state, projectId);
+      });
+      importedProgress.forEach((entry, entryIndex) => {
+        if (entry.kind !== "PATTERN_EXECUTION_ADAPTATION") return;
+        const adaptationApi = global.YarnAIPatternExecutionAdaptation;
+        if (!adaptationApi?.remapPatternExecutionAdaptation || !adaptationApi?.makeImportedPatternExecutionAdaptationStale || !adaptationApi?.learningSnapshot) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_API_MISSING", "Execution adaptation module is not loaded.");
+        const originalState = progress[entryIndex]?.state;
+        const originalLearning = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_LEARNING" && candidate.state?.id === originalState?.learningId);
+        if (!originalLearning || canonicalize(originalState.learningSnapshot) !== canonicalize(adaptationApi.learningSnapshot(originalLearning.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_SNAPSHOT", "Adaptation learning snapshot does not match the imported learning record.");
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(),
+            ...technologyReviewStateIdMap.entries(), ...executionPlanStateIdMap.entries(), ...executionSessionStateIdMap.entries(),
+            ...executionStepStateIdMap.entries(), ...executionCheckpointStateIdMap.entries(), ...executionProgressStateIdMap.entries(),
+            ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(), ...executionRuntimeStateIdMap.entries(),
+            ...executionMonitoringStateIdMap.entries(), ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(),
+            ...executionAttemptIdMap.entries(), ...executionRuntimeActionIdMap.entries(), ...executionEvidenceStateIdMap.entries(),
+            ...executionEvidenceItemIdMap.entries(), ...executionCriterionIdMap.entries(), ...executionVerificationStateIdMap.entries(),
+            ...executionDecisionStateIdMap.entries(), ...executionFollowUpStateIdMap.entries(),
+          ]);
+          for (let index = 0; index < progress.length; index += 1) {
+            const beforeState = progress[index]?.state;
+            const remappedState = importedProgress[index]?.state;
+            for (const field of ["id", "fingerprint", "resultFingerprint", "runtimeFingerprint", "identity"]) if (beforeState?.[field] && remappedState?.[field]) referenceMap.set(beforeState[field], remappedState[field]);
+          }
+          state = clone(adaptationApi.remapPatternExecutionAdaptation(state, referenceMap));
+        }
+        const linkedResult = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RESULT" && candidate.state?.id === state.resultId);
+        const linkedRuntime = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RUNTIME" && candidate.state?.id === state.runtimeId);
+        const linkedFollowUp = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_FOLLOW_UP" && candidate.state?.id === state.followUpId);
+        const linkedRetrospective = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RETROSPECTIVE" && candidate.state?.id === state.retrospectiveId);
+        const linkedLearning = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_LEARNING" && candidate.state?.id === state.learningId);
+        if (!linkedResult || !linkedRuntime || !linkedFollowUp || !linkedRetrospective || !linkedLearning) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_REFERENCE", "Adaptation references missing critical source records.");
+        state = clone(adaptationApi.makeImportedPatternExecutionAdaptationStale(state, { now: state.updatedAt, collision, reason: "import_identity_unproven" }));
+        entry.state = state;
+        validateImportedPatternExecutionAdaptation(state, projectId);
+      });
+      importedProgress.forEach((entry, entryIndex) => {
+        if (entry.kind !== "PATTERN_EXECUTION_ADAPTATION_VALIDATION") return;
+        const validationApi = global.YarnAIPatternExecutionAdaptationValidation;
+        if (!validationApi?.remapPatternExecutionAdaptationValidation || !validationApi?.makeImportedPatternExecutionAdaptationValidationStale || !validationApi?.adaptationSnapshot) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_VALIDATION_API_MISSING", "Execution adaptation validation module is not loaded.");
+        const originalState = progress[entryIndex]?.state;
+        const originalAdaptation = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION" && candidate.state?.id === originalState?.adaptationId);
+        if (!originalAdaptation || canonicalize(originalState.adaptationSnapshot) !== canonicalize(validationApi.adaptationSnapshot(originalAdaptation.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_VALIDATION_SNAPSHOT", "Validation adaptation snapshot does not match the imported adaptation record.");
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(), ...technologyReviewStateIdMap.entries(),
+            ...executionPlanStateIdMap.entries(), ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(), ...executionCheckpointStateIdMap.entries(),
+            ...executionProgressStateIdMap.entries(), ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(), ...executionRuntimeStateIdMap.entries(),
+            ...executionMonitoringStateIdMap.entries(), ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(), ...executionAttemptIdMap.entries(),
+            ...executionRuntimeActionIdMap.entries(), ...executionEvidenceStateIdMap.entries(), ...executionEvidenceItemIdMap.entries(), ...executionCriterionIdMap.entries(),
+            ...executionVerificationStateIdMap.entries(), ...executionDecisionStateIdMap.entries(), ...executionFollowUpStateIdMap.entries(),
+          ]);
+          for (let index = 0; index < progress.length; index += 1) {
+            const beforeState = progress[index]?.state;
+            const remappedState = importedProgress[index]?.state;
+            for (const field of ["id", "fingerprint", "resultFingerprint", "runtimeFingerprint", "identity"]) if (beforeState?.[field] && remappedState?.[field]) referenceMap.set(beforeState[field], remappedState[field]);
+          }
+          state = clone(validationApi.remapPatternExecutionAdaptationValidation(state, referenceMap));
+        }
+        const linkedAdaptation = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION" && candidate.state?.id === state.adaptationId);
+        const linkedResult = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RESULT" && candidate.state?.id === state.resultId);
+        const linkedRuntime = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RUNTIME" && candidate.state?.id === state.runtimeId);
+        const linkedFollowUp = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_FOLLOW_UP" && candidate.state?.id === state.followUpId);
+        const linkedRetrospective = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RETROSPECTIVE" && candidate.state?.id === state.retrospectiveId);
+        const linkedLearning = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_LEARNING" && candidate.state?.id === state.learningId);
+        if (!linkedAdaptation || !linkedResult || !linkedRuntime || !linkedFollowUp || !linkedRetrospective || !linkedLearning) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_VALIDATION_REFERENCE", "Adaptation validation references missing critical source records.");
+        state = clone(validationApi.makeImportedPatternExecutionAdaptationValidationStale(state, { now: state.updatedAt, collision, reason: "import_identity_unproven" }));
+        entry.state = state;
+        validateImportedPatternExecutionAdaptationValidation(state, projectId);
+      });
+      importedProgress.forEach((entry, entryIndex) => {
+        if (entry.kind !== "PATTERN_EXECUTION_ADAPTATION_PROMOTION") return;
+        const promotionApi = global.YarnAIPatternExecutionAdaptationPromotion;
+        if (!promotionApi?.remapPatternExecutionAdaptationPromotion || !promotionApi?.makeImportedPatternExecutionAdaptationPromotionUnproven || !promotionApi?.adaptationSnapshot || !promotionApi?.validationSnapshot) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_PROMOTION_API_MISSING", "Execution adaptation promotion module is not loaded.");
+        const originalState = progress[entryIndex]?.state;
+        const originalAdaptation = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION" && candidate.state?.id === originalState?.adaptationId);
+        const originalValidation = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_VALIDATION" && (candidate.state?.id === originalState?.adaptationValidationId || candidate.state?.adaptationValidationId === originalState?.adaptationValidationId));
+        if (!originalAdaptation || canonicalize(originalState.adaptationSnapshot) !== canonicalize(promotionApi.adaptationSnapshot(originalAdaptation.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_PROMOTION_ADAPTATION_SNAPSHOT", "Promotion adaptation snapshot does not match the imported adaptation record.");
+        if (!originalValidation || canonicalize(originalState.validationSnapshot) !== canonicalize(promotionApi.validationSnapshot(originalValidation.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_PROMOTION_VALIDATION_SNAPSHOT", "Promotion validation snapshot does not match the imported validation record.");
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([
+            [sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries(),
+            ...semanticStateIdMap.entries(), ...reviewStateIdMap.entries(), ...technologyStateIdMap.entries(), ...technologyReviewStateIdMap.entries(),
+            ...executionPlanStateIdMap.entries(), ...executionSessionStateIdMap.entries(), ...executionStepStateIdMap.entries(), ...executionCheckpointStateIdMap.entries(),
+            ...executionProgressStateIdMap.entries(), ...executionCompletionStateIdMap.entries(), ...executionResultStateIdMap.entries(), ...executionRuntimeStateIdMap.entries(),
+            ...executionMonitoringStateIdMap.entries(), ...executionInterventionStateIdMap.entries(), ...executionActionStateIdMap.entries(), ...executionAttemptIdMap.entries(),
+            ...executionRuntimeActionIdMap.entries(), ...executionEvidenceStateIdMap.entries(), ...executionEvidenceItemIdMap.entries(), ...executionCriterionIdMap.entries(),
+            ...executionVerificationStateIdMap.entries(), ...executionDecisionStateIdMap.entries(), ...executionFollowUpStateIdMap.entries(),
+          ]);
+          for (let index = 0; index < progress.length; index += 1) {
+            const beforeState = progress[index]?.state;
+            const remappedState = importedProgress[index]?.state;
+            for (const field of ["id", "adaptationValidationId", "adaptationPromotionId", "fingerprint", "resultFingerprint", "runtimeFingerprint", "identity"]) if (beforeState?.[field] && remappedState?.[field]) referenceMap.set(beforeState[field], remappedState[field]);
+          }
+          state = clone(promotionApi.remapPatternExecutionAdaptationPromotion(state, referenceMap));
+        }
+        const linkedAdaptation = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION" && candidate.state?.id === state.adaptationId);
+        const linkedValidation = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_VALIDATION" && (candidate.state?.id === state.adaptationValidationId || candidate.state?.adaptationValidationId === state.adaptationValidationId));
+        if (!linkedAdaptation || !linkedValidation || linkedValidation.state?.adaptationId !== linkedAdaptation.state?.id) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_PROMOTION_REFERENCE", "Adaptation promotion references missing or mismatched source records.");
+        state = clone(promotionApi.makeImportedPatternExecutionAdaptationPromotionUnproven(state, { now: state.updatedAt, collision, reason: "import_identity_unproven" }));
+        entry.state = state;
+        validateImportedPatternExecutionAdaptationPromotion(state, projectId);
+      });
+      importedProgress.forEach((entry, entryIndex) => {
+        if (entry.kind !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT") return;
+        const rolloutApi = global.YarnAIPatternExecutionAdaptationRollout;
+        if (!rolloutApi?.remapPatternExecutionAdaptationRollout || !rolloutApi?.makeImportedPatternExecutionAdaptationRolloutUnproven || !rolloutApi?.projectSnapshot || !rolloutApi?.calculationSnapshot || !rolloutApi?.runtimeSnapshot || !rolloutApi?.adaptationSnapshot || !rolloutApi?.validationSnapshot || !rolloutApi?.promotionSnapshot) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_API_MISSING", "Execution adaptation rollout module is not loaded.");
+        const originalState = progress[entryIndex]?.state;
+        const originalProject = envelope.payload.project;
+        const originalCalculation = calculations.find((candidate) => candidate.calculation_id === originalState?.calculationId);
+        const originalRuntime = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RUNTIME" && candidate.state?.id === originalState?.patternExecutionId);
+        const originalAdaptation = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION" && candidate.state?.id === originalState?.adaptationId);
+        const originalValidation = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_VALIDATION" && (candidate.state?.id === originalState?.adaptationValidationId || candidate.state?.adaptationValidationId === originalState?.adaptationValidationId));
+        const originalPromotion = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_PROMOTION" && candidate.state?.id === originalState?.adaptationPromotionId);
+        if (!originalProject || originalState.projectSnapshot?.projectId !== originalProject.project_id || !Number.isInteger(originalState.projectSnapshot?.revision) || originalState.projectSnapshot.revision < 1 || originalState.projectSnapshot.revision > originalProject.revision) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_PROJECT_SNAPSHOT", "Rollout project snapshot does not match the imported project identity or revision history.");
+        if (!originalCalculation || canonicalize(originalState.calculationSnapshot) !== canonicalize(rolloutApi.calculationSnapshot(originalCalculation))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_CALCULATION_SNAPSHOT", "Rollout calculation snapshot does not match the imported calculation.");
+        if (!originalRuntime || canonicalize(originalState.runtimeSnapshot) !== canonicalize(rolloutApi.runtimeSnapshot(originalRuntime.state, originalAdaptation?.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_RUNTIME_SNAPSHOT", "Rollout runtime snapshot does not match the imported runtime.");
+        if (!originalAdaptation || canonicalize(originalState.adaptationSnapshot) !== canonicalize(rolloutApi.adaptationSnapshot(originalAdaptation.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_ADAPTATION_SNAPSHOT", "Rollout adaptation snapshot does not match the imported adaptation.");
+        if (!originalValidation || canonicalize(originalState.validationSnapshot) !== canonicalize(rolloutApi.validationSnapshot(originalValidation.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_VALIDATION_SNAPSHOT", "Rollout validation snapshot does not match the imported validation.");
+        if (!originalPromotion || canonicalize(originalState.promotionSnapshot) !== canonicalize(rolloutApi.promotionSnapshot(originalPromotion.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_PROMOTION_SNAPSHOT", "Rollout promotion snapshot does not match the imported promotion.");
+        let state = entry.state;
+        if (collision) {
+          const referenceMap = new Map([[sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries()]);
+          for (let index = 0; index < progress.length; index += 1) {
+            const beforeState = progress[index]?.state; const remappedState = importedProgress[index]?.state;
+            for (const field of ["id", "runtimeId", "adaptationValidationId", "adaptationPromotionId", "adaptationRolloutId", "fingerprint", "resultFingerprint", "runtimeFingerprint", "identity"]) if (beforeState?.[field] && remappedState?.[field]) referenceMap.set(beforeState[field], remappedState[field]);
+            for (const item of beforeState?.rolloutPlan || []) { const mapped = (remappedState?.rolloutPlan || []).find((candidate) => candidate.sequence === item.sequence && candidate.title === item.title); if (mapped) referenceMap.set(item.rolloutItemId, mapped.rolloutItemId); }
+          }
+          state = clone(rolloutApi.remapPatternExecutionAdaptationRollout(state, referenceMap));
+        }
+        const linkedRuntime = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_RUNTIME" && candidate.state?.id === state.patternExecutionId);
+        const linkedAdaptation = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION" && candidate.state?.id === state.adaptationId);
+        const linkedValidation = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_VALIDATION" && (candidate.state?.id === state.adaptationValidationId || candidate.state?.adaptationValidationId === state.adaptationValidationId));
+        const linkedPromotion = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_PROMOTION" && candidate.state?.id === state.adaptationPromotionId);
+        if (!linkedRuntime || !linkedAdaptation || !linkedValidation || !linkedPromotion || linkedValidation.state?.adaptationId !== linkedAdaptation.state?.id || linkedPromotion.state?.adaptationId !== linkedAdaptation.state?.id || linkedPromotion.state?.adaptationValidationId !== linkedValidation.state?.id) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_REFERENCE", "Adaptation rollout references missing or mismatched source records.");
+        state = clone(rolloutApi.makeImportedPatternExecutionAdaptationRolloutUnproven(state, { now: state.updatedAt, collision, reason: "import_identity_unproven" }));
+        entry.state = state;
+        validateImportedPatternExecutionAdaptationRollout(state, projectId);
+      });
+      importedProgress.forEach((entry, entryIndex) => {
+        if (entry.kind !== "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION") return;
+        const evaluationApi = global.YarnAIPatternExecutionAdaptationRolloutEvaluation;
+        if (!evaluationApi?.remapPatternExecutionAdaptationRolloutEvaluation || !evaluationApi?.makeImportedPatternExecutionAdaptationRolloutEvaluationUnproven || !evaluationApi?.rolloutSnapshot) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_API_MISSING", "Rollout evaluation module is not loaded.");
+        const originalState = progress[entryIndex]?.state; const originalRollout = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_ROLLOUT" && candidate.state?.id === originalState?.rolloutId); if (!originalRollout || canonicalize(originalState.rolloutSnapshot) !== canonicalize(evaluationApi.rolloutSnapshot(originalRollout.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_ROLLOUT_SNAPSHOT", "Evaluation rollout snapshot does not match the imported rollout."); let state = entry.state;
+        if (collision) { const referenceMap = new Map([[sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries()]); for (let index = 0; index < progress.length; index += 1) { const beforeState = progress[index]?.state; const remappedState = importedProgress[index]?.state; for (const field of ["id", "runtimeId", "adaptationValidationId", "adaptationPromotionId", "adaptationRolloutId", "evaluationId", "identity"]) if (beforeState?.[field] && remappedState?.[field]) referenceMap.set(beforeState[field], remappedState[field]); for (const collection of ["rolloutPlan", "observations", "metrics", "evidence", "regressions", "sideEffects"]) for (let itemIndex = 0; itemIndex < (beforeState?.[collection] || []).length; itemIndex += 1) { const beforeItem = beforeState[collection][itemIndex]; const afterItem = remappedState?.[collection]?.[itemIndex]; for (const field of ["id", "rolloutItemId", "metricId", "evidenceId"]) if (beforeItem?.[field] && afterItem?.[field]) referenceMap.set(beforeItem[field], afterItem[field]); } } state = clone(evaluationApi.remapPatternExecutionAdaptationRolloutEvaluation(state, referenceMap)); }
+        const linkedRollout = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_ROLLOUT" && candidate.state?.id === state.rolloutId); if (!linkedRollout) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION_REFERENCE", "Evaluation references a missing rollout."); state = clone(evaluationApi.makeImportedPatternExecutionAdaptationRolloutEvaluationUnproven(state, { now: state.updatedAt, collision, reason: "import_identity_unproven" })); entry.state = state; validateImportedPatternExecutionAdaptationRolloutEvaluation(state, projectId);
+      });
+      importedProgress.forEach((entry, entryIndex) => {
+        if (entry.kind !== "PATTERN_EXECUTION_ADAPTATION_CLOSURE") return;
+        const closureApi = global.YarnAIPatternExecutionAdaptationClosure;
+        if (!closureApi?.remapPatternExecutionAdaptationClosure || !closureApi?.makeImportedPatternExecutionAdaptationClosureUnproven || !closureApi?.evaluationSnapshot) throw new ProjectRepositoryError("PATTERN_EXECUTION_ADAPTATION_CLOSURE_API_MISSING", "Adaptation closure module is not loaded.");
+        const originalState = progress[entryIndex]?.state; const originalEvaluation = progress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION" && candidate.state?.id === originalState?.evaluationId); if (!originalEvaluation || canonicalize(originalState.evaluationSnapshot) !== canonicalize(closureApi.evaluationSnapshot(originalEvaluation.state))) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_CLOSURE_EVALUATION_SNAPSHOT", "Closure evaluation snapshot does not match the imported evaluation."); let state = entry.state;
+        if (collision) { const referenceMap = new Map([[sourceProjectId, projectId], ...calculationMap.entries(), ...progressMap.entries()]); for (let index = 0; index < progress.length; index += 1) { const beforeState = progress[index]?.state; const remappedState = importedProgress[index]?.state; for (const field of ["id", "runtimeId", "adaptationValidationId", "adaptationPromotionId", "adaptationRolloutId", "evaluationId", "closureId", "identity"]) if (beforeState?.[field] && remappedState?.[field]) referenceMap.set(beforeState[field], remappedState[field]); for (const collection of ["rolloutPlan", "observations", "metrics", "evidence", "regressions", "sideEffects", "permanentChanges", "revertedChanges", "retainedConstraints", "resolvedConstraints", "residualRisks", "obligations", "monitoringCommitments"]) for (let itemIndex = 0; itemIndex < (beforeState?.[collection] || []).length; itemIndex += 1) { const beforeItem = beforeState[collection][itemIndex]; const afterItem = remappedState?.[collection]?.[itemIndex]; for (const field of ["id", "rolloutItemId", "metricId", "evidenceId", "target", "owner"]) if (beforeItem?.[field] && afterItem?.[field]) referenceMap.set(beforeItem[field], afterItem[field]); } } state = clone(closureApi.remapPatternExecutionAdaptationClosure(state, referenceMap)); }
+        const linkedEvaluation = importedProgress.find((candidate) => candidate.kind === "PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION" && candidate.state?.id === state.evaluationId); if (!linkedEvaluation) throw new ProjectRepositoryError("INVALID_IMPORT_EXECUTION_ADAPTATION_CLOSURE_REFERENCE", "Closure references a missing rollout evaluation."); state = clone(closureApi.makeImportedPatternExecutionAdaptationClosureUnproven(state, { now: state.updatedAt, collision, reason: "import_identity_unproven" })); entry.state = state; validateImportedPatternExecutionAdaptationClosure(state, projectId);
       });
       const importedEvents = events.map((entry) => ({
         ...entry,

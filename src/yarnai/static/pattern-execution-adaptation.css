@@ -1,0 +1,18 @@
+.adaptation-shell { width: min(1160px, calc(100% - 2rem)); margin: 0 auto; padding: 2rem 0 4rem; }
+.adaptation-shell .page-header { margin-bottom: 1.25rem; }
+.adaptation-shell .eyebrow { color: #70532d; font-weight: 800; letter-spacing: .08em; }
+.adaptation-shell .panel { background: #fffdf8; border: 1px solid #d8c8ae; border-radius: 18px; box-shadow: 0 10px 28px rgb(63 44 22 / 8%); margin: 1rem 0; padding: 1.25rem; }
+.adaptation-shell .status-row, .adaptation-shell .command-bar, .adaptation-shell .page-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.adaptation-shell .status-chip { border-radius: 999px; background: #eee5d7; padding: .35rem .75rem; font-weight: 700; }
+.adaptation-shell .status-chip[data-status="completed"] { background: #d7efdf; color: #17562d; }
+.adaptation-shell .status-chip[data-status="blocked"], .adaptation-shell .status-chip[data-status="stale"], .adaptation-shell .status-chip[data-status="corrupted"] { background: #f5dada; color: #792525; }
+.adaptation-shell .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; }
+.adaptation-shell .summary-grid div { border-left: 3px solid #b88e55; padding-left: .7rem; min-width: 0; }
+.adaptation-shell .summary-grid dt { color: #665946; font-size: .82rem; }
+.adaptation-shell .summary-grid dd { margin: .2rem 0 0; font-weight: 700; overflow-wrap: anywhere; }
+.adaptation-shell textarea { box-sizing: border-box; width: 100%; padding: .7rem; border: 1px solid #bca98b; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; line-height: 1.45; resize: vertical; }
+.adaptation-shell textarea:disabled { background: #f1eee8; color: #5c564d; }
+.adaptation-shell .error, .adaptation-shell .fatal { color: #7b2020; }
+.adaptation-shell .terminal { border-left: 4px solid #2b7442; padding-left: .75rem; color: #205632; font-weight: 650; }
+.adaptation-shell .page-nav { justify-content: space-between; margin-top: 1.25rem; }
+@media (max-width: 640px) { .adaptation-shell { width: min(100% - 1rem, 1160px); } .adaptation-shell .panel { border-radius: 12px; padding: 1rem; } .adaptation-shell .command-bar { align-items: stretch; flex-direction: column; } }

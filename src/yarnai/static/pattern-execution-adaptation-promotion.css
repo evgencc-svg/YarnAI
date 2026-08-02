@@ -1,0 +1,19 @@
+.promotion-shell { width: min(1120px, calc(100% - 2rem)); margin: 0 auto; padding: 2rem 0 4rem; }
+.promotion-shell .page-header { margin-bottom: 1.25rem; }
+.promotion-shell .eyebrow { color: #5f416f; font-weight: 800; letter-spacing: .08em; }
+.promotion-shell .panel { background: #fffdf8; border: 1px solid #d5c5db; border-radius: 18px; box-shadow: 0 10px 28px rgb(55 35 65 / 8%); margin: 1rem 0; padding: 1.25rem; }
+.promotion-shell .status-row, .promotion-shell .command-bar, .promotion-shell .page-nav { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.promotion-shell .status-chip, .promotion-shell .verdict output { border-radius: 999px; background: #ece4f0; padding: .4rem .8rem; font-weight: 800; }
+.promotion-shell .status-chip[data-status="completed"] { background: #d7efdf; color: #17562d; }
+.promotion-shell .status-chip[data-status="blocked"], .promotion-shell .status-chip[data-status="stale"], .promotion-shell .status-chip[data-status="corrupted"] { background: #f5dada; color: #792525; }
+.promotion-shell .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: .8rem; }
+.promotion-shell .summary-grid div { border-left: 3px solid #8c63a3; padding-left: .7rem; min-width: 0; }
+.promotion-shell .summary-grid dt { color: #66546c; font-size: .82rem; }
+.promotion-shell .summary-grid dd { margin: .2rem 0 0; font-weight: 700; overflow-wrap: anywhere; }
+.promotion-shell textarea { box-sizing: border-box; width: 100%; padding: .7rem; border: 1px solid #baa8c2; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; line-height: 1.45; resize: vertical; }
+.promotion-shell textarea:disabled { background: #f1eef2; color: #5c565f; }
+.promotion-shell .error, .promotion-shell .fatal, .promotion-shell .warning { color: #7b2020; }
+.promotion-shell .warning { border-left: 4px solid #b02d2d; padding: .65rem .8rem; background: #fff0f0; }
+.promotion-shell .terminal { border-left: 4px solid #2b7442; padding-left: .75rem; color: #205632; font-weight: 650; }
+.promotion-shell .page-nav { justify-content: space-between; margin-top: 1.25rem; }
+@media (max-width: 640px) { .promotion-shell { width: min(100% - 1rem, 1120px); } .promotion-shell .panel { border-radius: 12px; padding: 1rem; } .promotion-shell .command-bar { align-items: stretch; flex-direction: column; } }

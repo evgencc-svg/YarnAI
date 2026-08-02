@@ -115,7 +115,7 @@ def test_stage_35_and_stage_36_navigation_is_bidirectional() -> None:
     assert "/pattern-execution-follow-up${query}" in decision_controller
 
 
-def test_outcome_routes_are_explicit_and_have_no_later_stage() -> None:
+def test_outcome_routes_and_retrospective_entry_are_explicit() -> None:
     controller = (STATIC / "pattern-execution-follow-up-assistant.js").read_text(encoding="utf-8")
     domain = (STATIC / "pattern-execution-follow-up.js").read_text(encoding="utf-8")
     assert 'accepted: ["completion"]' in domain
@@ -124,9 +124,12 @@ def test_outcome_routes_are_explicit_and_have_no_later_stage() -> None:
     assert 'rejected: ["corrective_action", "termination"]' in domain
     assert 'routeKind === "collect_evidence"' in controller
     assert 'routeKind === "corrective_action"' in controller
-    production = production_text()
-    assert "Stage 37" not in production
-    assert "/pattern-execution-stage-37" not in production
+    assert 'id="execution-follow-up-retrospective-route"' in (STATIC / "pattern-execution-follow-up.html").read_text(encoding="utf-8")
+    assert "/pattern-execution-retrospective${query}" in controller
+    assert 'status === "completed"' in controller
+    assert 'snapshot.status === "completed"' in controller
+    assert "snapshot.projectId === projectId" in controller
+    assert "Boolean(snapshot.inputFingerprint)" in controller
 
 
 def test_controller_never_runs_previous_stages() -> None:

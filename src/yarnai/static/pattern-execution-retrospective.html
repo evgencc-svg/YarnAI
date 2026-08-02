@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Ретроспектива исполнения</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-execution-retrospective.css">
+  <script src="/static/pattern-execution-retrospective.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-retrospective-assistant.js" defer></script>
+</head>
+<body>
+  <main class="retrospective-shell" data-testid="pattern-execution-retrospective-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_RETROSPECTIVE · Stage 37</p>
+      <h1 id="retrospective-title">Ретроспектива исполнения</h1>
+      <p class="lead">Зафиксируйте факты, отделите выводы от вопросов и сохраните предложения только для будущего рассмотрения.</p>
+      <p id="retrospective-context" class="context" aria-live="polite">Загружаем цепочку исполнения…</p>
+    </header>
+
+    <section id="retrospective-fatal" class="panel fatal" hidden>
+      <h2>Ретроспектива недоступна</h2>
+      <p id="retrospective-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="retrospective-workflow">
+      <section class="panel overview" aria-labelledby="retrospective-state-heading">
+        <div class="status-row">
+          <span id="retrospective-status" data-testid="retrospective-status" class="status-chip" data-status="draft" role="status">Черновик</span>
+          <span id="retrospective-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="retrospective-state-heading">Состояние и целостность</h2>
+        <dl id="retrospective-summary" data-testid="retrospective-summary" class="summary-grid"></dl>
+        <ul id="retrospective-integrity" data-testid="retrospective-integrity"></ul>
+        <p id="retrospective-message" data-testid="retrospective-live-region" class="message" aria-live="polite" role="status"></p>
+        <p id="retrospective-error" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel category facts" data-testid="retrospective-facts" aria-labelledby="retrospective-facts-heading">
+        <h2 id="retrospective-facts-heading">1. Наблюдаемые факты</h2>
+        <p class="category-note">Факт требует источника. Derived-факт требует минимум двух ссылок.</p>
+        <div class="editor-grid">
+          <label>Текст факта <textarea id="fact-text" rows="2"></textarea></label>
+          <label>Тип источника <input id="fact-source-type" type="text" value="user_observation"></label>
+          <label>Ссылки на источники (type:id, через запятую) <input id="fact-source-refs" type="text"></label>
+          <label>Уровень evidence
+            <select id="fact-evidence-level"><option value="direct">direct</option><option value="verified">verified</option><option value="derived">derived</option></select>
+          </label>
+        </div>
+        <button type="button" data-command="add-fact">Добавить факт</button>
+        <ul id="facts-list" class="item-list"></ul>
+      </section>
+
+      <section class="panel category conclusions" data-testid="retrospective-conclusions" aria-labelledby="retrospective-conclusions-heading">
+        <h2 id="retrospective-conclusions-heading">2. Подтверждённые выводы</h2>
+        <p class="category-note">Вывод всегда ссылается на факты и не становится фактом автоматически.</p>
+        <div class="editor-grid">
+          <label>Текст вывода <textarea id="conclusion-text" rows="2"></textarea></label>
+          <label>Fact IDs (через запятую) <input id="conclusion-fact-ids" type="text"></label>
+          <label>Статус
+            <select id="conclusion-status"><option value="proposed">proposed</option><option value="confirmed">confirmed</option><option value="rejected">rejected</option></select>
+          </label>
+        </div>
+        <button type="button" data-command="add-conclusion">Добавить вывод</button>
+        <ul id="conclusions-list" class="item-list"></ul>
+      </section>
+
+      <section class="panel category questions" data-testid="retrospective-unresolved-questions" aria-labelledby="retrospective-questions-heading">
+        <h2 id="retrospective-questions-heading">3. Нерешённые вопросы</h2>
+        <div class="editor-grid">
+          <label>Вопрос <textarea id="question-text" rows="2"></textarea></label>
+          <label>Почему остаётся открытым <input id="question-reason" type="text"></label>
+          <label>Ссылки на источники (type:id, через запятую) <input id="question-source-refs" type="text"></label>
+          <label>Следующая проверка <input id="question-next-check" type="text"></label>
+        </div>
+        <button type="button" data-command="add-question">Добавить вопрос</button>
+        <ul id="questions-list" class="item-list"></ul>
+      </section>
+
+      <section class="panel category considerations" data-testid="retrospective-future-considerations" aria-labelledby="retrospective-considerations-heading">
+        <h2 id="retrospective-considerations-heading">4. Предложения для будущего рассмотрения</h2>
+        <p class="category-note">Предложение не изменяет проект, технологию, план или расчёты и не является общим правилом.</p>
+        <div class="editor-grid">
+          <label>Предложение <textarea id="consideration-text" rows="2"></textarea></label>
+          <label>Обоснование <input id="consideration-rationale" type="text"></label>
+          <label>Related fact IDs <input id="consideration-fact-ids" type="text"></label>
+          <label>Related conclusion IDs <input id="consideration-conclusion-ids" type="text"></label>
+          <label>Scope
+            <select id="consideration-scope"><option value="this_project">this_project</option><option value="similar_project">similar_project</option><option value="general_review">general_review</option></select>
+          </label>
+        </div>
+        <button type="button" data-command="add-consideration">Добавить предложение</button>
+        <ul id="considerations-list" class="item-list"></ul>
+      </section>
+
+      <section class="panel lifecycle" aria-labelledby="retrospective-lifecycle-heading">
+        <h2 id="retrospective-lifecycle-heading">Lifecycle</h2>
+        <div id="retrospective-command-bar" class="command-bar">
+          <button type="button" data-command="save-draft">Сохранить draft</button>
+          <button type="button" data-command="start-review">Перейти к review</button>
+          <button type="button" data-command="return-draft">Вернуть в draft</button>
+          <button type="button" data-command="complete">Завершить retrospective</button>
+        </div>
+      </section>
+
+      <nav class="page-nav" aria-label="Навигация ретроспективы">
+        <a id="retrospective-back-follow-up" data-testid="back-to-follow-up" href="/pattern-execution-follow-up">Назад к follow-up</a>
+        <a id="retrospective-learning-route" data-testid="open-learning" href="/pattern-execution-learning" hidden>Перейти к learning</a>
+        <a id="retrospective-project-link" href="/">К проектам</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>

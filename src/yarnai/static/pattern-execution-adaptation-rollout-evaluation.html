@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Rollout evaluation</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-execution-adaptation-rollout-evaluation.css">
+  <script src="/static/pattern-execution-retrospective.js" defer></script>
+  <script src="/static/pattern-execution-learning.js" defer></script>
+  <script src="/static/pattern-execution-adaptation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-validation.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-promotion.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-rollout.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-rollout-evaluation.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-adaptation-rollout-evaluation-assistant.js" defer></script>
+</head>
+<body>
+  <main class="evaluation-shell" data-testid="pattern-execution-adaptation-rollout-evaluation-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_ADAPTATION_ROLLOUT_EVALUATION · Stage 43</p>
+      <h1>Evaluate adaptation rollout outcomes</h1>
+      <p class="lead">Compare derived expectations with trusted observations, assess stability and decide the next safe action.</p>
+      <p id="evaluation-context" aria-live="polite">Loading rollout context…</p>
+    </header>
+
+    <section id="evaluation-fatal" class="panel fatal" hidden role="alert"><h2>Evaluation unavailable</h2><p id="evaluation-fatal-message"></p></section>
+    <div id="evaluation-workflow">
+      <section class="panel" aria-labelledby="evaluation-proof-heading">
+        <div class="status-row"><span id="evaluation-lifecycle" data-testid="rollout-evaluation-lifecycle" class="status-chip">draft</span><span id="evaluation-revision">Epoch — · revision —</span></div>
+        <h2 id="evaluation-proof-heading">Local source proof</h2>
+        <output id="evaluation-proof-status" data-testid="rollout-evaluation-source-proof">unproven</output>
+        <ul id="evaluation-proof-issues"></ul>
+        <p id="evaluation-reason" class="warning" role="alert"></p>
+        <p id="evaluation-message" aria-live="polite"></p><p id="evaluation-error" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel editor" data-testid="evaluation-strategy-scope"><h2>Strategy and derived scope</h2><label for="evaluation-strategy">Evaluation strategy</label><select id="evaluation-strategy"><option>immediate</option><option selected>short_term</option><option>extended</option><option>comparative</option></select><label for="evaluation-window-input">Evaluation window JSON</label><textarea id="evaluation-window-input" rows="5" spellcheck="false"></textarea><label for="evaluation-scope-output">Rollout scope (read-only)</label><textarea id="evaluation-scope-output" rows="8" readonly></textarea></section>
+      <section class="panel editor" data-testid="evaluation-observations"><h2>Observations</h2><textarea id="evaluation-observations-input" rows="12" spellcheck="false"></textarea></section>
+      <section class="panel editor" data-testid="evaluation-metrics"><h2>Metric results</h2><textarea id="evaluation-metrics-input" rows="14" spellcheck="false"></textarea></section>
+      <section class="panel editor" data-testid="evaluation-evidence"><h2>Trusted evidence</h2><textarea id="evaluation-evidence-input" rows="14" spellcheck="false"></textarea></section>
+      <section class="panel editor" data-testid="evaluation-regressions"><h2>Regressions</h2><textarea id="evaluation-regressions-input" rows="10" spellcheck="false"></textarea></section>
+      <section class="panel editor" data-testid="evaluation-side-effects"><h2>Side effects</h2><textarea id="evaluation-side-effects-input" rows="10" spellcheck="false"></textarea></section>
+
+      <section class="panel comparison" data-testid="evaluation-impact-comparison"><h2>Expected vs actual impact</h2><div class="comparison-grid"><div><h3>Expected</h3><pre id="evaluation-expected-impact"></pre></div><div><h3>Actual</h3><pre id="evaluation-actual-impact"></pre></div></div><output id="evaluation-impact-result"></output></section>
+      <section class="panel assessment-grid"><div data-testid="evaluation-stability"><h2>Stability</h2><output id="evaluation-stability-value">unknown</output></div><div data-testid="evaluation-rollback"><h2>Rollback recommendation</h2><output id="evaluation-rollback-value">undetermined</output></div><div data-testid="evaluation-follow-up"><h2>Follow-up</h2><output id="evaluation-follow-up-value">continue_monitoring</output></div></section>
+      <section class="panel verdict" data-testid="evaluation-verdict"><h2>Derived evaluation verdict</h2><output id="evaluation-verdict-value">undetermined</output><p>Verdict is computed from local proof, evidence coverage, impact, stability, regressions, side effects and rollback state.</p></section>
+
+      <section class="panel lifecycle"><h2>Lifecycle</h2><div class="command-bar" data-testid="evaluation-lifecycle-controls"><button type="button" data-command="create">Create evaluation</button><button type="button" data-command="save-strategy">Save strategy</button><button type="button" data-command="collect">Start collecting</button><button type="button" data-command="save-observations">Save observations</button><button type="button" data-command="save-metrics">Save metrics</button><button type="button" data-command="save-evidence">Save evidence</button><button type="button" data-command="save-regressions">Save regressions</button><button type="button" data-command="save-side-effects">Save side effects</button><button type="button" data-command="analyze">Analyze</button><button type="button" data-command="review">Review</button><button type="button" data-command="complete">Complete</button><button type="button" data-command="abort">Abort</button><button type="button" data-command="open-latest">Open latest</button></div><label for="evaluation-abort-reason">Explicit abort reason</label><input id="evaluation-abort-reason" type="text"><p id="evaluation-terminal" hidden>Terminal evaluation is immutable.</p></section>
+      <nav class="page-nav" aria-label="Rollout evaluation navigation"><a id="evaluation-back-rollout" data-testid="back-to-adaptation-rollout" href="/pattern-execution-adaptation-rollout">Back to rollout</a><a id="evaluation-open-closure" data-testid="open-adaptation-closure" href="/pattern-execution-adaptation-closure">Open adaptation closure</a><a href="/">Projects</a></nav>
+    </div>
+  </main>
+</body>
+</html>

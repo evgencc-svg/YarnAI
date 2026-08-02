@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YarnAI · Execution learning</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/pattern-execution-learning.css">
+  <script src="/static/pattern-execution-retrospective.js" defer></script>
+  <script src="/static/pattern-execution-learning.js" defer></script>
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-execution-learning-assistant.js" defer></script>
+</head>
+<body>
+  <main class="learning-shell" data-testid="pattern-execution-learning-page">
+    <header class="page-header">
+      <p class="eyebrow">PATTERN_EXECUTION_LEARNING · Stage 38</p>
+      <h1 id="learning-title">Execution learning</h1>
+      <p class="lead">Turn a completed retrospective into reusable, structured knowledge. Source text is never copied automatically.</p>
+      <p id="learning-context" class="context" aria-live="polite">Loading the completed retrospective…</p>
+    </header>
+
+    <section id="learning-fatal" class="panel fatal" hidden>
+      <h2>Learning is unavailable</h2>
+      <p id="learning-fatal-message" role="alert"></p>
+    </section>
+
+    <div id="learning-workflow">
+      <section class="panel overview" aria-labelledby="learning-state-heading">
+        <div class="status-row">
+          <span id="learning-status" data-testid="learning-status" class="status-chip" data-status="draft" role="status">Draft</span>
+          <span id="learning-revision" class="revision">Epoch — · revision —</span>
+        </div>
+        <h2 id="learning-state-heading">Integrity</h2>
+        <dl id="learning-metrics" data-testid="learning-metrics" class="summary-grid"></dl>
+        <ul id="learning-integrity" data-testid="learning-integrity"></ul>
+        <p id="learning-message" data-testid="learning-live-region" class="message" aria-live="polite" role="status"></p>
+        <p id="learning-error" class="error" role="alert"></p>
+      </section>
+
+      <section class="panel category" data-testid="learning-lessons" aria-labelledby="lessons-heading">
+        <h2 id="lessons-heading">Lessons</h2>
+        <div class="editor-grid">
+          <label>Title <input id="lesson-title" type="text"></label>
+          <label>Description <textarea id="lesson-description" rows="2"></textarea></label>
+          <label>Supporting retrospective fact IDs <input id="lesson-facts" type="text"></label>
+          <label>Confidence <select id="lesson-confidence"><option>low</option><option selected>medium</option><option>high</option></select></label>
+        </div>
+        <button type="button" data-command="add-lesson">Add lesson</button>
+        <ul id="lessons-list" class="item-list"></ul>
+      </section>
+
+      <section class="panel category" data-testid="learning-successful-patterns" aria-labelledby="successful-patterns-heading">
+        <h2 id="successful-patterns-heading">Successful patterns</h2>
+        <div class="editor-grid">
+          <label>Pattern <input id="success-pattern" type="text"></label>
+          <label>Rationale <textarea id="success-rationale" rows="2"></textarea></label>
+          <label>Supporting retrospective fact IDs <input id="success-facts" type="text"></label>
+          <label>Confidence <select id="success-confidence"><option>low</option><option selected>medium</option><option>high</option></select></label>
+        </div>
+        <button type="button" data-command="add-success">Add successful pattern</button>
+        <ul id="successful-patterns-list" class="item-list"></ul>
+      </section>
+
+      <section class="panel category" data-testid="learning-anti-patterns" aria-labelledby="anti-patterns-heading">
+        <h2 id="anti-patterns-heading">Anti-patterns</h2>
+        <div class="editor-grid">
+          <label>Pattern <input id="anti-pattern" type="text"></label>
+          <label>Reason <textarea id="anti-reason" rows="2"></textarea></label>
+          <label>Possible mitigation <textarea id="anti-mitigation" rows="2"></textarea></label>
+          <label>Supporting retrospective fact IDs <input id="anti-facts" type="text"></label>
+          <label>Confidence <select id="anti-confidence"><option>low</option><option selected>medium</option><option>high</option></select></label>
+        </div>
+        <button type="button" data-command="add-anti">Add anti-pattern</button>
+        <ul id="anti-patterns-list" class="item-list"></ul>
+      </section>
+
+      <section class="panel category" data-testid="learning-recommendations" aria-labelledby="recommendations-heading">
+        <h2 id="recommendations-heading">Recommendations</h2>
+        <div class="editor-grid">
+          <label>Title <input id="recommendation-title" type="text"></label>
+          <label>Priority <select id="recommendation-priority"><option>low</option><option selected>medium</option><option>high</option><option>critical</option></select></label>
+          <label>Rationale <textarea id="recommendation-rationale" rows="2"></textarea></label>
+          <label>Expected benefit <textarea id="recommendation-benefit" rows="2"></textarea></label>
+          <label>Supporting lesson IDs <input id="recommendation-lessons" type="text"></label>
+        </div>
+        <button type="button" data-command="add-recommendation">Add recommendation</button>
+        <ul id="recommendations-list" class="item-list"></ul>
+      </section>
+
+      <section class="panel category" data-testid="learning-confidence" aria-labelledby="confidence-heading">
+        <h2 id="confidence-heading">Confidence</h2>
+        <div class="editor-grid">
+          <label>Level <select id="assessment-level"><option>low</option><option>medium</option><option>high</option></select></label>
+          <label>Rationale <textarea id="assessment-rationale" rows="2"></textarea></label>
+          <label>Coverage <input id="assessment-coverage" type="text"></label>
+          <label>Limitations <input id="assessment-limitations" type="text"></label>
+        </div>
+        <button type="button" data-command="set-confidence">Save confidence assessment</button>
+        <p id="confidence-value"></p>
+      </section>
+
+      <section class="panel lifecycle" aria-labelledby="learning-lifecycle-heading">
+        <h2 id="learning-lifecycle-heading">Lifecycle</h2>
+        <div class="command-bar">
+          <button type="button" data-command="save-draft">Save draft</button>
+          <button type="button" data-command="start-review">Start review</button>
+          <button type="button" data-command="return-draft">Return to draft</button>
+          <button type="button" data-command="complete">Complete learning</button>
+        </div>
+      </section>
+
+      <nav class="page-nav" aria-label="Learning navigation">
+        <a id="learning-back-retrospective" data-testid="back-to-retrospective" href="/pattern-execution-retrospective">Back to retrospective</a>
+        <a id="learning-adaptation-route" data-testid="adaptation-route" href="/pattern-execution-adaptation" hidden>Prepare execution adaptation</a>
+        <a href="/">Projects</a>
+      </nav>
+    </div>
+  </main>
+</body>
+</html>
