@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Уточнение недостающих данных для следующего шага проекта YarnAI.">
+    <title>Уточним следующий шаг — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/project-execution-next-step-clarification.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/user-workspace-entry.js" defer></script>
+    <script src="/static/project-execution-plan.js" defer></script>
+    <script src="/static/project-execution-start.js" defer></script>
+    <script src="/static/project-execution-first-step.js" defer></script>
+    <script src="/static/project-execution-next-step.js" defer></script>
+    <script src="/static/project-execution-next-step-clarification.js" defer></script>
+    <script src="/static/project-execution-next-step-clarification-workspace.js" defer></script>
+    <script src="/static/project-execution-next-step-clarification-assistant.js" defer></script>
+  </head>
+  <body>
+    <main id="next-step-clarification-root" class="shell" aria-busy="false">
+      <a class="brand" href="/saved-projects" aria-label="YarnAI — мои проекты">YarnAI</a>
+      <section id="next-step-clarification-loading" class="panel" aria-live="polite">
+        <p>Проверяем сохранённый результат…</p>
+      </section>
+      <section id="next-step-clarification-blocked" class="panel blocked" role="alert" tabindex="-1" hidden>
+        <h1>Не удалось открыть уточнение</h1>
+        <p id="next-step-clarification-blocked-message"></p>
+        <div class="actions"><a class="button" href="/saved-projects">Мои проекты</a></div>
+      </section>
+      <section id="next-step-clarification-content" class="panel" aria-live="polite" hidden>
+        <h1>Уточним следующий шаг</h1>
+        <div class="completed-context" aria-label="Подтверждённый результат">
+          <p><strong>Набор петель завершён</strong></p>
+          <p>100 петель подтверждено</p>
+          <p>Повторять набор не нужно</p>
+        </div>
+        <p class="explanation">Чтобы продолжить, нужно уточнить начальный участок изделия.</p>
+        <form id="next-step-clarification-form" novalidate hidden>
+          <div id="next-step-clarification-type-field" class="field">
+            <label for="next-step-clarification-type">Что вязать после набора петель?</label>
+            <select id="next-step-clarification-type" name="foundationType" required aria-describedby="next-step-clarification-type-error"></select>
+            <p id="next-step-clarification-type-error" class="field-error" aria-live="polite"></p>
+          </div>
+          <div id="next-step-clarification-height-field" class="field">
+            <label for="next-step-clarification-height">До какой высоты вязать этот участок?</label>
+            <div class="measurement"><input id="next-step-clarification-height" name="foundationHeight" type="number" min="0.01" step="any" inputmode="decimal" required aria-describedby="next-step-clarification-height-help next-step-clarification-height-error"><span aria-hidden="true">см</span></div>
+            <p id="next-step-clarification-height-help" class="hint">Укажите положительное число в сантиметрах.</p>
+            <p id="next-step-clarification-height-error" class="field-error" aria-live="polite"></p>
+          </div>
+          <section class="summary" aria-labelledby="next-step-clarification-summary-heading">
+            <h2 id="next-step-clarification-summary-heading">Что будет дальше</h2>
+            <p id="next-step-clarification-summary">Заполните недостающие данные — здесь появится точная сводка.</p>
+          </section>
+          <p id="next-step-clarification-form-error" class="form-error" role="alert" tabindex="-1"></p>
+          <div class="actions">
+            <button id="next-step-clarification-confirm" type="submit" disabled>Подтвердить следующий шаг</button>
+            <a class="secondary" href="/saved-projects">Мои проекты</a>
+          </div>
+        </form>
+        <section id="next-step-clarification-completed" class="completed-result" tabindex="-1" hidden>
+          <h2>Следующий шаг подтверждён</h2>
+          <p id="next-step-clarification-completed-summary" class="result"></p>
+          <p class="muted">Сохранено <span id="next-step-clarification-completed-at"></span></p>
+          <div class="actions"><a class="button" href="/saved-projects">Мои проекты</a></div>
+        </section>
+      </section>
+    </main>
+  </body>
+</html>

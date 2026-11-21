@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Первый подтверждённый физический шаг проекта YarnAI.">
+    <title>Первый шаг проекта — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/project-execution-first-step.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/user-workspace-entry.js" defer></script>
+    <script src="/static/project-execution-start.js" defer></script>
+    <script src="/static/project-execution-first-step.js" defer></script>
+    <script src="/static/project-execution-first-step-workspace.js" defer></script>
+    <script src="/static/project-execution-first-step-assistant.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">YarnAI</a>
+      <a class="quiet-link" href="/saved-projects">Мои проекты</a>
+    </header>
+    <main id="execution-first-step-root" class="page-shell" aria-busy="false">
+      <p id="execution-first-step-loading" class="card loading" role="status">Восстанавливаем первый шаг…</p>
+
+      <section id="execution-first-step-blocked" class="card blocked" role="alert" hidden>
+        <p class="eyebrow">Первый шаг недоступен</p>
+        <h1 id="execution-first-step-blocked-message" tabindex="-1">Не удалось проверить начало проекта.</h1>
+        <p>Диагностический код: <code id="execution-first-step-diagnostic-code">STAGE66_SOURCE_INVALID</code></p>
+        <div class="actions"><button id="execution-first-step-retry" class="button primary" type="button" hidden>Повторить</button><a id="execution-first-step-recovery" class="button secondary" href="/saved-projects">Мои проекты</a></div>
+      </section>
+
+      <div id="execution-first-step-content" hidden>
+        <section class="hero card" aria-labelledby="execution-first-step-project-title">
+          <div>
+            <p class="eyebrow">Шаг 1 · <span id="execution-first-step-lifecycle">ready</span></p>
+            <h1 id="execution-first-step-project-title">Проект вязания</h1>
+            <p id="execution-first-step-instruction" class="instruction">Набрать 100 петель</p>
+          </div>
+          <p id="execution-first-step-target" class="target">100 петель</p>
+        </section>
+
+        <section class="context-grid" aria-label="Контекст первого шага">
+          <article class="card context-card"><h2>Пряжа</h2><p id="execution-first-step-yarn">—</p></article>
+          <article class="card context-card"><h2>Инструменты</h2><p id="execution-first-step-tools">—</p></article>
+          <article class="card context-card"><h2>Плотность</h2><p id="execution-first-step-gauge">—</p></article>
+          <article class="card context-card"><h2>Техника</h2><p id="execution-first-step-technique">—</p></article>
+        </section>
+
+        <section id="execution-first-step-warnings-section" class="card notes" hidden>
+          <h2>Предупреждения</h2>
+          <ul id="execution-first-step-warnings"></ul>
+        </section>
+        <section id="execution-first-step-assumptions-section" class="card notes" hidden>
+          <h2>Допущения</h2>
+          <ul id="execution-first-step-assumptions"></ul>
+        </section>
+
+        <section class="card action-card">
+          <p id="execution-first-step-status" class="status" aria-live="polite">Первый шаг готов к началу.</p>
+
+          <div id="execution-first-step-ready">
+            <h2>Всё готово</h2>
+            <p>Начните шаг, когда будете готовы набирать петли.</p>
+            <button id="execution-first-step-activate" class="button primary" type="button">Начать шаг</button>
+          </div>
+
+          <div id="execution-first-step-active" hidden>
+            <h2>Шаг выполняется</h2>
+            <div class="actions">
+              <button id="execution-first-step-pause" class="button primary" type="button">Пауза</button>
+              <button id="execution-first-step-check" class="button secondary" type="button">Проверить результат</button>
+            </div>
+          </div>
+
+          <div id="execution-first-step-paused" hidden>
+            <h2>Работа приостановлена</h2>
+            <p>Последняя пауза: <time id="execution-first-step-paused-at"></time>.</p>
+            <button id="execution-first-step-resume" class="button primary" type="button">Продолжить</button>
+          </div>
+
+          <form id="execution-first-step-checking" novalidate hidden onsubmit="return false">
+            <h2>Проверка количества</h2>
+            <div class="field">
+              <label for="execution-first-step-count">Фактическое количество петель</label>
+              <input id="execution-first-step-count" name="observed-stitch-count" type="number" inputmode="numeric" min="1" step="1" required autocomplete="off">
+            </div>
+            <label class="confirmation" for="execution-first-step-confirmation">
+              <input id="execution-first-step-confirmation" name="explicit-confirmation" type="checkbox">
+              <span>Я пересчитал(а): на спицах 100 петель</span>
+            </label>
+            <p id="execution-first-step-check-feedback" class="feedback" aria-live="polite"></p>
+            <div class="actions">
+              <button id="execution-first-step-complete" class="button primary" type="button">Подтвердить завершение</button>
+              <button id="execution-first-step-cancel-check" class="button secondary" type="button">Вернуться к выполнению</button>
+            </div>
+          </form>
+
+          <div id="execution-first-step-completed" hidden>
+            <p class="eyebrow">Шаг завершён</p>
+            <h2 id="execution-first-step-completed-count">100 петель</h2>
+            <p>Подтверждено: <time id="execution-first-step-completed-at"></time>.</p>
+            <a id="execution-first-step-next-step" class="button primary" href="/saved-projects" hidden>Подготовить следующий шаг</a>
+            <a class="button primary" href="/saved-projects">Мои проекты</a>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

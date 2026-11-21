@@ -4,3 +4,6 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+# Generated evidence for the completed 8023 -> 8000 canonical-origin migration.
+/recovery/exact-project-handoff/evidence/canonical-origin-migration-v1/

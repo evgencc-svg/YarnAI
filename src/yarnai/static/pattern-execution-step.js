@@ -603,6 +603,12 @@
     const duplicate = beginOperation(state, "rebuild", options);
     if (duplicate) return copy(state);
     if (options.confirmed !== true) throw stepError("rebuild_confirmation_required", "Перестроение требует явного подтверждения.");
+    if (state.status === "completed") {
+      const reviewApi = globalObject.YarnAIPatternExecutionVisionReview;
+      if (!reviewApi?.canAdvance?.(state)) {
+        throw stepError("vision_review_decision_required", "Сначала выберите способ продолжения после завершённого шага.");
+      }
+    }
     const source = validateSourceSession(session, state.projectId, options.context || {});
     if (!source.valid) throwForDiagnostic(source.errors[0]);
     const now = options.now || timestampNow();
@@ -610,6 +616,10 @@
     const compatible = compatibleProgress(state.immutableSnapshot, snapshot, state.progressState);
     const next = mutable(state);
     prepareRevision(next, now);
+    if (state.visionReview) {
+      next.visionReviewHistory = [...array(state.visionReviewHistory), copy(state.visionReview)].slice(-256);
+      next.visionReview = null;
+    }
     appendAudit(next, "rebuild_started", now, { operationId: options.operationId, previousActionId: state.actionId });
     Object.assign(next, sourceIdentity(session));
     next.componentId = snapshot.component?.componentId ?? null;
@@ -1129,6 +1139,7 @@
       current_action_changed: "Текущее действие сессии изменилось.", current_action_blocked: "Текущее действие заблокировано.",
       prerequisite_incomplete: "Prerequisite текущего действия не завершён.", source_selection_missing: "Component, phase или action отсутствуют в source snapshot.",
       corrupted_progress_state: "Сохранённый прогресс повреждён.", imported_identity_unverifiable: "После импорта identity источника не доказуема.",
+      vision_review_decision_required: "Сначала выберите способ продолжения после завершённого шага.",
       step_revision_conflict: "Revision шага изменилась.", operation_id_required: "Для операции требуется operationId.",
     })[code] || "Операция с исполняемым шагом недоступна.";
   }

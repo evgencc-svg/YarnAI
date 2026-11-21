@@ -46,6 +46,18 @@ from .models import (
     Unit,
     WidthRequest,
 )
+from .sleeve_planning import (
+    AuthoritativeSleeveSources,
+    PatternBinding as SleevePatternBinding,
+    ProjectProgressBackend,
+    SleevePlanningError,
+    SleevePlanningHistoryRepository,
+    SleevePlanningProgressRecord,
+    SleevePlanningState,
+    SleeveTargetGeometryPlanningService,
+    SourceBinding as SleeveSourceBinding,
+    ZoneGaugeBinding,
+)
 
 __all__ = [
     "Axis",
@@ -81,10 +93,20 @@ __all__ = [
     "StructuralConstraints",
     "SwatchContext",
     "SwatchMode",
+    "AuthoritativeSleeveSources",
+    "ProjectProgressBackend",
+    "SleevePatternBinding",
+    "SleevePlanningError",
+    "SleevePlanningHistoryRepository",
+    "SleevePlanningProgressRecord",
+    "SleevePlanningState",
+    "SleeveSourceBinding",
+    "SleeveTargetGeometryPlanningService",
     "ToleranceMode",
     "ToleranceRule",
     "TriState",
     "Unit",
     "WidthRequest",
+    "ZoneGaugeBinding",
     "calculate",
 ]

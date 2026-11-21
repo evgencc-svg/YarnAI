@@ -6,9 +6,11 @@
   <title>YarnAI — текущий исполняемый шаг</title>
   <link rel="stylesheet" href="/static/pattern-execution-step.css">
   <script src="/static/project-system.js" defer></script>
+  <script src="/static/pattern-technology-review.js" defer></script>
   <script src="/static/pattern-execution-plan.js" defer></script>
   <script src="/static/pattern-execution-session.js" defer></script>
   <script src="/static/pattern-execution-step.js" defer></script>
+  <script src="/static/pattern-execution-vision-review.js" defer></script>
   <script src="/static/pattern-execution-step-assistant.js" defer></script>
 </head>
 <body>
@@ -75,6 +77,27 @@
           <button id="execution-step-rebuild" type="button" hidden>Перестроить</button>
         </div>
         <p id="execution-step-error" class="error" role="alert"></p>
+      </section>
+
+      <section id="execution-step-vision-review" class="panel vision-review" hidden aria-labelledby="execution-step-vision-title">
+        <p class="eyebrow">После завершённого физического шага</p>
+        <h2 id="execution-step-vision-title">Как продолжить?</h2>
+        <p id="execution-step-vision-message" class="vision-message" aria-live="polite"></p>
+        <div id="execution-step-vision-choices" class="vision-actions">
+          <button id="execution-step-self-confirm" class="primary" type="button" hidden>Продолжить без фотопроверки</button>
+          <button id="execution-step-photo-choice" type="button" hidden>Проверить по фото</button>
+        </div>
+        <div id="execution-step-photo-panel" class="photo-panel" hidden>
+          <h3>Какие фото нужны для этого шага</h3>
+          <ul id="execution-step-photo-guidance"></ul>
+          <label class="photo-input-label" for="execution-step-photo-input">Выбери от одного до трёх фото</label>
+          <input id="execution-step-photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+          <button id="execution-step-save-photos" type="button" hidden>Сохранить фото для проверки</button>
+          <ul id="execution-step-photo-list" class="photo-list"></ul>
+          <p id="execution-step-photo-status" class="vision-status" aria-live="polite"></p>
+        </div>
+        <button id="execution-step-open-next" class="primary next-step-button" type="button" hidden>Открыть следующий шаг</button>
+        <p id="execution-step-vision-error" class="error" role="alert"></p>
       </section>
 
       <section id="execution-step-prerequisites" class="panel" hidden>

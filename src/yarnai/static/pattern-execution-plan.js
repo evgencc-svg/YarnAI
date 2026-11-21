@@ -3,7 +3,10 @@
 (function exposePatternExecutionPlan(globalObject) {
   const VERSION = 1;
   const SCHEMA_VERSION = 1;
-  const PLANNING_ALGORITHM_VERSION = 1;
+  const PLANNING_ALGORITHM_VERSION = 11;
+  const PLAN_CONTRACT_ID = "PATTERN_EXECUTION_PLAN_V2";
+  const PLAN_RESULT_KIND = "PATTERN_EXECUTION_PLAN_RESULT";
+  const ADAPTED_PLAN_ALGORITHM_ID = "stage21-confirmed-adapted-execution-plan:v4";
   const PROGRESS_KIND = "PATTERN_EXECUTION_PLAN";
   const STATUSES = Object.freeze(["waiting", "planning", "ready", "blocked", "stale", "failed"]);
   const PHASE_TYPES = Object.freeze([
@@ -76,6 +79,7 @@
     const draft = snapshot?.sourceDraftIdentity || {};
     const analysisReview = snapshot?.sourceReviewIdentity || {};
     const semantic = snapshot?.sourceSemanticIdentity || {};
+    const executable = snapshot?.executableTechnologyPlanInput || null;
     return {
       sourceTechnologyReviewId: review?.id ?? null,
       sourceTechnologyReviewRevision: integer(review?.revision),
@@ -92,6 +96,26 @@
       sourceSemanticAnalysisFingerprint: semantic.id && semantic.revision ? fingerprint({ id: semantic.id, revision: semantic.revision, projectId: semantic.projectId ?? review?.projectId ?? null, sourceImportRevision: integer(snapshot?.sourceImportRevision) }) : null,
       sourceImportRevision: integer(snapshot?.sourceImportRevision),
       sourceAlgorithmVersion: integer(draft.algorithmVersion),
+      sourceExecutableInputIdentity: executable?.identity ?? null,
+      sourceExecutableInputFingerprint: executable?.fingerprint ?? null,
+      sourceStage20ResultIdentity: executable?.binding?.stage20ResultIdentity ?? null,
+      sourceStage20ProjectionFingerprint: executable?.binding?.stage20SourceProjectionFingerprint ?? null,
+      sourceInstructionEvidenceIdentity: executable?.binding?.sourceInstructionEvidenceIdentity ?? null,
+      sourceInstructionEvidenceRevision: integer(executable?.binding?.sourceInstructionEvidenceRevision),
+      sourceInstructionEvidenceFingerprint: executable?.binding?.sourceInstructionEvidenceFingerprint ?? null,
+      sourceDocumentIdentity: executable?.binding?.sourceDocumentIdentity ?? null,
+      sourceDocumentFingerprint: executable?.binding?.sourceDocumentFingerprint ?? null,
+      sourceInstructionEvidenceResultIdentity: executable?.binding?.sourceInstructionEvidenceResultIdentity ?? executable?.evidence?.sourceInstructionEvidence?.resultIdentity ?? null,
+      sourceInstructionEvidenceResultFingerprint: executable?.binding?.sourceInstructionEvidenceResultFingerprint ?? executable?.evidence?.sourceInstructionEvidence?.resultFingerprint ?? null,
+      sourceBranchFingerprint: executable?.branchSelection?.fingerprint ?? null,
+      sourceAdaptationProfileIdentity: executable?.adaptedExecution?.adaptationProfile?.identity ?? null,
+      sourceAdaptationProfileRevision: integer(executable?.adaptedExecution?.adaptationProfile?.revision),
+      sourceAdaptationProfileFingerprint: executable?.adaptedExecution?.adaptationProfile?.fingerprint ?? null,
+      sourceSolverResultIdentity: executable?.adaptedExecution?.solverIdentity ?? null,
+      sourceSolverResultFingerprint: executable?.adaptedExecution?.solverFingerprint ?? null,
+      sourceExecutionGraphFingerprint: executable?.adaptedExecution?.operations ? fingerprintSafe(executable.adaptedExecution.operations) : null,
+      sourceSequentialValidationFingerprint: executable?.adaptedExecution?.validation ? fingerprintSafe(executable.adaptedExecution.validation) : null,
+      sourceAdaptedOperationCount: array(executable?.adaptedExecution?.operations).length,
     };
   }
 
@@ -124,6 +148,24 @@
       if (snapshot.sourceImportRevision !== review.sourceImportRevision) add("SOURCE_IMPORT_REVISION_MISMATCH");
       if (snapshot.sourceFingerprints?.draft !== review.sourceDraftFingerprint) add("SOURCE_IDENTITY_MISMATCH", { stage: 20, field: "draftFingerprint" });
       if (!object(snapshot.finalDraft) || snapshot.finalDraft.projectSummary?.projectId !== projectId) add("SOURCE_IDENTITY_MISMATCH", { field: "finalDraft" });
+      const executable = snapshot.executableTechnologyPlanInput;
+      if (executable) {
+        const payload = copy(executable); delete payload.fingerprint;
+        if (executable.schemaId !== "EXECUTABLE_TECHNOLOGY_PLAN_INPUT_V1" || executable.contractVersion !== 1 || fingerprintSafe(payload) !== executable.fingerprint || executable.binding?.projectId !== projectId || executable.binding?.stage20DraftId !== identity.sourceTechnologyDraftId || executable.binding?.stage20Revision !== identity.sourceTechnologyDraftRevision || executable.binding?.stage20DraftFingerprint !== identity.sourceTechnologyDraftFingerprint || executable.binding?.stage19AuthoritativeReviewId !== identity.sourceAnalysisReviewId || executable.binding?.stage19AuthoritativeReviewRevision !== identity.sourceAnalysisReviewRevision) add("SOURCE_EXECUTABLE_INPUT_INVALID");
+        if (executable.algorithmId === "stage20-v2-confirmed-instruction-evidence-projection:v2") {
+          const evidence = executable.evidence?.sourceInstructionEvidence;
+          const evidencePayload = copy(evidence); if (evidencePayload) delete evidencePayload.fingerprint;
+          if (!evidence || fingerprintSafe(evidencePayload) !== evidence.fingerprint || evidence.fingerprint !== executable.binding?.sourceInstructionEvidenceFingerprint || evidence.evidenceIdentity !== executable.binding?.sourceInstructionEvidenceIdentity || evidence.evidenceRevision !== executable.binding?.sourceInstructionEvidenceRevision || evidence.binding?.sourceDocumentIdentity !== executable.binding?.sourceDocumentIdentity || evidence.binding?.sourceDocumentFingerprint !== executable.binding?.sourceDocumentFingerprint || !evidence.coverage?.complete || array(evidence.blockerResolutionMap).some((entry) => entry.resolutionStatus !== "resolved")) add("SOURCE_EXECUTABLE_INPUT_INVALID", { field: "sourceInstructionEvidence" });
+        }
+        if (["stage20-v2-branch-resolved-adapted-execution:v5", "stage20-v2-branch-resolved-adapted-execution:v6"].includes(executable.algorithmId)) {
+          validateAdaptedExecution(executable, add);
+          if (executable.algorithmId.endsWith(":v6")) {
+            validateCausalTraceContract(executable, add);
+          }
+          const confirmedExecutable = array(snapshot.confirmedValues).find((entry) => entry.targetId === "executable-plan-review:0b7eaa26" || entry.value?.identity === executable.identity);
+          if (confirmedExecutable?.decision !== "accepted" || confirmedExecutable?.value?.adaptedOperationCount !== array(executable.adaptedExecution?.operations).length) add("SOURCE_EXECUTABLE_INPUT_INVALID", { field: "confirmedAdaptedOperationCount" });
+        }
+      }
     }
     validateCurrentIdentity(identity, projectId, context, add);
     const stable = stableDiagnostics(diagnostics);
@@ -134,9 +176,11 @@
     const draft = context.technologyDraft || null;
     const analysisReview = context.analysisReview || null;
     const semantic = context.semanticAnalysis || null;
+    const instructionEvidence = context.instructionEvidence || null;
     if (draft) {
       if (draft.projectId !== projectId || draft.sourceProjectId !== projectId || draft.id !== identity.sourceTechnologyDraftId || draft.revision !== identity.sourceTechnologyDraftRevision || draft.draftFingerprint !== identity.sourceTechnologyDraftFingerprint || draft.algorithmVersion !== identity.sourceAlgorithmVersion) add("SOURCE_IDENTITY_MISMATCH", { stage: 20 });
       if (draft.sourceImportRevision !== identity.sourceImportRevision) add("SOURCE_IMPORT_REVISION_MISMATCH", { stage: 20 });
+      if (identity.sourceExecutableInputIdentity && (draft.draftResult?.resultIdentity !== identity.sourceStage20ResultIdentity || draft.sourceProjectionFingerprint !== identity.sourceStage20ProjectionFingerprint)) add("SOURCE_EXECUTABLE_INPUT_STALE", { stage: 20 });
     }
     if (analysisReview) {
       if (analysisReview.projectId !== projectId || analysisReview.id !== identity.sourceAnalysisReviewId || analysisReview.revision !== identity.sourceAnalysisReviewRevision) add("SOURCE_IDENTITY_MISMATCH", { stage: 19 });
@@ -146,7 +190,11 @@
       if (semantic.projectId !== projectId || semantic.id !== identity.sourceSemanticAnalysisId || semantic.revision !== identity.sourceSemanticAnalysisRevision) add("SOURCE_IDENTITY_MISMATCH", { stage: 18 });
       if (semantic.sourceImportRevision !== identity.sourceImportRevision) add("SOURCE_IMPORT_REVISION_MISMATCH", { stage: 18 });
     }
+    if (instructionEvidence && identity.sourceInstructionEvidenceIdentity) {
+      if (instructionEvidence.status !== "confirmed" || instructionEvidence.id !== identity.sourceInstructionEvidenceIdentity || instructionEvidence.revision !== identity.sourceInstructionEvidenceRevision || instructionEvidence.confirmedSnapshotFingerprint !== identity.sourceInstructionEvidenceFingerprint || instructionEvidence.resultIdentity !== identity.sourceInstructionEvidenceResultIdentity || instructionEvidence.resultFingerprint !== identity.sourceInstructionEvidenceResultFingerprint) add("SOURCE_INSTRUCTION_EVIDENCE_STALE", { stage: "source_instruction_evidence" });
+    }
     if (context.requireCurrentIdentity && (!draft || !analysisReview || !semantic)) add("SOURCE_IDENTITY_MISMATCH", { field: "currentReferences" });
+    if (context.requireCurrentIdentity && identity.sourceInstructionEvidenceIdentity && !instructionEvidence) add("SOURCE_INSTRUCTION_EVIDENCE_STALE", { field: "currentInstructionEvidence" });
   }
 
   function createInitialState(projectId, review = null, now = timestampNow()) {
@@ -185,6 +233,26 @@
       sourceSemanticAnalysisFingerprint: identity.sourceSemanticAnalysisFingerprint,
       sourceImportRevision: identity.sourceImportRevision,
       sourceAlgorithmVersion: identity.sourceAlgorithmVersion,
+      sourceExecutableInputIdentity: identity.sourceExecutableInputIdentity,
+      sourceExecutableInputFingerprint: identity.sourceExecutableInputFingerprint,
+      sourceStage20ResultIdentity: identity.sourceStage20ResultIdentity,
+      sourceStage20ProjectionFingerprint: identity.sourceStage20ProjectionFingerprint,
+      sourceInstructionEvidenceIdentity: identity.sourceInstructionEvidenceIdentity,
+      sourceInstructionEvidenceRevision: identity.sourceInstructionEvidenceRevision,
+      sourceInstructionEvidenceFingerprint: identity.sourceInstructionEvidenceFingerprint,
+      sourceInstructionEvidenceResultIdentity: identity.sourceInstructionEvidenceResultIdentity,
+      sourceInstructionEvidenceResultFingerprint: identity.sourceInstructionEvidenceResultFingerprint,
+      sourceDocumentIdentity: identity.sourceDocumentIdentity,
+      sourceDocumentFingerprint: identity.sourceDocumentFingerprint,
+      sourceBranchFingerprint: identity.sourceBranchFingerprint,
+      sourceAdaptationProfileIdentity: identity.sourceAdaptationProfileIdentity,
+      sourceAdaptationProfileRevision: identity.sourceAdaptationProfileRevision,
+      sourceAdaptationProfileFingerprint: identity.sourceAdaptationProfileFingerprint,
+      sourceSolverResultIdentity: identity.sourceSolverResultIdentity,
+      sourceSolverResultFingerprint: identity.sourceSolverResultFingerprint,
+      sourceExecutionGraphFingerprint: identity.sourceExecutionGraphFingerprint,
+      sourceSequentialValidationFingerprint: identity.sourceSequentialValidationFingerprint,
+      sourceAdaptedOperationCount: identity.sourceAdaptedOperationCount,
     });
   }
 
@@ -192,12 +260,14 @@
     requireState(state);
     const validation = validateSourceReview(review, state.projectId, context);
     if (!validation.isValid) throw planError(validation.diagnostics[0].code, validation.diagnostics[0].message, validation.diagnostics[0].details);
-    const inputFingerprint = planningInputFingerprint(review, state.planningAlgorithmVersion);
+    const targetAlgorithmVersion = operationType === "rebuild" ? PLANNING_ALGORITHM_VERSION : state.planningAlgorithmVersion;
+    const inputFingerprint = planningInputFingerprint(review, targetAlgorithmVersion);
     if (["ready", "blocked"].includes(state.status) && state.planningInputFingerprint === inputFingerprint && state.plan && state.planFingerprint === calculatePlanFingerprint(state)) return copy(state);
     const next = mutable(state);
     next.revision += 1;
     next.status = "planning";
     next.updatedAt = now;
+    next.planningAlgorithmVersion = targetAlgorithmVersion;
     Object.assign(next, validation.identity);
     next.sourceTechnologyReviewFingerprint = technologyReviewFingerprint(review);
     next.planningInputFingerprint = inputFingerprint;
@@ -220,7 +290,7 @@
     if (!sourceValidation.isValid) throw planError(sourceValidation.diagnostics[0].code, sourceValidation.diagnostics[0].message, sourceValidation.diagnostics[0].details);
     if (state.planningInputFingerprint !== planningInputFingerprint(review, state.planningAlgorithmVersion)) throw planError("SOURCE_IDENTITY_MISMATCH", "Источник изменился во время построения плана.");
     const next = mutable(state);
-    const derived = derivePlan(review.confirmedSnapshot);
+    const derived = derivePlan(review.confirmedSnapshot, review);
     for (const phaseName of PLANNING_PHASES.slice(1, -1)) {
       next.lastSuccessfulPhase = phaseName;
       next.interruptedOperation.phase = phaseName;
@@ -262,8 +332,307 @@
     return completePlanning(beginPlanning(state, review, context, now, operationType), review, context, now, operationType);
   }
 
-  function derivePlan(snapshot) {
+  function validateAdaptedExecution(executable, add) {
+    const adapted = executable?.adaptedExecution;
+    const operations = array(adapted?.operations);
+    const fail = (field, details = {}) => add("SOURCE_EXECUTABLE_INPUT_INVALID", { field, ...details });
+    if (!adapted || adapted.status !== "ready" || adapted.validation?.isValid !== true || array(adapted.validation?.errors).length) fail("adaptedExecution.status");
+    if (!operations.length || !text(adapted?.solverIdentity) || !validFingerprint(adapted?.solverFingerprint) || !validFingerprint(adapted?.branchFingerprint) || !validFingerprint(adapted?.evidenceFingerprint)) fail("adaptedExecution.identity");
+    const identities = new Set();
+    for (let index = 0; index < operations.length; index += 1) {
+      const operation = operations[index];
+      if (!text(operation?.identity) || identities.has(operation.identity) || operation.order !== index + 1) fail("adaptedExecution.operations.order", { order: index + 1 });
+      identities.add(operation?.identity);
+      if (!object(operation?.inputState) || !object(operation?.outputState) || !object(operation?.change)) fail("adaptedExecution.operations.state", { operationIdentity: operation?.identity });
+      const change = operation?.change || {};
+      if (![change.input, change.delta, change.repeatCount, change.output].every(Number.isInteger) || change.input + change.delta * change.repeatCount !== change.output || operation?.inputState?.totalStitches !== change.input || operation?.outputState?.totalStitches !== change.output) fail("adaptedExecution.operations.transition", { operationIdentity: operation?.identity });
+      if (index && canonicalize(operations[index - 1].outputState) !== canonicalize(operation.inputState)) fail("adaptedExecution.operations.adjacency", { operationIdentity: operation?.identity });
+      if (!text(operation?.sourceEvidenceUnitIdentity) || !object(operation?.sourceLocator)) fail("adaptedExecution.operations.provenance", { operationIdentity: operation?.identity });
+    }
+    const expectedKinds = ["cast_on", "join_round", "deferred_neckline_setup", "increase", "marker_setup"];
+    if (expectedKinds.some((kind, index) => operations[index]?.kind !== kind)) fail("adaptedExecution.operations.firstActions");
+    const raglanIncreases = operations.filter((entry) => entry.kind === "raglan_increase");
+    const raglanPlain = operations.filter((entry) => entry.kind === "raglan_plain_round");
+    if (raglanIncreases.length !== 20 || raglanPlain.length !== 20 || array(adapted?.raglanChain).length !== 21) fail("adaptedExecution.raglanChain");
+    const shortRows = operations.filter((entry) => entry.kind === "short_row");
+    if (shortRows.length !== 12 || shortRows.some((entry, index) => entry.physicalRowOrdinal !== index + 1 || entry.direction !== (index % 2 === 0 ? "RS" : "WS"))) fail("adaptedExecution.shortRows");
+    const sleeveChains = array(adapted?.sleeveChain);
+    if (sleeveChains.length !== 2 || canonicalize(sleeveChains[0]?.counts) !== canonicalize(sleeveChains[1]?.counts) || sleeveChains.some((entry) => entry.counts?.[0] !== 72 || entry.counts?.at(-1) !== 48)) fail("adaptedExecution.sleeveChain");
+    const separation = adapted?.separation;
+    if (separation && (separation.yoke !== separation.front + separation.back + array(separation.sleeves).reduce((sum, value) => sum + value, 0) || separation.body !== separation.front + separation.back + array(separation.underarms).reduce((sum, value) => sum + value, 0))) fail("adaptedExecution.separationConservation");
+    for (const operation of operations.filter((entry) => entry.kind === "measure_until")) if (operation.physicalCondition?.measurementAuthoritative !== true || !Number.isFinite(Number(operation.physicalCondition?.adaptedValue))) fail("adaptedExecution.measurement", { operationIdentity: operation.identity });
+  }
+
+  function validateCausalTraceContract(executable, add) {
+    const adapted = executable?.adaptedExecution; const trace = adapted?.causalTrace; const authority = adapted?.causalAuthority;
+    const fail = (field) => add("SOURCE_EXECUTABLE_INPUT_INVALID", { field });
+    const tracePayload = copy(trace); if (tracePayload) delete tracePayload.fingerprint;
+    if (!trace || trace.schemaId !== "AUTHORITATIVE_CAUSAL_TRACE_V1" || fingerprintSafe(tracePayload) !== trace.fingerprint || trace.coverage?.complete !== true || array(trace.coverage?.uncoveredChangedValues).length) return fail("causalTrace");
+    const authorityPayload = authority && { schemaId: authority.schemaId, sourcePatternFacts: authority.sourcePatternFacts, userAdaptationProfile: authority.userAdaptationProfile, binding: authority.binding, branchResolution: authority.branchResolution };
+    if (!authority || authority.schemaId !== "CAUSAL_AUTHORITY_INPUT_V1" || fingerprintSafe(authorityPayload) !== authority.fingerprint) return fail("causalAuthority");
+    if (canonicalize(authority.sourcePatternFacts) !== canonicalize(executable.evidence?.sourcePatternEvidence?.facts) || canonicalize(authority.userAdaptationProfile) !== canonicalize(executable.evidence?.userAdaptationProfile) || canonicalize(authority.binding) !== canonicalize(executable.binding) || canonicalize(authority.branchResolution?.selectedOptions) !== canonicalize(executable.branchSelection?.selectedOptions) || authority.branchResolution?.fingerprint !== executable.branchSelection?.fingerprint) fail("causalAuthority.binding");
+    const authoritativeValidator = globalObject.YarnAIPatternTechnologyReview?.validateAuthoritativeCausalTrace;
+    if (typeof authoritativeValidator !== "function" || authoritativeValidator(trace, adapted.operations, adapted).isValid !== true) fail("causalTrace.authoritativeProjection");
+    const profile = object(authority.userAdaptationProfile) || {}; const operations = array(adapted.operations); const sourceCounts = object(adapted.sourceCounts) || {}; const chosen = object(adapted.solver?.chosenCandidate) || {};
+    const requiredParameters = new Set(["gauge"]);
+    if (array(profile.needles).length) requiredParameters.add("needles");
+    if (object(profile.yarn) && Object.keys(profile.yarn).length) { requiredParameters.add("yarn"); requiredParameters.add("yarn.quantity"); }
+    if (text(profile.selectedSize?.value ?? profile.selectedSize)) requiredParameters.add("selected_size");
+    for (const measurement of array(profile.measurements)) requiredParameters.add(`measurement.${text(measurement?.kind).toLowerCase()}`);
+    for (const selection of array(authority.branchResolution?.selectedOptions)) requiredParameters.add(`branch.${selection.groupId}`);
+    for (const entry of array(profile.notApplicableParameters)) requiredParameters.add(text(entry?.semanticParameterId));
+    const requiredValues = new Set();
+    for (const field of ["castOn", "yokeStart", "yokeFinal", "front", "back", "sleeveHeld", "underarm", "body", "sleeveStart", "cuff", "yokeRepeats"]) if (Number.isFinite(Number(sourceCounts[field === "back" ? "front" : field])) && Number.isFinite(Number(chosen[field]))) requiredValues.add(`solver.${field}`);
+    for (const field of ["necklineIncreases", "backCentre", "necklinePickup", "sleeveDecreaseRepeats", "sleeveCycleRounds"]) requiredValues.add(`derived.${field}`);
+    if (Number.isFinite(Number(adapted.sleeveSchedule?.remainingStraightRoundsEstimate))) requiredValues.add("derived.sleeveRemainingStraightRounds");
+    for (const operation of operations.filter((entry) => entry?.physicalCondition && Number.isFinite(Number(entry.physicalCondition.sourceValue)) && Number.isFinite(Number(entry.physicalCondition.adaptedValue)))) requiredValues.add(`physical.${operation.identity}`);
+    if (adapted.increaseDistribution) requiredValues.add("derived.necklineIncreaseDistribution");
+    const parameterIds = new Set(array(trace.parameterDecisions).map((entry) => entry.semanticParameterId)); const valueIds = new Set(array(trace.valueDecisions).map((entry) => entry.semanticValueId));
+    const sameSet = (left, right) => left.size === right.size && [...left].every((entry) => right.has(entry));
+    if (!requiredParameters.size || !requiredValues.size || !sameSet(requiredParameters, parameterIds) || !sameSet(requiredValues, valueIds) || !sameSet(requiredParameters, new Set(array(trace.coverage?.requiredParameterIds))) || !sameSet(requiredValues, new Set(array(trace.coverage?.requiredValueIds)))) fail("causalTrace.coverage");
+    if (trace.provenance?.solverResultFingerprint !== adapted.solverFingerprint || trace.provenance?.solverResultIdentity !== adapted.solverIdentity) fail("causalTrace.solverBinding");
+    for (const field of ["castOn", "yokeStart", "yokeFinal", "front", "back", "sleeveHeld", "underarm", "body", "sleeveStart", "cuff", "yokeRepeats"]) {
+      if (!requiredValues.has(`solver.${field}`)) continue;
+      const decision = array(trace.valueDecisions).find((entry) => entry.semanticValueId === `solver.${field}`);
+      if (!decision || Number(decision.sourceValue) !== Number(sourceCounts[field === "back" ? "front" : field]) || Number(decision.result) !== Number(chosen[field]) || decision.appliedRule !== adapted.solver?.algorithmId || decision.roundingPolicy !== "CONSTRAINT_SOLVER_SELECTION" || !array(decision.affectedOperationIdentities).length) fail(`causalTrace.solver.${field}`);
+    }
+    const distributionDecision = array(trace.valueDecisions).find((entry) => entry.semanticValueId === "derived.necklineIncreaseDistribution");
+    if (adapted.increaseDistribution && canonicalize(distributionDecision?.executableDistribution) !== canonicalize(adapted.increaseDistribution)) fail("causalTrace.increaseDistribution");
+  }
+
+  function deriveAdaptedPlan(snapshot, review) {
+    const executable = snapshot.executableTechnologyPlanInput;
+    const adapted = executable.adaptedExecution;
+    const operations = array(adapted.operations);
+    const needleMap = adaptedNeedleMap(executable);
+    const sourceRef = executable.identity;
+    const componentSpecs = [
+      ["yoke", "Кокетка"], ["body", "Корпус"], ["right_sleeve", "Правый рукав"],
+      ["left_sleeve", "Левый рукав"], ["neckline", "Отложенная горловина"], ["finishing", "Завершение"],
+    ];
+    const components = componentSpecs.map(([type, label]) => ({
+      id: `component:${type}`, type, label, quantity: 1, constructionRole: type,
+      parentComponentId: null, sourceTargetIds: [sourceRef], dependencies: [],
+      completionCriteria: [{ type: "adapted_operations_complete", sourceTargetIds: [sourceRef] }],
+      status: "planned", sourceComponentId: sourceRef, instance: 1,
+    }));
+    const phaseSpecs = [
+      { key: "foundation", title: "Набор и подготовка кокетки", type: "cast_on", range: [1, 5], componentIds: ["component:yoke"] },
+      { key: "raglan", title: "Реглан и глубина кокетки", type: "shaping", range: [6, 46], componentIds: ["component:yoke"] },
+      { key: "short_rows", title: "Немецкие укороченные ряды", type: "main_fabric", range: [47, 61], componentIds: ["component:yoke"] },
+      { key: "body", title: "Разделение и корпус", type: "division", range: [62, 65], componentIds: ["component:body"] },
+      { key: "right_sleeve", title: "Правый рукав", type: "component_work", range: [66, 93], componentIds: ["component:right_sleeve"] },
+      { key: "left_sleeve", title: "Левый рукав", type: "component_work", range: [94, 121], componentIds: ["component:left_sleeve"] },
+      { key: "neckline", title: "Резинка отложенной горловины", type: "edge_finishing", range: [122, 124], componentIds: ["component:neckline"] },
+      { key: "finishing", title: "Завершение изделия", type: "final_inspection", range: [125, 127], componentIds: ["component:finishing"] },
+    ];
+    const phases = phaseSpecs.map((spec, index) => {
+      const phaseId = `phase:${spec.key}`;
+      const phaseOperations = operations.filter((entry) => entry.order >= spec.range[0] && entry.order <= spec.range[1]);
+      const actions = phaseOperations.map((operation) => adaptedAction(operation, phaseId, executable, adapted, needleMap));
+      return {
+        id: phaseId, order: index + 1, type: spec.type, title: spec.title,
+        componentIds: spec.componentIds, dependsOnPhaseIds: index ? [`phase:${phaseSpecs[index - 1].key}`] : [], canRunInParallelWith: [],
+        sourceTargetIds: stableStrings(actions.flatMap((entry) => entry.sourceTargetIds)), entryCriteria: index ? [{ type: "previous_phase_complete", phaseId: `phase:${phaseSpecs[index - 1].key}` }] : [{ type: "materials_and_tools_ready" }],
+        actions, exitCriteria: [{ type: "all_steps_complete", stepIds: actions.map((entry) => entry.stepId), sourceTargetIds: stableStrings(actions.flatMap((entry) => entry.sourceTargetIds)) }],
+        checkpoints: [], unresolved: [], status: "ready",
+      };
+    });
+    const checkpoints = phases.map((phase) => {
+      const last = phase.actions.at(-1);
+      return checkpoint("stitch_count_check", phase.id, phase.componentIds, last.activeStitchesAfter, "stitches", last.sourceTargetIds);
+    });
+    for (const phase of phases) phase.checkpoints = checkpoints.filter((entry) => entry.phaseId === phase.id).map((entry) => entry.id);
+    const dependencyGraph = buildDependencyGraph(phases, components);
+    const steps = phases.flatMap((phase) => phase.actions);
+    const first = steps[0];
+    const profile = executable.evidence?.userAdaptationProfile || {};
+    const selectedSize = array(executable.numericProvenance).find((entry) => text(entry.selectedSizeLabel))?.selectedSizeLabel ?? "ML";
+    const branches = Object.fromEntries(array(executable.branchSelection?.selectedOptions).map((entry) => [entry.groupId, entry.selectedOptionId]));
+    const sourceEvidence = executable.evidence?.sourceInstructionEvidence || {};
+    const plan = {
+      schemaVersion: SCHEMA_VERSION, contractId: PLAN_CONTRACT_ID, resultKind: PLAN_RESULT_KIND, algorithmId: ADAPTED_PLAN_ALGORITHM_ID,
+      handoff: {
+        sourceReviewId: review?.id ?? snapshot.reviewIdentity?.id ?? null,
+        sourceReviewRevision: review?.revision ?? snapshot.reviewRevision ?? null,
+        confirmedSnapshotFingerprint: snapshot.confirmedSnapshotFingerprint,
+        executableInputIdentity: executable.identity, executableInputFingerprint: executable.fingerprint,
+        stage20ResultIdentity: executable.binding?.stage20ResultIdentity ?? null,
+        stage20ProjectionFingerprint: executable.binding?.stage20SourceProjectionFingerprint ?? null,
+        sourceInstructionEvidenceIdentity: executable.binding?.sourceInstructionEvidenceIdentity ?? null,
+        sourceInstructionEvidenceRevision: executable.binding?.sourceInstructionEvidenceRevision ?? null,
+        sourceInstructionEvidenceFingerprint: executable.binding?.sourceInstructionEvidenceFingerprint ?? null,
+        sourceInstructionEvidenceResultIdentity: executable.binding?.sourceInstructionEvidenceResultIdentity ?? sourceEvidence.resultIdentity ?? null,
+        sourceInstructionEvidenceResultFingerprint: executable.binding?.sourceInstructionEvidenceResultFingerprint ?? sourceEvidence.resultFingerprint ?? null,
+        sourceDocumentIdentity: executable.binding?.sourceDocumentIdentity ?? null,
+        sourceDocumentFingerprint: executable.binding?.sourceDocumentFingerprint ?? null,
+        branchFingerprint: executable.branchSelection?.fingerprint ?? null,
+        adaptationProfile: copy(adapted.adaptationProfile), solverResultIdentity: adapted.solverIdentity, solverResultFingerprint: adapted.solverFingerprint,
+        executionGraphFingerprint: fingerprint(operations), sequentialValidationFingerprint: fingerprint(adapted.validation), operationCount: operations.length,
+        confirmedTargetId: snapshot.confirmedValues?.[0]?.targetId ?? null, confirmedDecision: snapshot.confirmedValues?.[0]?.decision ?? null,
+      },
+      summary: {
+        craft: "вязание спицами", product: "Flax — бесшовный реглан сверху", construction: "сверху вниз, по кругу",
+        selectedSize, branches,
+        gauge: array(profile.gauge).map((entry) => ({ stitches: entry.stitches ?? null, rows: entry.rows ?? entry.rounds ?? null, per: entry.per ?? null, unit: entry.unit ?? null })),
+        needles: needleMap.values.map((entry) => `${entry.value} ${entry.unit}`),
+        yarn: conciseYarn(profile.yarn),
+        componentCount: components.length, operationCount: operations.length, userStepCount: steps.length,
+        repeatGroups: { raglan: 20, shortRows: "1, 2, затем (3, 4) × 5 = 12 физических рядов", sleeveDecreasesPerSleeve: 12, sleeveCycleRounds: adapted.sleeveSchedule?.decreaseCycleRounds ?? null },
+        generalOrder: phases.map((entry) => ({ id: entry.id, title: entry.title })), blocked: false,
+      },
+      prerequisites: [
+        { id: "prerequisite:source", type: "source_instruction_confirmed", label: "Stage 21 подтверждён", status: "satisfied", evidence: [snapshot.confirmedSnapshotFingerprint], relatedTargetIds: [sourceRef] },
+        { id: "prerequisite:materials", type: "yarn_available", label: "Подготовить подтверждённую пряжу", status: "satisfied", evidence: [executable.binding?.userAdaptationProfileFingerprint], relatedTargetIds: [sourceRef] },
+        { id: "prerequisite:tools", type: "tools_available", label: "Подготовить меньшие и большие круговые/чулочные спицы", status: "satisfied", evidence: [executable.binding?.userAdaptationProfileFingerprint], relatedTargetIds: [sourceRef] },
+        { id: "prerequisite:gauge", type: "gauge_confirmed", label: "Плотность и размер ML подтверждены", status: "satisfied", evidence: [executable.binding?.userAdaptationProfileFingerprint], relatedTargetIds: [sourceRef] },
+      ],
+      materials: [], tools: [], measurements: [], gauge: [], components, phases, dependencyGraph, checkpoints, steps,
+      firstAction: { phaseId: phases[0].id, actionId: first.id, stepId: first.stepId, title: first.title, description: first.description, prerequisites: [], sourceTargetIds: first.sourceTargetIds, ready: true, blockedBy: [] },
+      unresolved: [], completionCriteria: [{ type: "all_adapted_steps_complete", expectedStepCount: operations.length }],
+      initialExecutionState: { status: "ready_to_start", started: false, completedStepCount: 0, completedStepIds: [], currentStepId: first.stepId },
+      coverage: { sourceOperationCount: operations.length, userStepCount: steps.length, coveredSourceOperationIds: steps.map((entry) => entry.sourceOperationIdentity), exactOneToOne: new Set(steps.map((entry) => entry.sourceOperationIdentity)).size === operations.length },
+      resultIdentity: stableId("pattern-execution-plan-result", { source: executable.fingerprint, operations: fingerprint(operations), algorithmId: ADAPTED_PLAN_ALGORITHM_ID }),
+      resultFingerprint: null, planFingerprint: null,
+    };
+    plan.resultFingerprint = fingerprint({ contractId: plan.contractId, resultKind: plan.resultKind, algorithmId: plan.algorithmId, handoff: plan.handoff, summary: plan.summary, phases: plan.phases, steps: plan.steps, initialExecutionState: plan.initialExecutionState, coverage: plan.coverage });
+    return { plan, blockers: [], warnings: [] };
+  }
+
+  function adaptedAction(operation, phaseId, executable, adapted, needleMap) {
+    const before = activeStitches(operation.inputState, operation);
+    const after = activeStitches(operation.outputState, operation);
+    const description = adaptedInstruction(operation, before, after, adapted, needleMap);
+    const sourceTargetIds = stableStrings([operation.identity, operation.sourceEvidenceUnitIdentity, executable.identity, executable.fingerprint, adapted.solverFingerprint, executable.branchSelection?.fingerprint]);
+    return {
+      id: `action:${String(operation.order).padStart(3, "0")}`, stepId: `step:${String(operation.order).padStart(3, "0")}`,
+      order: operation.order, globalOrder: operation.order, type: operation.kind, title: `Шаг ${operation.order}: ${adaptedTitle(operation.kind)}`, description, instruction: description,
+      needles: adaptedNeedle(operation.outputState?.needleState ?? operation.inputState?.needleState ?? null, needleMap),
+      rowMode: operation.inputState?.rowMode ?? null, face: operation.direction ?? operation.inputState?.direction ?? null,
+      beginningOfRound: operation.inputState?.beginningOfRound ?? null,
+      activeStitchesBefore: before, activeStitchesAfter: after,
+      globalStateBefore: copy(operation.inputState), globalStateAfter: copy(operation.outputState),
+      repeat: adaptedRepeat(operation), criterion: adaptedCriterion(operation),
+      checkpoint: { type: "active_stitch_count", expected: after, unit: "stitches", measurement: copy(operation.physicalCondition ?? null) },
+      sourceOperationIdentity: operation.identity, sourceEvidenceUnitIdentity: operation.sourceEvidenceUnitIdentity, sourceLocator: copy(operation.sourceLocator),
+      provenance: { executableInputIdentity: executable.identity, executableInputFingerprint: executable.fingerprint, sourceEvidenceFingerprint: adapted.evidenceFingerprint, branchFingerprint: adapted.branchFingerprint, adaptationProfile: copy(adapted.adaptationProfile), solverResultIdentity: adapted.solverIdentity, solverResultFingerprint: adapted.solverFingerprint },
+      sourceTargetIds, started: false, completed: false,
+    };
+  }
+
+  function activeStitches(state, operation) {
+    const identity = text(operation?.identity);
+    const allocation = state?.allocation || {};
+    if (identity.includes("right-sleeve") || identity.includes("right-cuff")) return firstPositive(allocation.rightSleeve, state?.held?.rightSleeve) ?? integer(allocation.rightSleeve) ?? 0;
+    if (identity.includes("left-sleeve") || identity.includes("left-cuff")) return firstPositive(allocation.leftSleeve, state?.held?.leftSleeve) ?? integer(allocation.leftSleeve) ?? 0;
+    if (identity.includes("neckline-pickup")) return integer(allocation.neckline) ?? 0;
+    if (["neckline-ribbing", "neckline-bind-off"].some((token) => identity.includes(token))) return firstPositive(allocation.neckline, state?.availableEdges?.necklineCastOn) ?? integer(allocation.neckline) ?? 0;
+    if (["separation", "body-measure", "body-ribbing", "body-bind-off"].some((token) => identity.includes(token))) return firstPositive(allocation.body, allocation.yoke) ?? integer(allocation.body) ?? 0;
+    return integer(allocation.yoke) ?? integer(state?.totalStitches) ?? 0;
+  }
+
+  function firstPositive(...values) { for (const value of values) { const parsed = integer(value); if (parsed !== null && parsed > 0) return parsed; } return null; }
+
+  function adaptedTitle(kind) {
+    return ({ cast_on: "набрать петли", join_round: "соединить в круг", deferred_neckline_setup: "отложить резинку горловины", increase: "прибавить петли горловины", marker_setup: "расставить маркеры", raglan_increase: "выполнить круг прибавок реглана", raglan_plain_round: "провязать ровный круг реглана", measure_until: "провязать до измерения", short_row_marker_setup: "поставить маркер укороченных рядов", short_row: "выполнить укороченный ряд", short_row_recovery_round: "закрыть укороченные ряды", shift_bor: "перенести начало круга", separation: "разделить корпус и рукава", ribbing: "связать резинку", bind_off: "закрыть петли", sleeve_setup: "поднять петли рукава", sleeve_decrease: "убавить петли рукава", work_even: "провязать без убавок", pick_up_stitches: "поднять петли горловины", finish_underarms: "закрыть отверстия подмышек", weave_ends: "спрятать концы", block: "выполнить ВТО" })[kind] || kind;
+  }
+
+  function adaptedInstruction(operation, before, after, adapted, needleMap) {
+    const count = operation.change || {};
+    const measure = operation.physicalCondition;
+    const side = operation.identity.includes("right-") ? "правого" : operation.identity.includes("left-") ? "левого" : "";
+    if (operation.kind === "cast_on") return `Меньшими круговыми спицами ${needleInstruction("smaller", needleMap)} набери ${after} п. Резинку горловины сейчас не вяжи.`;
+    if (operation.kind === "join_round") return `Не перекручивая наборный край, соедини ${before} петли в круг и отметь начало круга.`;
+    if (operation.kind === "deferred_neckline_setup") return `Перейди на большие спицы ${needleInstruction("larger", needleMap)} и провяжи один круг лицевыми. Горловина остаётся отложенной до шага 122.`;
+    if (operation.kind === "increase") {
+      if (operation.increaseDistribution) return increaseDistributionInstruction(operation.increaseDistribution);
+      return `Равномерно прибавь ${count.delta} петель: ${before} → ${after}.`;
+    }
+    if (operation.kind === "marker_setup") return "Выполни [3 лиц., 14 изн., 3 лиц., поставить маркер, 50 лиц., поставить маркер] два раза. Получится точное распределение 20/50/20/50 петель; 14 изнаночных петель образуют платочную панель каждого рукава при вязании по кругу.";
+    if (operation.kind === "raglan_increase") return `Круг прибавок ${operation.repeatOrdinal} из 20: у каждого из 4 маркеров выполни [kfb (прибавка из одной петли), лицевыми до 2 петель перед маркером, kfb, 1 лицевая, переснять маркер]. ${before} → ${after}.`;
+    if (operation.kind === "raglan_plain_round") { const sideStitches = 3 + operation.repeatOrdinal; return `Ровный круг ${operation.repeatOrdinal} из 20, без прибавок: на каждом рукаве провяжи ${sideStitches} лиц., 14 изн., ${sideStitches} лиц.; петли переда и спинки провяжи лицевыми. На спицах ${after} петель.`; }
+    if (operation.kind === "short_row_marker_setup") return "Лицевыми до третьего маркера, затем провяжи 45 из 90 петель спинки и поставь маркер точно в центре спинки (CB): до четвёртого маркера останется 45 петель спинки. Поверни работу в режим рядов.";
+    if (operation.kind === "short_row") {
+      const row = operation.physicalRowOrdinal;
+      if (row === 1) return "Укороченный ряд 1, лицевая сторона (RS): 58 лицевых, повернуть.";
+      if (row === 2) return "Укороченный ряд 2, изнаночная сторона (WS): сделать немецкую двойную петлю, изнаночными до CB, переснять маркер, 58 изнаночных, повернуть.";
+      const pair = Math.ceil((row - 2) / 2);
+      return row % 2 ? `Укороченный ряд 3, повтор ${pair} из 5, RS: двойная петля, лицевыми до CB, переснять маркер, вязать до 5 петель перед предыдущей двойной петлёй, повернуть.` : `Укороченный ряд 4, повтор ${pair} из 5, WS: двойная петля, изнаночными до CB, переснять маркер, изнаночными до 5 петель перед предыдущей двойной петлёй, повернуть.`;
+    }
+    if (operation.kind === "short_row_recovery_round") return "Сделай последнюю двойную петлю, лицевыми до CB, пересними маркер и закончи круг; каждую двойную петлю провязывай как одну. Сохраняй платочные панели.";
+    if (operation.kind === "shift_bor") return "Удали маркер CB и провяжи до первого маркера реглана: здесь новое начало круга.";
+    if (operation.kind === "separation") return "Раздели кокетку: отложи 60 петель правого рукава, набери 12 петель подреза, провяжи 90 петель переда, отложи 60 петель левого рукава, набери 12 петель подреза, провяжи 90 петель спинки. В корпусе 204 активные петли.";
+    if (operation.kind === "sleeve_setup") return `Верни 60 отложенных петель ${side} рукава на большие спицы и подними по 6 петель с каждой стороны подреза: ${before} → ${after} активных петель рукава.`;
+    if (operation.kind === "sleeve_decrease") return `Круг убавок ${operation.repeatOrdinal} из 12 для ${side} рукава: 1 лицевая, ssk (убавка с наклоном влево), лицевыми до 3 петель перед началом круга, 2 вместе лицевой, 1 лицевая. ${before} → ${after}.`;
+    if (operation.kind === "work_even") return `Провяжи ${operation.rounds} кругов лицевыми без убавок на ${after} петлях; вместе с предыдущим кругом убавок это цикл из ${operation.rounds + 1} кругов.`;
+    if (operation.kind === "pick_up_stitches") return `Меньшими спицами подними и провяжи по одной петле из каждой петли наборного края горловины: ${before} → ${after}. Поставь маркер и соедини работу в круг.`;
+    if (operation.kind === "finish_underarms") return "Оставленными концами пряжи сшей маленькие отверстия у обоих подрезов.";
+    if (operation.kind === "weave_ends") return "Спрячь все концы пряжи на изнаночной стороне, не стягивая полотно.";
+    if (operation.kind === "block") return "Выполни ВТО (влажно-тепловую обработку): намочи, разложи по подтверждённым размерам и полностью высуши.";
+    if (operation.kind === "measure_until") return `Вяжи ${operation.identity.includes("right-") ? "правый рукав лицевой гладью по кругу " : operation.identity.includes("left-") ? "левый рукав лицевой гладью по кругу " : operation.identity.includes("body") ? "корпус лицевой гладью по кругу " : "кокетку по установленному узору "}до ${measure.adaptedValue} ${measure.unit}${Number.isInteger(measure.estimatedRemainingRounds) ? `; после последней убавки ориентир — ещё ${measure.estimatedRemainingRounds} ровных кругов, но решает измерение` : ""}. На контрольной точке ${after} активных петель.`;
+    if (operation.kind === "ribbing") return `Меньшими спицами свяжи резинку 1×1: *1 лицевая, 1 изнаночная* — до ${measure?.adaptedValue ?? "подтверждённой длины"} ${measure?.unit ?? ""}. На спицах ${after} петель.`.trim();
+    if (operation.kind === "bind_off") return `Свободно закрой ${Math.abs(count.delta)} п. по установленному узору: ${before} → ${after} активных петель этого компонента.`;
+    return `${adaptedTitle(operation.kind)}: ${before} → ${after} активных петель.`;
+  }
+
+  function increaseDistributionInstruction(distribution) {
+    const segment = (intervals) => array(intervals).map((stitches) => `${stitches} лиц., M1`).join(", ");
+    const repeated = distribution.repeatedGroup?.repeatCount ? `повтори ${distribution.repeatedGroup.repeatCount} раз [${segment(distribution.repeatedGroup.intervals)}]` : null;
+    const trailing = array(distribution.trailingIntervals).length ? `затем провяжи [${segment(distribution.trailingIntervals)}]` : null;
+    const program = [repeated, trailing].filter(Boolean).join(", ") || `провяжи [${segment(distribution.intervals)}]`;
+    return `Распредели ${distribution.increaseEventCount} прибавок без самостоятельного расчёта: ${program}. M1: подними протяжку между петлями и провяжи её скрещённой лицевой. Использованы все ${distribution.inputStitches} исходные петли; на спицах ${distribution.outputStitches} петель.`;
+  }
+
+  function adaptedRepeat(operation) {
+    if (operation.kind.startsWith("raglan_")) return { group: "raglan", ordinal: operation.repeatOrdinal, total: 20, unit: "repeat" };
+    if (operation.kind === "short_row") return { group: "short_rows", physicalRowOrdinal: operation.physicalRowOrdinal, sourcePairRepeatOrdinal: operation.repeatOrdinal, totalPhysicalRows: 12 };
+    if (operation.kind === "sleeve_decrease") return { group: `${operation.identity.includes("right-") ? "right" : "left"}_sleeve_decreases`, ordinal: operation.repeatOrdinal, total: 12, cycleRounds: operation.intervalRounds || null };
+    if (operation.kind === "work_even") return { group: `${operation.identity.includes("right-") ? "right" : "left"}_sleeve_cycle`, rounds: operation.rounds };
+    return null;
+  }
+
+  function adaptedCriterion(operation) {
+    if (object(operation.physicalCondition)) return { type: "measurement", value: operation.physicalCondition?.adaptedValue ?? null, unit: operation.physicalCondition?.unit ?? null, authoritative: operation.physicalCondition?.measurementAuthoritative === true, estimateOnly: operation.physicalCondition?.estimatedRemainingRounds ?? null };
+    return { type: "exact_state", expectedActiveStitches: activeStitches(operation.outputState, operation) };
+  }
+
+  function adaptedNeedleMap(executable) {
+    const profileValues = array(executable?.evidence?.userAdaptationProfile?.needles).map((entry) => ({ value: Number(entry?.canonicalValue ?? entry?.value), unit: entry?.unit || "mm" }));
+    const sourceValues = array(executable?.evidence?.sourcePatternEvidence?.facts?.needles).map((value) => ({ value: Number(value), unit: "mm" }));
+    const unique = (entries) => { const result = []; for (const entry of entries.filter((candidate) => Number.isFinite(candidate.value)).sort((left, right) => left.value - right.value)) if (!result.some((candidate) => candidate.value === entry.value && candidate.unit === entry.unit)) result.push(entry); return result; };
+    const profile = unique(profileValues);
+    const source = unique(sourceValues);
+    if (profile.length >= 2) return { values: profile, smaller: profile[0], larger: profile.at(-1) };
+    if (profile.length === 1) { const larger = source.find((entry) => entry.value > profile[0].value) || profile[0]; return { values: unique([profile[0], larger]), smaller: profile[0], larger }; }
+    return { values: source, smaller: source[0] || null, larger: source.at(-1) || source[0] || null };
+  }
+
+  function adaptedNeedle(role, needleMap) { const exact = needleMap?.[role] || null; return exact ? { role, value: exact.value, unit: exact.unit } : { role, value: null, unit: null }; }
+  function needleInstruction(role, needleMap) { const exact = needleMap?.[role] || null; return exact ? `${exact.value} ${exact.unit}` : "из подтверждённого плана"; }
+
+  function conciseYarn(yarn) {
+    const values = array(yarn?.lengthOrWeight).map((entry) => `${entry.value} ${entry.unit ?? ""}`.trim());
+    return {
+      name: array(yarn?.names)[0]?.name ?? array(yarn?.names)[0]?.value ?? null,
+      composition: array(yarn?.fibre)[0]?.value ?? null,
+      weight: yarn?.weight ?? null,
+      putUp: values.join(" / ") || null,
+      quantity: yarn?.quantity ?? yarn?.skeins ?? 6,
+    };
+  }
+
+  function derivePlan(snapshot, review = null) {
+    const executableInput = snapshot.executableTechnologyPlanInput || null;
+    if (["stage20-v2-branch-resolved-adapted-execution:v5", "stage20-v2-branch-resolved-adapted-execution:v6"].includes(executableInput?.algorithmId) && executableInput?.adaptedExecution?.status === "ready") {
+      return deriveAdaptedPlan(snapshot, review);
+    }
     const draft = copy(snapshot.finalDraft);
+    if (executableInput) {
+      draft.components = array(executableInput.components).map((entry) => copy(entry.source));
+      draft.operations = array(executableInput.operations).map((entry) => copy(entry.source));
+      draft.rowInstructions = array(executableInput.rowInstructions).map((entry) => copy(entry.source));
+      draft.finishing = array(executableInput.finishing).map((entry) => copy(entry.source));
+    }
     const provenanceIndex = new Map(array(draft.provenance).map((entry) => [entry.id, entry]));
     const sourceRefs = (entity) => stableStrings([entity?.id, ...array(entity?.provenanceRefs)].filter(Boolean));
     const components = deriveComponents(draft, sourceRefs);
@@ -274,6 +643,7 @@
     const checkpoints = deriveCheckpoints(draft, components, phases, sourceRefs);
     for (const phase of phases) phase.checkpoints = checkpoints.filter((entry) => entry.phaseId === phase.id).map((entry) => entry.id);
     const blockers = deriveBlockers(draft, prerequisitesResult.prerequisites, components, phases, sourceRefs);
+    for (const entry of array(executableInput?.unresolvedBlockers)) blockers.push(blocker(entry.code, entry.message, { sourceTargetIds: entry.coverageSections, details: { missingAuthoritativeFields: entry.missingAuthoritativeFields, executableInputIdentity: executableInput.identity } }));
     const graphDiagnostics = validateGraph(phases, dependencyGraph);
     graphDiagnostics.filter(isCritical).forEach((entry) => blockers.push(blocker(entry.code, entry.message, { relatedPhaseIds: entry.relatedPhaseIds, details: entry.details })));
     const stableBlockers = stableBlockersList(blockers);
@@ -510,6 +880,17 @@
     for (const key of ["prerequisites", "materials", "tools", "measurements", "gauge", "components", "phases", "checkpoints", "unresolved", "completionCriteria"]) if (!Array.isArray(plan?.[key])) add("PLAN_SCHEMA_INVALID", { field: key });
     if (!object(plan?.dependencyGraph) || !Array.isArray(plan?.dependencyGraph?.nodes) || !Array.isArray(plan?.dependencyGraph?.edges)) add("PLAN_SCHEMA_INVALID", { field: "dependencyGraph" });
     if (!object(plan?.summary) || !object(plan?.firstAction)) add("PLAN_SCHEMA_INVALID");
+    if (plan?.contractId === PLAN_CONTRACT_ID) {
+      if (plan.resultKind !== PLAN_RESULT_KIND || plan.algorithmId !== ADAPTED_PLAN_ALGORITHM_ID || !Array.isArray(plan.steps) || !object(plan.handoff) || !object(plan.initialExecutionState) || !object(plan.coverage)) add("PLAN_SCHEMA_INVALID", { field: "adaptedPlanContract" });
+      if (plan.steps?.length !== plan.handoff?.operationCount || plan.coverage?.sourceOperationCount !== plan.steps?.length || plan.coverage?.userStepCount !== plan.steps?.length || plan.coverage?.exactOneToOne !== true) add("PLAN_SCHEMA_INVALID", { field: "adaptedPlanCoverage" });
+      const stepIds = new Set(); const sourceOperationIds = new Set();
+      for (const [index, step] of array(plan.steps).entries()) {
+        if (step?.globalOrder !== index + 1 || !text(step?.stepId) || stepIds.has(step.stepId) || !text(step?.sourceOperationIdentity) || sourceOperationIds.has(step.sourceOperationIdentity) || !object(step?.globalStateBefore) || !object(step?.globalStateAfter) || !object(step?.provenance) || !text(step?.instruction) || step.started !== false || step.completed !== false) add("PLAN_SCHEMA_INVALID", { field: "adaptedStep", order: index + 1 });
+        stepIds.add(step?.stepId); sourceOperationIds.add(step?.sourceOperationIdentity);
+      }
+      if (plan.initialExecutionState.status !== "ready_to_start" || plan.initialExecutionState.started !== false || plan.initialExecutionState.completedStepCount !== 0 || array(plan.initialExecutionState.completedStepIds).length) add("PLAN_SCHEMA_INVALID", { field: "initialExecutionState" });
+      if (!text(plan.resultIdentity) || !validFingerprint(plan.resultFingerprint)) add("PLAN_SCHEMA_INVALID", { field: "resultIdentity" });
+    }
     const collections = [array(plan?.prerequisites), array(plan?.components), array(plan?.phases), array(plan?.checkpoints)];
     const allIds = new Set();
     for (const collection of collections) for (const entry of collection) {
@@ -554,6 +935,30 @@
     if (plan.firstAction.ready && array(plan.firstAction.blockedBy).length) diagnostics.push(diagnostic("FIRST_ACTION_BLOCKED", "critical", "Готовое первое действие содержит блокировки."));
     if (state.status === "blocked" && !array(state.blockers).some(isCritical)) diagnostics.push(diagnostic("BLOCKED_WITHOUT_BLOCKER", "critical", "Заблокированный план не содержит критической причины."));
     if (state.status === "ready" && (!plan.firstAction.ready || array(state.blockers).some(isCritical))) diagnostics.push(diagnostic("READY_PLAN_BLOCKED", "critical", "План помечен готовым при недоступном первом действии."));
+    if (plan.contractId === PLAN_CONTRACT_ID) {
+      const steps = array(plan.steps);
+      const phaseActions = array(plan.phases).flatMap((entry) => array(entry.actions));
+      if (canonicalize(steps.map((entry) => entry.stepId)) !== canonicalize(phaseActions.map((entry) => entry.stepId))) diagnostics.push(diagnostic("ADAPTED_STEP_COVERAGE_INVALID", "critical", "Шаги пользовательского плана не совпадают с действиями фаз."));
+      for (let index = 1; index < steps.length; index += 1) if (canonicalize(steps[index - 1].globalStateAfter) !== canonicalize(steps[index].globalStateBefore)) diagnostics.push(diagnostic("ADAPTED_STEP_SEQUENCE_INVALID", "critical", "Состояние между соседними шагами не сохраняется.", { order: index + 1 }));
+      if (steps.filter((entry) => entry.type === "raglan_increase").length !== 20 || steps.filter((entry) => entry.type === "raglan_plain_round").length !== 20) diagnostics.push(diagnostic("ADAPTED_REPEAT_INVALID", "critical", "Цепочка реглана неполна."));
+      const shortRows = steps.filter((entry) => entry.type === "short_row");
+      if (shortRows.length !== 12 || shortRows.some((entry, index) => entry.repeat?.physicalRowOrdinal !== index + 1)) diagnostics.push(diagnostic("ADAPTED_REPEAT_INVALID", "critical", "Физические укороченные ряды неполны."));
+      const shortRowMarker = steps.find((entry) => entry.type === "short_row_marker_setup");
+      if (!shortRowMarker || !/45 из 90 петель спинки/.test(shortRowMarker.instruction) || !/останется 45 петель спинки/.test(shortRowMarker.instruction)) diagnostics.push(diagnostic("ADAPTED_SHORT_ROW_CENTER_INVALID", "critical", "Маркер CB не поставлен в точном центре адаптированной спинки из 90 петель."));
+      const sleeveDecreases = steps.filter((entry) => entry.type === "sleeve_decrease");
+      if (sleeveDecreases.filter((entry) => entry.sourceOperationIdentity.includes("right-")).length !== 12 || sleeveDecreases.filter((entry) => entry.sourceOperationIdentity.includes("left-")).length !== 12) diagnostics.push(diagnostic("ADAPTED_REPEAT_INVALID", "critical", "Убавки рукавов неполны."));
+      if (plan.handoff.operationCount !== 127 || steps.length !== 127) diagnostics.push(diagnostic("ADAPTED_OPERATION_COUNT_INVALID", "critical", "Точный подтверждённый граф должен содержать 127 операций."));
+      if (steps.some((entry) => entry.type === "cast_on" && (entry.activeStitchesBefore !== 0 || entry.activeStitchesAfter <= 0))) diagnostics.push(diagnostic("ADAPTED_VISIBLE_COUNT_INVALID", "critical", "Набор петель содержит неверное видимое количество."));
+      if (steps.some((entry) => entry.type === "pick_up_stitches" && (entry.activeStitchesBefore !== 0 || entry.activeStitchesAfter <= 0))) diagnostics.push(diagnostic("ADAPTED_VISIBLE_COUNT_INVALID", "critical", "Поднятие петель горловины содержит неверное видимое количество."));
+      if (steps.some((entry) => entry.type === "ribbing" && entry.sourceOperationIdentity.endsWith("-cuff") && entry.activeStitchesAfter <= 0)) diagnostics.push(diagnostic("ADAPTED_VISIBLE_COUNT_INVALID", "critical", "Манжета содержит неверное видимое количество петель."));
+      if (steps.some((entry) => entry.type === "ribbing" && entry.criterion?.type !== "measurement")) diagnostics.push(diagnostic("ADAPTED_MEASUREMENT_CRITERION_INVALID", "critical", "Физическая высота резинки должна оставаться измерением."));
+      const necklineIncrease = steps.find((entry) => entry.type === "increase");
+      if (!necklineIncrease || necklineIncrease.activeStitchesBefore !== 102 || necklineIncrease.activeStitchesAfter !== 140 || !/12 раз \[3 лиц\., M1, 3 лиц\., M1, 2 лиц\., M1\]/.test(necklineIncrease.instruction) || !/\[3 лиц\., M1, 3 лиц\., M1\]/.test(necklineIncrease.instruction)) diagnostics.push(diagnostic("ADAPTED_INCREASE_SCHEDULE_INVALID", "critical", "Прибавки горловины не содержат точного исполнимого распределения 102 → 140."));
+      if (shortRows.filter((entry) => entry.repeat?.physicalRowOrdinal >= 2 && entry.repeat.physicalRowOrdinal % 2 === 0).some((entry) => !/до CB, переснять маркер/.test(entry.instruction))) diagnostics.push(diagnostic("ADAPTED_SHORT_ROW_MARKER_INVALID", "critical", "Изнаночный укороченный ряд потерял перенос маркера центра спинки."));
+      if (steps.some((entry) => !array(entry.sourceTargetIds).length || !text(entry.sourceEvidenceUnitIdentity) || !object(entry.sourceLocator))) diagnostics.push(diagnostic("PLAN_PROVENANCE_MISSING", "critical", "Шаг потерял ссылку на подтверждённое доказательство."));
+      const recalculatedResult = fingerprint({ contractId: plan.contractId, resultKind: plan.resultKind, algorithmId: plan.algorithmId, handoff: plan.handoff, summary: plan.summary, phases: plan.phases, steps: plan.steps, initialExecutionState: plan.initialExecutionState, coverage: plan.coverage });
+      if (plan.resultFingerprint !== recalculatedResult) diagnostics.push(diagnostic("PLAN_FINGERPRINT_MISMATCH", "critical", "Fingerprint результата Stage 22 не совпадает с содержимым."));
+    }
     for (const phase of array(plan.phases).filter((entry) => entry.type === "joining")) {
       const preceding = array(plan.phases).filter((entry) => entry.order < phase.order && entry.type !== "joining");
       if (array(plan.components).length > 1 && preceding.length === 0) diagnostics.push(diagnostic("EXECUTION_ORDER_UNRESOLVED", "critical", "Соединение расположено до выполнения деталей.", {}, [phase.id]));
@@ -561,8 +966,83 @@
     return stableDiagnostics(diagnostics);
   }
 
+  function causalTraceOnlyPlanCompatibility(state, review, sourceValidation = null) {
+    const currentInput = review?.confirmedSnapshot?.executableTechnologyPlanInput ?? null;
+    const repairAudit = array(review?.audit).findLast((entry) => entry?.type === "causal_trace_revalidated" && entry?.userConfirmationPreserved === true) || null;
+    if (
+      !state?.plan ||
+      state.status !== "ready" ||
+      currentInput?.algorithmId !== "stage20-v2-branch-resolved-adapted-execution:v6" ||
+      currentInput?.adaptedExecution?.causalTrace?.schemaId !== "AUTHORITATIVE_CAUSAL_TRACE_V1" ||
+      sourceValidation?.diagnostics?.length ||
+      !repairAudit ||
+      repairAudit.previousConfirmedSnapshotFingerprint !== state.sourceConfirmedSnapshotFingerprint ||
+      repairAudit.previousExecutableInputFingerprint !== state.sourceExecutableInputFingerprint
+    ) return false;
+    const expected = sourceValidation.identity;
+    const stableKeys = [
+      "sourceTechnologyReviewId",
+      "sourceTechnologyDraftId", "sourceTechnologyDraftRevision", "sourceTechnologyDraftFingerprint",
+      "sourceAnalysisReviewId", "sourceAnalysisReviewRevision", "sourceAnalysisReviewFingerprint",
+      "sourceSemanticAnalysisId", "sourceSemanticAnalysisRevision", "sourceSemanticAnalysisFingerprint",
+      "sourceImportRevision", "sourceAlgorithmVersion",
+      "sourceStage20ResultIdentity", "sourceStage20ProjectionFingerprint",
+      "sourceInstructionEvidenceIdentity", "sourceInstructionEvidenceRevision", "sourceInstructionEvidenceFingerprint",
+      "sourceInstructionEvidenceResultIdentity", "sourceInstructionEvidenceResultFingerprint",
+      "sourceDocumentIdentity", "sourceDocumentFingerprint", "sourceBranchFingerprint",
+      "sourceAdaptationProfileIdentity", "sourceAdaptationProfileRevision", "sourceAdaptationProfileFingerprint",
+      "sourceSolverResultIdentity", "sourceSolverResultFingerprint",
+      "sourceExecutionGraphFingerprint", "sourceAdaptedOperationCount",
+    ];
+    if (stableKeys.some((key) => (state[key] ?? null) !== (expected[key] ?? null))) return false;
+    const handoff = state.plan.handoff || {};
+    if (
+      handoff.sourceReviewId !== state.sourceTechnologyReviewId ||
+      handoff.sourceReviewRevision !== state.sourceTechnologyReviewRevision ||
+      handoff.confirmedSnapshotFingerprint !== state.sourceConfirmedSnapshotFingerprint ||
+      handoff.executableInputIdentity !== state.sourceExecutableInputIdentity ||
+      handoff.executableInputFingerprint !== state.sourceExecutableInputFingerprint ||
+      handoff.stage20ResultIdentity !== state.sourceStage20ResultIdentity ||
+      handoff.stage20ProjectionFingerprint !== state.sourceStage20ProjectionFingerprint ||
+      handoff.sourceInstructionEvidenceIdentity !== state.sourceInstructionEvidenceIdentity ||
+      handoff.sourceInstructionEvidenceRevision !== state.sourceInstructionEvidenceRevision ||
+      handoff.sourceInstructionEvidenceFingerprint !== state.sourceInstructionEvidenceFingerprint ||
+      handoff.sourceInstructionEvidenceResultIdentity !== state.sourceInstructionEvidenceResultIdentity ||
+      handoff.sourceInstructionEvidenceResultFingerprint !== state.sourceInstructionEvidenceResultFingerprint ||
+      handoff.sourceDocumentIdentity !== state.sourceDocumentIdentity ||
+      handoff.sourceDocumentFingerprint !== state.sourceDocumentFingerprint ||
+      handoff.branchFingerprint !== state.sourceBranchFingerprint ||
+      handoff.adaptationProfile?.identity !== state.sourceAdaptationProfileIdentity ||
+      handoff.adaptationProfile?.revision !== state.sourceAdaptationProfileRevision ||
+      handoff.adaptationProfile?.fingerprint !== state.sourceAdaptationProfileFingerprint ||
+      handoff.solverResultIdentity !== state.sourceSolverResultIdentity ||
+      handoff.solverResultFingerprint !== state.sourceSolverResultFingerprint ||
+      handoff.executionGraphFingerprint !== state.sourceExecutionGraphFingerprint ||
+      handoff.operationCount !== state.sourceAdaptedOperationCount
+    ) return false;
+    const operations = array(currentInput.adaptedExecution?.operations);
+    const steps = array(state.plan.steps);
+    if (operations.length !== steps.length || operations.length !== state.sourceAdaptedOperationCount) return false;
+    const operationProjection = operations.map((operation) => ({
+      sourceOperationIdentity: operation.identity,
+      globalStateBefore: operation.inputState,
+      globalStateAfter: operation.outputState,
+      sourceEvidenceUnitIdentity: operation.sourceEvidenceUnitIdentity,
+      sourceLocator: operation.sourceLocator,
+    }));
+    const stepProjection = steps.map((step) => ({
+      sourceOperationIdentity: step.sourceOperationIdentity,
+      globalStateBefore: step.globalStateBefore,
+      globalStateAfter: step.globalStateAfter,
+      sourceEvidenceUnitIdentity: step.sourceEvidenceUnitIdentity,
+      sourceLocator: step.sourceLocator,
+    }));
+    return canonicalize(operationProjection) === canonicalize(stepProjection);
+  }
+
   function validateSourceIdentity(state, review, context = {}) {
     const result = validateSourceReview(review, state?.projectId, context);
+    if (state && causalTraceOnlyPlanCompatibility(state, review, result)) return stableDiagnostics(result.diagnostics);
     const diagnostics = [...result.diagnostics];
     if (state) {
       const expected = result.identity;
@@ -643,6 +1123,7 @@
       technologyDraft: find("PATTERN_TECHNOLOGY_DRAFT")?.state || null,
       analysisReview: find("PATTERN_ANALYSIS_REVIEW")?.state || null,
       semanticAnalysis: find("PATTERN_SEMANTIC_ANALYSIS")?.state || null,
+      instructionEvidence: find("SOURCE_PATTERN_INSTRUCTION_EVIDENCE")?.state || null,
       requireCurrentIdentity: true,
     };
     const review = reviewProgress?.state || null;
@@ -651,9 +1132,10 @@
     if (!reviewProgress) return { state: executionPlan ? "stale" : "review_missing", reasonCode: "SOURCE_REVIEW_MISSING", project, calculation, review: null, executionPlan, executionProgress, context };
     if (!validation.isValid) return { state: executionPlan ? "stale" : "source_invalid", reasonCode: validation.diagnostics[0].code, project, calculation, review, reviewProgress, executionPlan, executionProgress, context, sourceValidation: validation };
     if (!executionPlan) return { state: "creatable", project, calculation, review, reviewProgress, executionPlan: null, context, sourceValidation: validation };
-    const identityDiagnostics = validateSourceIdentity(executionPlan, review, context);
-    if (identityDiagnostics.length || executionPlan.planningAlgorithmVersion !== PLANNING_ALGORITHM_VERSION) return { state: "stale", reasonCode: identityDiagnostics[0]?.code || "PLANNING_ALGORITHM_VERSION_MISMATCH", project, calculation, review, reviewProgress, executionPlan, executionProgress, context, sourceValidation: validation };
-    return { state: executionPlan.status, reasonCode: executionPlan.error?.code ?? null, project, calculation, review, reviewProgress, executionPlan, executionProgress, context, sourceValidation: validation };
+    const planValidation = executionPlan.plan ? validatePlanState(executionPlan, review, context) : null;
+    const storedFingerprintValid = !executionPlan.plan || executionPlan.planFingerprint === calculatePlanFingerprint(executionPlan);
+    if ((planValidation && !planValidation.isValid) || !storedFingerprintValid || executionPlan.planningAlgorithmVersion !== PLANNING_ALGORITHM_VERSION) return { state: "stale", reasonCode: planValidation?.diagnostics[0]?.code || (!storedFingerprintValid ? "PLAN_FINGERPRINT_MISMATCH" : "PLANNING_ALGORITHM_VERSION_MISMATCH"), project, calculation, review, reviewProgress, executionPlan, executionProgress, context, sourceValidation: validation, planValidation };
+    return { state: executionPlan.status, reasonCode: executionPlan.error?.code ?? null, project, calculation, review, reviewProgress, executionPlan, executionProgress, context, sourceValidation: validation, planValidation };
   }
 
   async function ensureForProject(repository, projectId) {
@@ -792,9 +1274,9 @@
     VERSION, SCHEMA_VERSION, PLANNING_ALGORITHM_VERSION, PROGRESS_KIND, STATUSES, PHASE_TYPES, PHASE_STATUSES,
     PREREQUISITE_STATUSES, COMPONENT_STATUSES, AUDIT_LIMIT, PLANNING_PHASES, PatternExecutionPlanError,
     canonicalize, fingerprint, confirmedSnapshotFingerprint, technologyReviewFingerprint, sourceIdentity,
-    validateSourceReview, createInitialState, planningInputFingerprint, beginPlanning, completePlanning,
+    validateSourceReview, validateCausalTraceContract, createInitialState, planningInputFingerprint, beginPlanning, completePlanning,
     buildState, derivePlan, validateStructural, validateSemantic, validateSourceIdentity, validatePlanState,
-    validateGraph, calculatePlanFingerprint, recoverInterruptedState, markStale, inspectAggregate,
+    validateGraph, calculatePlanFingerprint, causalTraceOnlyPlanCompatibility, recoverInterruptedState, markStale, inspectAggregate,
     ensureForProject, buildForProject, rebuildForProject, retryForProject,
   };
   globalObject.YarnAIPatternExecutionPlan = Object.freeze(api);

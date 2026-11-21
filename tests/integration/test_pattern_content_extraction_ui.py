@@ -91,6 +91,6 @@ def test_stage_16_navigation_and_old_routes_remain_available() -> None:
     client = TestClient(app)
     analysis_html = (STATIC / "pattern-analysis.html").read_text(encoding="utf-8")
 
-    assert "pattern-content-extraction-link" in analysis_html
+    assert '/static/pattern-content-extraction.js' in analysis_html
     for route in ("/health", "/pattern-analysis", "/import-pattern", "/calculator"):
         assert client.get(route).status_code == 200

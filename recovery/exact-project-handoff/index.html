@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Exact YarnAI project handoff</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; max-width: 1100px; margin: 40px auto; padding: 0 24px; color: #17221a; background: #f7faf7; }
+    main { background: white; border: 1px solid #cdd8cf; border-radius: 16px; padding: 28px; box-shadow: 0 8px 32px #213b2b16; }
+    h1 { margin-top: 0; }
+    button { font: inherit; font-weight: 700; padding: 12px 18px; border: 0; border-radius: 10px; color: white; background: #1f6b43; cursor: pointer; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 18px; border-radius: 10px; background: #eef4ef; max-height: 65vh; overflow: auto; }
+    .warning { border-left: 4px solid #a45a00; padding-left: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Exact YarnAI project handoff utility</h1>
+    <p class="warning">Служебная recovery utility. Она не меняет schema и не запускает вязание. Запись возможна только в режиме atomic import после collision check.</p>
+    <button id="run" type="button">Выполнить выбранный режим</button>
+    <h2 id="status">READY</h2>
+    <pre id="output">Ожидание запуска.</pre>
+  </main>
+  <script>
+    const handoffParams = new URLSearchParams(location.search);
+    if (handoffParams.get("autorun") === "1") {
+      const waitRun = encodeURIComponent(handoffParams.get("run") || "invalid-run");
+      document.write(`<img hidden alt="" src="/api/wait?run=${waitRun}">`);
+    }
+  </script>
+  <script type="module" src="./recovery-client.js"></script>
+</body>
+</html>

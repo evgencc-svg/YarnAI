@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow">
+    <title>Подготовка основного полотна — YarnAI</title>
+    <link rel="stylesheet" href="/static/primary-fabric-preparation.css">
+    <script src="/static/project-system.js" defer></script><script src="/static/project-details-experience.js" defer></script><script src="/static/project-details-collaboration.js" defer></script><script src="/static/project-details-closure.js" defer></script><script src="/static/project-initialization.js" defer></script><script src="/static/swatch-gauge.js" defer></script><script src="/static/project-calculation-entry.js" defer></script><script src="/static/project-readiness-engine.js" defer></script><script src="/static/project-execution-plan.js" defer></script><script src="/static/project-execution-start.js" defer></script><script src="/static/project-execution-first-step.js" defer></script><script src="/static/project-execution-next-step.js" defer></script><script src="/static/project-execution-next-step-clarification.js" defer></script><script src="/static/foundation-section-execution-preparation.js" defer></script><script src="/static/foundation-section-execution.js" defer></script><script src="/static/foundation-section-measurement.js" defer></script><script src="/static/primary-fabric-preparation.js" defer></script><script src="/static/primary-fabric-preparation-workspace.js" defer></script><script src="/static/primary-fabric-preparation-assistant.js" defer></script>
+  </head>
+  <body>
+    <main id="primary-fabric-preparation-root" class="shell" aria-busy="true">
+      <a class="brand" href="/saved-projects" aria-label="YarnAI — мои проекты">YarnAI</a>
+      <section id="primary-fabric-preparation-loading" class="panel" aria-live="polite"><p>Проверяем физическое завершение резинки и сохранённый план…</p></section>
+      <section id="primary-fabric-preparation-blocked" class="panel" role="alert" tabindex="-1" hidden><p class="eyebrow">Нужна проверка проекта</p><h1>Подготовка пока недоступна</h1><p id="primary-fabric-preparation-blocked-message"></p><a class="button secondary" href="/saved-projects">Мои проекты</a></section>
+      <article id="primary-fabric-preparation-content" class="panel" hidden>
+        <p class="eyebrow">Резинка достигла нужной высоты</p><h1>Подготовим основное полотно</h1><p>В сохранённом плане не хватает только узора, его раппорта и целевой высоты этого участка.</p>
+        <dl class="known-context" aria-label="Уже подтверждённые параметры">
+          <div><dt>Петли</dt><dd id="primary-fabric-preparation-stitches"></dd></div><div><dt>Способ вязания</dt><dd id="primary-fabric-preparation-method"></dd></div><div><dt>Инструмент</dt><dd id="primary-fabric-preparation-tool"></dd></div><div><dt>Направление из плана</dt><dd id="primary-fabric-preparation-direction"></dd></div>
+        </dl>
+        <form id="primary-fabric-preparation-form" novalidate hidden>
+          <div class="field"><label for="primary-fabric-preparation-pattern">Какой узор использовать для основного полотна?</label><input id="primary-fabric-preparation-pattern" name="mainPattern" type="text" autocomplete="off" maxlength="10000" aria-describedby="primary-fabric-preparation-pattern-help primary-fabric-preparation-pattern-error"><p id="primary-fabric-preparation-pattern-help" class="hint">Запишите название или понятное вам описание без выбора из выдуманных вариантов.</p><p id="primary-fabric-preparation-pattern-error" class="field-error" aria-live="polite"></p></div>
+          <div class="field"><label for="primary-fabric-preparation-repeat">Как выполнять раппорт этого узора?</label><textarea id="primary-fabric-preparation-repeat" name="patternRepeat" maxlength="10000" aria-describedby="primary-fabric-preparation-repeat-help primary-fabric-preparation-repeat-error"></textarea><p id="primary-fabric-preparation-repeat-help" class="hint">Например, укажите петли и ряды раппорта своими словами. YarnAI сохранит текст как ваше указание и не будет додумывать технику.</p><p id="primary-fabric-preparation-repeat-error" class="field-error" aria-live="polite"></p></div>
+          <div class="field"><label for="primary-fabric-preparation-height">Целевая высота основного полотна</label><div class="measurement"><input id="primary-fabric-preparation-height" name="sectionHeightCm" type="text" inputmode="decimal" autocomplete="off" aria-describedby="primary-fabric-preparation-height-help primary-fabric-preparation-height-error"><span aria-hidden="true">см</span></div><p id="primary-fabric-preparation-height-help" class="hint">Укажите положительное число в сантиметрах, как оно задано для вашего проекта.</p><p id="primary-fabric-preparation-height-error" class="field-error" aria-live="polite"></p></div>
+          <section class="summary" aria-labelledby="primary-fabric-preparation-summary-heading"><h2 id="primary-fabric-preparation-summary-heading">Что будет сохранено</h2><p id="primary-fabric-preparation-summary">Заполните только недостающие данные — точная сводка появится здесь.</p></section>
+          <p id="primary-fabric-preparation-form-error" class="form-error" role="alert" tabindex="-1"></p>
+          <div class="actions"><button id="primary-fabric-preparation-save" type="submit" disabled>Сохранить подготовку</button><a class="secondary" href="/saved-projects">Мои проекты</a></div>
+        </form>
+        <section id="primary-fabric-preparation-completed" class="completed" tabindex="-1" hidden><h2>Основное полотно подготовлено</h2><p id="primary-fabric-preparation-completed-summary"></p><p class="muted">Подтверждённая подготовка неизменяема.</p><div class="actions"><a id="primary-fabric-preparation-execute" class="button" href="/saved-projects">Связать основное полотно</a><a class="secondary" href="/saved-projects">Мои проекты</a></div></section>
+      </article>
+    </main>
+  </body>
+</html>

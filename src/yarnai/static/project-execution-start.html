@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Подготовка материалов и первый физический шаг подтверждённого проекта YarnAI.">
+    <title>Начало вязания — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/project-execution-start.css">
+    <script src="/static/project-readiness-engine.js" defer></script>
+    <script src="/static/project-details-experience.js" defer></script>
+    <script src="/static/project-details-closure.js" defer></script>
+    <script src="/static/project-initialization.js" defer></script>
+    <script src="/static/user-workspace-entry.js" defer></script>
+    <script src="/static/swatch-gauge.js" defer></script>
+    <script src="/static/project-calculation-entry.js" defer></script>
+    <script src="/static/project-execution-plan.js" defer></script>
+    <script src="/static/project-execution-plan-workspace.js" defer></script>
+    <script src="/static/project-execution-start.js" defer></script>
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/project-execution-start-workspace.js" defer></script>
+    <script src="/static/project-execution-start-assistant.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a id="execution-start-back" href="/saved-projects">← Мои проекты</a>
+      <span class="brand">YarnAI</span>
+    </header>
+    <main class="workspace" aria-labelledby="execution-start-title">
+      <section id="execution-start-loading" class="card" role="status" aria-live="polite">
+        <p>Проверяем подтверждённый план и готовим первый шаг…</p>
+      </section>
+
+      <section id="execution-start-blocked" class="card blocked" hidden aria-labelledby="execution-start-blocked-title">
+        <p class="eyebrow">Начало приостановлено</p>
+        <h1 id="execution-start-blocked-title">Сейчас нельзя безопасно начать</h1>
+        <p id="execution-start-blocked-message" role="alert" aria-live="assertive" tabindex="-1"></p>
+        <details class="technical"><summary>Техническая диагностика</summary><p>Код: <code id="execution-start-diagnostic-code"></code></p></details>
+        <a id="execution-start-recovery" class="button" href="/saved-projects">Вернуться к проекту</a>
+      </section>
+
+      <div id="execution-start-ready" hidden>
+        <section class="hero">
+          <div>
+            <p class="eyebrow">План готов</p>
+            <h1 id="execution-start-title">Подготовьтесь к началу вязания</h1>
+            <p class="lead">Вот что понадобится и какое первое физическое действие сделать сейчас.</p>
+          </div>
+          <span class="status-chip" aria-hidden="true">Можно начинать</span>
+        </section>
+
+        <section class="card" aria-labelledby="execution-start-project-title">
+          <h2 id="execution-start-project-title">Проект вязания</h2>
+          <dl class="facts">
+            <div><dt>Изделие</dt><dd id="execution-start-product">—</dd></div>
+            <div><dt>Размер</dt><dd id="execution-start-size">—</dd></div>
+            <div><dt>Получатель</dt><dd id="execution-start-recipient">—</dd></div>
+          </dl>
+        </section>
+
+        <section class="card" aria-labelledby="execution-start-prepare-title">
+          <h2 id="execution-start-prepare-title">Что подготовить</h2>
+          <dl class="facts">
+            <div><dt>Пряжа</dt><dd id="execution-start-yarn">—</dd></div>
+            <div><dt>Инструмент</dt><dd id="execution-start-tools">—</dd></div>
+            <div><dt>Способ вязания</dt><dd id="execution-start-technique">—</dd></div>
+            <div><dt>Подтверждённая плотность</dt><dd id="execution-start-gauge">—</dd></div>
+          </dl>
+          <h3>Материалы</h3>
+          <ul id="execution-start-materials"></ul>
+        </section>
+
+        <section id="execution-start-warnings-section" class="card notes" aria-labelledby="execution-start-warnings-title">
+          <h2 id="execution-start-warnings-title">Что важно помнить</h2>
+          <div class="columns">
+            <div><h3>Предупреждения</h3><ul id="execution-start-warnings"></ul></div>
+            <div><h3>Допущения</h3><ul id="execution-start-assumptions"></ul></div>
+          </div>
+        </section>
+
+        <section class="card first-step" aria-labelledby="execution-start-first-title">
+          <p class="eyebrow">Первый шаг</p>
+          <h2 id="execution-start-first-title">Сделайте это первым</h2>
+          <p id="execution-start-first-step" class="instruction">—</p>
+        </section>
+
+        <section class="card actions" aria-labelledby="execution-start-confirm-title">
+          <h2 id="execution-start-confirm-title">Всё готово?</h2>
+          <label class="ack">
+            <input id="execution-start-acknowledgment" type="checkbox">
+            <span>Материалы и инструменты подготовлены.</span>
+          </label>
+          <p id="execution-start-status" role="status" aria-live="polite">Подтвердите готовность, чтобы продолжить.</p>
+          <button id="execution-start-button" class="button primary" type="button" disabled>Начать вязание</button>
+        </section>
+
+        <details id="execution-start-technical-details" class="card technical">
+          <summary>Подробности расчёта</summary>
+          <p id="execution-start-technical-body"></p>
+        </details>
+      </div>
+
+      <section id="execution-start-started" class="card started" hidden tabindex="-1" aria-labelledby="execution-start-started-title">
+        <p class="eyebrow">Выполнение начато</p>
+        <h1 id="execution-start-started-title">Можно переходить к первому шагу</h1>
+        <p id="execution-start-started-step" class="instruction">—</p>
+        <p>Начало зафиксировано: <time id="execution-start-started-at"></time>.</p>
+        <p id="execution-start-next-message" class="muted"></p>
+        <a id="execution-start-first-step-link" class="button primary" href="/saved-projects" hidden>Перейти к первому шагу</a>
+        <a id="execution-start-started-back" class="button" href="/saved-projects">Вернуться к проекту</a>
+      </section>
+    </main>
+  </body>
+</html>

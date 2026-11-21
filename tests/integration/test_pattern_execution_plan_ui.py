@@ -83,6 +83,8 @@ def test_execution_plan_page_has_all_lifecycle_and_result_regions() -> None:
         "execution-plan-blockers",
         "execution-plan-warnings",
         "execution-plan-validation",
+        "execution-plan-technical",
+        "execution-plan-technical-values",
     } <= parser.ids
     assert all(button.get("type") == "button" for button in parser.buttons)
     assert 'aria-live="polite"' in html
@@ -137,4 +139,26 @@ def test_execution_plan_layout_and_stage_21_navigation() -> None:
     assert "/pattern-technology-review" in html
     assert "/pattern-technology-review?project=" in controller
     assert 'href="/pattern-execution-session" hidden' in html
+    assert "Открыть экран начала вязания" in html
     assert "/pattern-execution-session?project=" in controller
+
+
+def test_execution_plan_primary_view_is_human_and_technical_evidence_is_collapsed() -> None:
+    html = (STATIC / "pattern-execution-plan.html").read_text(encoding="utf-8")
+    controller = (STATIC / "pattern-execution-plan-assistant.js").read_text(encoding="utf-8")
+    formatters = (STATIC / "pattern-execution-ui-formatters.js").read_text(encoding="utf-8")
+
+    assert '<script src="/static/pattern-execution-ui-formatters.js" defer></script>' in html
+    assert '<details id="execution-plan-technical"' in html
+    assert '<details id="execution-plan-technical" class="card execution-technical" open' not in html
+    assert html.index('id="execution-plan-technical"') > html.index('id="execution-plan-checkpoints"')
+    assert "Проверить план без вязания" in html
+    assert "Вернуться к принятой адаптации" in html
+    assert "formatters.formatGauge(summary.gauge)" in controller
+    assert "formatters.formatBranches(summary.branches)" in controller
+    assert "formatters.formatYarn(summary.yarn)" in controller
+    assert "formatters.formatRepeat(entry.repeat)" in controller
+    assert "formatters.formatCheckpointValue(entry.expectedValue, entry.unit)" in controller
+    assert "Статус не распознан — см. «Технические данные»" in formatters
+    assert "sourceTargetIds.join" in controller
+    assert 'technicalDetails("Технические данные компонента"' in controller

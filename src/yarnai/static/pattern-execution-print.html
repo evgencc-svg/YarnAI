@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Персональная адаптированная инструкция YarnAI для печати и сохранения в PDF.">
+    <title>Персональная адаптированная инструкция — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-execution-print.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-technology-review.js" defer></script>
+    <script src="/static/pattern-execution-plan.js" defer></script>
+    <script src="/static/pattern-execution-session.js" defer></script>
+    <script src="/static/pattern-execution-ui-formatters.js" defer></script>
+    <script src="/static/pattern-execution-export.js" defer></script>
+    <script src="/static/pattern-execution-print-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для подготовки инструкции нужен JavaScript.</div></noscript>
+    <header class="site-header no-print">
+      <a class="brand" href="/saved-projects" aria-label="YarnAI — мои проекты"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
+      <span class="version-badge">Инструкция</span>
+    </header>
+
+    <main class="print-shell">
+      <section id="execution-export-loading" class="print-state" aria-live="polite">
+        <h1>Готовим инструкцию</h1>
+        <p>Проверяем сохранённую адаптацию и целостность плана.</p>
+      </section>
+
+      <section id="execution-export-blocked" class="print-state print-blocked" role="alert" hidden>
+        <p class="eyebrow">Экспорт недоступен</p>
+        <h1>Нельзя сформировать полноценную инструкцию</h1>
+        <p id="execution-export-blocked-message"></p>
+        <a id="execution-export-blocked-back" class="button secondary no-print" href="/saved-projects">Вернуться к плану</a>
+      </section>
+
+      <article id="execution-export-document" class="print-document" hidden>
+        <div class="print-actions no-print" aria-label="Действия с инструкцией">
+          <button id="execution-export-print" class="button primary" type="button">Печать / сохранить PDF</button>
+          <a id="execution-export-back" class="button secondary" href="/pattern-execution-plan">Вернуться к плану</a>
+        </div>
+
+        <header class="document-header">
+          <p class="document-kicker">YarnAI</p>
+          <h1 id="execution-export-title"></h1>
+          <p id="execution-export-purpose" class="document-purpose"></p>
+        </header>
+
+        <section class="document-section" aria-labelledby="execution-export-before-title">
+          <h2 id="execution-export-before-title">Перед началом</h2>
+          <dl id="execution-export-before" class="before-grid"></dl>
+        </section>
+
+        <section class="document-section" aria-labelledby="execution-export-changes-title">
+          <h2 id="execution-export-changes-title">Что изменено для вашей адаптации</h2>
+          <div id="execution-export-changes" class="change-list"></div>
+        </section>
+
+        <section id="execution-export-glossary-section" class="document-section" aria-labelledby="execution-export-glossary-title" hidden>
+          <h2 id="execution-export-glossary-title">Сокращения</h2>
+          <dl id="execution-export-glossary" class="glossary-list"></dl>
+        </section>
+
+        <section class="document-section status-note" aria-labelledby="execution-export-status-title">
+          <h2 id="execution-export-status-title">Статус проверки</h2>
+          <p id="execution-export-virtual-status"></p>
+          <p id="execution-export-physical-status"></p>
+        </section>
+
+        <section class="document-section instruction-section" aria-labelledby="execution-export-steps-title">
+          <h2 id="execution-export-steps-title">Пошаговая инструкция</h2>
+          <p id="execution-export-step-count" class="step-count"></p>
+          <div id="execution-export-sections"></div>
+          <div class="document-footer" role="note">
+            <p id="execution-export-legal"></p>
+          </div>
+        </section>
+      </article>
+    </main>
+  </body>
+</html>

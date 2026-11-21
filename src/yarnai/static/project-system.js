@@ -22,6 +22,35 @@
   ]);
   const SUPPORTED_CALCULATION_PROGRESS_KINDS = Object.freeze([
     ...DEFAULT_CALCULATION_PROGRESS_KINDS,
+    "PROJECT_EXECUTION_NEXT_STEP_CLARIFICATION",
+    "FOUNDATION_SECTION_EXECUTION_PREPARATION",
+    "FOUNDATION_SECTION_EXECUTION",
+    "FOUNDATION_SECTION_MEASUREMENT",
+    "PRIMARY_FABRIC_PREPARATION",
+    "PRIMARY_FABRIC_EXECUTION",
+    "PRIMARY_FABRIC_MEASUREMENT",
+    "PROJECT_NEXT_SECTION_PLANNING",
+    "PROJECT_CONSTRUCTION_STRATEGY_PLANNING",
+    "PROJECT_SHAPING_POLICY_PLANNING",
+    "PROJECT_SLEEVE_TARGET_GEOMETRY_PLANNING",
+    "PROJECT_SLEEVE_PHYSICAL_EXECUTION",
+    "PROJECT_SLEEVE_PAIR_VALIDATION",
+    "PROJECT_BODY_UNDERARM_PHYSICAL_CONFIRMATION",
+    "PROJECT_UNDERARM_ALLOCATION_PLANNING",
+    "PROJECT_JOIN_LAYOUT_PLANNING",
+    "PROJECT_UNDERARM_ALLOCATION_EXECUTION",
+    "PROJECT_RAGLAN_INTERFACE_PLANNING",
+    "PROJECT_BODY_SLEEVES_JOIN_EXECUTION",
+    "PROJECT_YOKE_TARGET_GEOMETRY_PLANNING",
+    "PROJECT_RAGLAN_SHAPING_SCHEDULE_PLANNING",
+    "PROJECT_RAGLAN_SHAPING_EXECUTION",
+    "PROJECT_NECKLINE_OPENING_PLANNING",
+    "PROJECT_NECKLINE_OPENING_EXECUTION",
+    "PROJECT_REALIZED_FINISHABLE_EDGE_EVIDENCE",
+    "PROJECT_EXECUTION_NEXT_STEP_PREPARATION",
+    "PROJECT_EXECUTION_FIRST_STEP",
+    "PROJECT_EXECUTION_START",
+    "PROJECT_EXECUTION_PLAN_PREPARATION",
     "FIRST_FABRIC_SECTION",
     "FIRST_SIMPLE_SHAPING",
     "FIRST_BIND_OFF",
@@ -36,6 +65,8 @@
     "PATTERN_CONTENT_EXTRACTION",
     "PATTERN_SEMANTIC_ANALYSIS",
     "PATTERN_ANALYSIS_REVIEW",
+    "GARMENT_REFERENCE_ANALYSIS",
+    "SOURCE_PATTERN_INSTRUCTION_EVIDENCE",
     "PATTERN_TECHNOLOGY_DRAFT",
     "PATTERN_TECHNOLOGY_REVIEW",
     "PATTERN_EXECUTION_PLAN",
@@ -345,6 +376,20 @@
     }
   }
 
+  function validateImportedSourceInstructionEvidence(state, sourceProjectId) {
+    const invalid = (code, message) => { throw new ProjectRepositoryError(code, message); };
+    if (!state || state.kind !== "SOURCE_PATTERN_INSTRUCTION_EVIDENCE" || state.schemaId !== "SOURCE_PATTERN_INSTRUCTION_EVIDENCE_V1" || state.contractVersion !== 1 || state.resultVersion !== 1 || state.binding?.projectId !== sourceProjectId || !Array.isArray(state.reviewDecisions) || !Array.isArray(state.history) || !Array.isArray(state.audit)) invalid("INVALID_IMPORT_SOURCE_INSTRUCTION_EVIDENCE", "Импортируемая запись source instructions повреждена.");
+    if (fnv1a32Fingerprint(state.binding) !== state.bindingFingerprint) invalid("INVALID_IMPORT_SOURCE_INSTRUCTION_EVIDENCE", "Binding source instructions не прошёл проверку fingerprint.");
+    if (state.result) {
+      const payload = clone(state.result); delete payload.fingerprint;
+      if (state.result.identity !== state.resultIdentity || state.result.fingerprint !== state.resultFingerprint || fnv1a32Fingerprint(payload) !== state.resultFingerprint || !Array.isArray(state.result.evidenceUnits) || !Array.isArray(state.result.reviewQuestions) || !Array.isArray(state.result.projection?.operations)) invalid("INVALID_IMPORT_SOURCE_INSTRUCTION_EVIDENCE", "Result source instructions не прошёл проверку fingerprint.");
+    }
+    if (state.confirmedSnapshot) {
+      const payload = clone(state.confirmedSnapshot); delete payload.fingerprint;
+      if (fnv1a32Fingerprint(payload) !== state.confirmedSnapshot.fingerprint || state.confirmedSnapshot.fingerprint !== state.confirmedSnapshotFingerprint) invalid("INVALID_IMPORT_SOURCE_INSTRUCTION_EVIDENCE", "Confirmed source instruction snapshot не прошёл проверку fingerprint.");
+    }
+  }
+
   function validateImportedPatternTechnologyDraft(state, sourceProjectId) {
     const invalid = (code, message) => {
       throw new ProjectRepositoryError(code, message);
@@ -359,13 +404,13 @@
       !["waiting", "building", "needs_attention", "ready", "failed"].includes(state.status) ||
       !Array.isArray(state.audit)
     ) invalid("INVALID_IMPORT_TECHNOLOGY_DRAFT", "Импортируемый черновик технологии повреждён.");
-    if (
-      fnv1a32Fingerprint(state.immutableSourceSnapshot) !== state.immutableSourceFingerprint ||
-      state.immutableSourceFingerprint !== state.sourceConfirmedFingerprint
-    ) invalid("IMMUTABLE_SOURCE_CHANGED", "Snapshot источника черновика был изменён.");
+    if (fnv1a32Fingerprint(state.immutableSourceSnapshot) !== state.immutableSourceFingerprint) invalid("IMMUTABLE_SOURCE_CHANGED", "Snapshot источника черновика был изменён.");
+    if (state.inputContractVersion === 2) {
+      if (state.immutableSourceFingerprint !== state.sourceProjectionFingerprint || state.immutableSourceSnapshot?.contractVersion !== 2) invalid("IMMUTABLE_SOURCE_CHANGED", "Stage 20 projection была изменена.");
+    } else if (state.immutableSourceFingerprint !== state.sourceConfirmedFingerprint) invalid("IMMUTABLE_SOURCE_CHANGED", "Snapshot источника черновика был изменён.");
     if (state.draftResult) {
       if (
-        state.draftResult.schemaVersion !== 1 ||
+        ![1, 2].includes(state.draftResult.schemaVersion) ||
         state.draftResult.projectSummary?.projectId !== sourceProjectId ||
         fnv1a32Fingerprint(state.draftResult) !== state.draftFingerprint
       ) invalid("INVALID_IMPORT_TECHNOLOGY_DRAFT", "Результат черновика не прошёл проверку fingerprint.");
@@ -460,6 +505,28 @@
   }
 
   function patternExecutionPlanningInputFingerprint(state) {
+    const executableIdentity = Object.prototype.hasOwnProperty.call(state || {}, "sourceExecutableInputIdentity") ? {
+      sourceExecutableInputIdentity: state.sourceExecutableInputIdentity,
+      sourceExecutableInputFingerprint: state.sourceExecutableInputFingerprint,
+      sourceStage20ResultIdentity: state.sourceStage20ResultIdentity,
+      sourceStage20ProjectionFingerprint: state.sourceStage20ProjectionFingerprint,
+      sourceInstructionEvidenceIdentity: state.sourceInstructionEvidenceIdentity,
+      sourceInstructionEvidenceRevision: state.sourceInstructionEvidenceRevision,
+      sourceInstructionEvidenceFingerprint: state.sourceInstructionEvidenceFingerprint,
+      sourceInstructionEvidenceResultIdentity: state.sourceInstructionEvidenceResultIdentity,
+      sourceInstructionEvidenceResultFingerprint: state.sourceInstructionEvidenceResultFingerprint,
+      sourceDocumentIdentity: state.sourceDocumentIdentity,
+      sourceDocumentFingerprint: state.sourceDocumentFingerprint,
+      sourceBranchFingerprint: state.sourceBranchFingerprint,
+      sourceAdaptationProfileIdentity: state.sourceAdaptationProfileIdentity,
+      sourceAdaptationProfileRevision: state.sourceAdaptationProfileRevision,
+      sourceAdaptationProfileFingerprint: state.sourceAdaptationProfileFingerprint,
+      sourceSolverResultIdentity: state.sourceSolverResultIdentity,
+      sourceSolverResultFingerprint: state.sourceSolverResultFingerprint,
+      sourceExecutionGraphFingerprint: state.sourceExecutionGraphFingerprint,
+      sourceSequentialValidationFingerprint: state.sourceSequentialValidationFingerprint,
+      sourceAdaptedOperationCount: state.sourceAdaptedOperationCount,
+    } : {};
     return fnv1a32Fingerprint({
       planningAlgorithmVersion: state.planningAlgorithmVersion,
       sourceConfirmedSnapshotFingerprint: state.sourceConfirmedSnapshotFingerprint,
@@ -477,6 +544,7 @@
       sourceSemanticAnalysisFingerprint: state.sourceSemanticAnalysisFingerprint,
       sourceImportRevision: state.sourceImportRevision,
       sourceAlgorithmVersion: state.sourceAlgorithmVersion,
+      ...executableIdentity,
     });
   }
 
@@ -2853,6 +2921,9 @@
       }
       return this._serialize(projectId, async () => {
         const before = await this._validatedCurrentProject(projectId);
+        if (options.baseProjectRevision !== undefined && before.revision !== options.baseProjectRevision) {
+          throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+        }
         if (before.workspace_status === "DELETED") {
           throw new ProjectRepositoryError(
             "INVALID_LIFECYCLE_TRANSITION",
@@ -3286,6 +3357,88 @@
               "Нельзя редактировать проект в корзине.",
             );
           }
+          if ("draft_input" in normalizedPatch) {
+            const closureApi = global.YarnAIProjectDetailsClosure;
+            const beforeSource = next.draft_input?.project_details_closures;
+            const afterSource = normalizedPatch.draft_input?.project_details_closures;
+            if (beforeSource || afterSource) {
+              if (!closureApi?.normalizeHistory || !closureApi?.validateClosurePayload) {
+                throw new ProjectRepositoryError(
+                  "PROJECT_DETAILS_CLOSURE_API_MISSING",
+                  "Модуль завершения сведений проекта не загружен.",
+                );
+              }
+              const beforeHistory = closureApi.normalizeHistory(beforeSource);
+              const afterHistory = closureApi.normalizeHistory(afterSource);
+              if (afterHistory.records.length < beforeHistory.records.length) {
+                throw new ProjectRepositoryError("PROJECT_DETAILS_CLOSURE_IMMUTABLE", "История подтверждений не может сокращаться.");
+              }
+              for (let index = 0; index < beforeHistory.records.length; index += 1) {
+                if (canonicalize(beforeHistory.records[index]) !== canonicalize(afterHistory.records[index])) {
+                  throw new ProjectRepositoryError("PROJECT_DETAILS_CLOSURE_IMMUTABLE", "Завершённая closure-запись должна оставаться неизменной.");
+                }
+              }
+              const appended = afterHistory.records.slice(beforeHistory.records.length);
+              appended.forEach((entry) => {
+                const report = closureApi.validateClosurePayload(entry, { projectId });
+                if (!report.valid || report.closure.lifecycle !== "completed") throw new ProjectRepositoryError("INVALID_PROJECT_DETAILS_CLOSURE", "Новая closure-запись не прошла проверку.");
+              });
+              const latest = afterHistory.records.at(-1);
+              if (latest && afterHistory.latestClosureId !== latest.closureId) throw new ProjectRepositoryError("INVALID_PROJECT_DETAILS_CLOSURE_HISTORY", "Latest closure identity не согласован с историей.");
+              if (!appended.length && beforeHistory.latestClosureId !== afterHistory.latestClosureId) throw new ProjectRepositoryError("PROJECT_DETAILS_CLOSURE_IMMUTABLE", "Latest closure identity нельзя изменить без новой записи.");
+            }
+            const initializationApi = global.YarnAIProjectInitialization;
+            const beforeInitializations = next.draft_input?.project_initializations;
+            const afterInitializations = normalizedPatch.draft_input?.project_initializations;
+            if (beforeInitializations || afterInitializations) {
+              if (!initializationApi?.normalizeHistory || !initializationApi?.validateInitializationRecord) {
+                throw new ProjectRepositoryError("PROJECT_INITIALIZATION_API_MISSING", "?????? ?????????? ?????? ??????? ?? ????????.");
+              }
+              const beforeHistory = initializationApi.normalizeHistory(beforeInitializations, { allowUntrusted: true, projectIdentity: projectId });
+              const afterHistory = initializationApi.normalizeHistory(afterInitializations, { allowUntrusted: true, projectIdentity: projectId });
+              if (afterHistory.records.length < beforeHistory.records.length) throw new ProjectRepositoryError("PROJECT_INITIALIZATION_IMMUTABLE", "??????? ????? ??????? ?? ????? ???????????.");
+              for (let index = 0; index < beforeHistory.records.length; index += 1) {
+                if (canonicalize(beforeHistory.records[index]) !== canonicalize(afterHistory.records[index])) throw new ProjectRepositoryError("PROJECT_INITIALIZATION_IMMUTABLE", "?????????????????? ?????? ??????? ?????? ?????????? ??????????.");
+              }
+              const appended = afterHistory.records.slice(beforeHistory.records.length);
+              appended.forEach((entry) => {
+                const report = initializationApi.validateInitializationRecord(entry, { projectIdentity: projectId });
+                if (!report.valid || report.record.lifecycle !== "initialized") throw new ProjectRepositoryError("INVALID_PROJECT_INITIALIZATION", "????? ?????? ??????? ?? ?????? ????????.");
+              });
+              const latest = afterHistory.records.at(-1);
+              if ((latest?.identity || null) !== afterHistory.latestInitializationIdentity) throw new ProjectRepositoryError("INVALID_PROJECT_INITIALIZATION_HISTORY", "?????????? ?????? ?? ??????????? ? ????????.");
+              if (!appended.length && beforeHistory.latestInitializationIdentity !== afterHistory.latestInitializationIdentity) throw new ProjectRepositoryError("PROJECT_INITIALIZATION_IMMUTABLE", "?????????? ?????? ?????? ???????? ??? ????? ??????.");
+            }
+          }
+          if ("draft_input" in normalizedPatch) {
+            const gaugeApi = global.YarnAISwatchGauge;
+            const beforeGaugeHistory = next.draft_input?.swatch_gauge_history;
+            const afterGaugeHistory = normalizedPatch.draft_input?.swatch_gauge_history;
+            const beforeGaugeDraft = next.draft_input?.swatch_gauge_draft;
+            const afterGaugeDraft = normalizedPatch.draft_input?.swatch_gauge_draft;
+            if (beforeGaugeHistory || afterGaugeHistory || beforeGaugeDraft || afterGaugeDraft) {
+              const gaugeChanged = canonicalize(beforeGaugeHistory ?? null) !== canonicalize(afterGaugeHistory ?? null) ||
+                canonicalize(beforeGaugeDraft ?? null) !== canonicalize(afterGaugeDraft ?? null);
+              if (!gaugeApi?.normalizeHistory || !gaugeApi?.validateConfirmedRecord || !gaugeApi?.validateDraft) {
+                if (gaugeChanged) throw new ProjectRepositoryError("SWATCH_GAUGE_API_MISSING", "Модуль плотности образца не загружен.");
+              } else {
+                const beforeHistory = gaugeApi.normalizeHistory(beforeGaugeHistory, { projectIdentity: projectId });
+                const afterHistory = gaugeApi.normalizeHistory(afterGaugeHistory, { projectIdentity: projectId });
+                if (afterHistory.records.length < beforeHistory.records.length) {
+                  throw new ProjectRepositoryError("SWATCH_GAUGE_HISTORY_IMMUTABLE", "История плотности не может сокращаться.");
+                }
+                for (let index = 0; index < beforeHistory.records.length; index += 1) {
+                  if (canonicalize(beforeHistory.records[index]) !== canonicalize(afterHistory.records[index])) {
+                    throw new ProjectRepositoryError("SWATCH_GAUGE_HISTORY_IMMUTABLE", "Подтверждённую плотность нельзя незаметно изменить.");
+                  }
+                }
+                afterHistory.records.slice(beforeHistory.records.length).forEach((entry) => {
+                  gaugeApi.validateConfirmedRecord(entry, { projectIdentity: projectId });
+                });
+                if (afterGaugeDraft) gaugeApi.validateDraft(afterGaugeDraft, { projectIdentity: projectId });
+              }
+            }
+          }
           Object.assign(next, normalizedPatch);
         },
         { changed_fields: Object.keys(normalizedPatch) },
@@ -3293,6 +3446,31 @@
       );
     }
 
+    async saveProjectInitialization(projectId, initialization, options = {}) {
+      const api = global.YarnAIProjectInitialization;
+      if (!api?.appendInitialized || !api?.normalizeHistory) throw new ProjectRepositoryError("PROJECT_INITIALIZATION_API_MISSING", "?????? ?????????? ?????? ??????? ?? ????????.");
+      const aggregate = await this.getProject(projectId);
+      const draftInput = aggregate.project.draft_input && typeof aggregate.project.draft_input === "object" && !Array.isArray(aggregate.project.draft_input)
+        ? clone(aggregate.project.draft_input)
+        : {};
+      const before = api.normalizeHistory(draftInput[api.HISTORY_KEY], { allowUntrusted: true, projectIdentity: projectId });
+      const after = api.appendInitialized(before, initialization);
+      if (canonicalize(before) === canonicalize(after)) return clone(aggregate.project);
+      draftInput[api.HISTORY_KEY] = after;
+      return this.updateProject(projectId, { draft_input: draftInput }, { ...options, baseRevision: options.baseRevision ?? aggregate.project.revision });
+    }
+
+    async listProjectInitializations(projectId, options = {}) {
+      const api = global.YarnAIProjectInitialization;
+      if (!api?.normalizeHistory) throw new ProjectRepositoryError("PROJECT_INITIALIZATION_API_MISSING", "?????? ?????????? ?????? ??????? ?? ????????.");
+      const aggregate = await this.getProject(projectId, options);
+      return clone(api.normalizeHistory(aggregate.project.draft_input?.[api.HISTORY_KEY], { allowUntrusted: true, projectIdentity: projectId }).records);
+    }
+
+    async getLatestProjectInitialization(projectId, options = {}) {
+      const records = await this.listProjectInitializations(projectId, options);
+      return records.at(-1) || null;
+    }
     async _transition(projectId, kind, transition, payload = {}) {
       return this._mutateProject(projectId, kind, transition, payload);
     }
@@ -3741,7 +3919,10 @@
         };
         const next = clone(before);
         next.active_calculation_id = calculationId;
-        next.draft_input = clone(requestPayload);
+        const previousDraft = before.draft_input && typeof before.draft_input === "object" && !Array.isArray(before.draft_input)
+          ? clone(before.draft_input)
+          : {};
+        next.draft_input = { ...previousDraft, ...clone(requestPayload) };
         next.has_unfinished_calculation = false;
         if (next.workspace_status === "DRAFT") {
           next.workspace_status = "ACTIVE";
@@ -3963,6 +4144,13 @@
         throw mapStorageError(error);
       }
       return clone(record);
+    }
+
+    async listPatternFiles(projectId) {
+      await this._validatedCurrentProject(projectId);
+      const database = await this._database();
+      const records = await readByProject(database, "pattern_files", "by_project_created", projectId);
+      return clone(records);
     }
 
     async getPatternFile(projectId, materialId) {
@@ -4463,6 +4651,29 @@
           "Ревизия плана выполнения устарела или повреждена.",
         );
       }
+      const currentState = current.state;
+      if (currentState?.status === "ready" && !["planning", "stale"].includes(state.status)) {
+        throw new ProjectRepositoryError(
+          "PATTERN_EXECUTION_PLAN_READY_IMMUTABLE",
+          "Готовый план нельзя заменить напрямую; требуется явная stale/rebuild-операция.",
+        );
+      }
+      if (currentState?.status === "ready" && state.status === "planning" && (state.interruptedOperation?.status !== "in_progress" || state.interruptedOperation?.baseRevision !== currentState.revision)) {
+        throw new ProjectRepositoryError(
+          "PATTERN_EXECUTION_PLAN_REBUILD_INVALID",
+          "Пересборка готового плана не имеет доказанной исходной ревизии.",
+        );
+      }
+      const planApi = global.YarnAIPatternExecutionPlan;
+      if (["ready", "blocked"].includes(state.status) && state.plan?.contractId === "PATTERN_EXECUTION_PLAN_V2" && planApi) {
+        const validation = planApi.validatePlanState(state);
+        if (validation.structural.some((entry) => entry.severity === "critical") || validation.semantic.some((entry) => entry.severity === "critical") || state.planFingerprint !== planApi.calculatePlanFingerprint(state)) {
+          throw new ProjectRepositoryError(
+            "PATTERN_EXECUTION_PLAN_INTEGRITY_INVALID",
+            "План Stage 22 не прошёл проверку структуры, смысла и fingerprint.",
+          );
+        }
+      }
       return this.updateCalculationProgress(
         projectId,
         calculationId,
@@ -4471,6 +4682,1867 @@
         { ...options, baseProgressRevision: current.revision },
       );
     }
+
+    async getProjectExecutionPlanPreparation(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PROJECT_EXECUTION_PLAN_PREPARATION");
+    }
+
+    async ensureProjectExecutionPlanPreparation(projectId, calculationId, state, options = {}) {
+      global.YarnAIProjectExecutionPlan.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      return this.ensureCalculationProgress(projectId, calculationId, "PROJECT_EXECUTION_PLAN_PREPARATION", state, options);
+    }
+
+    async updateProjectExecutionPlanPreparation(projectId, calculationId, state, options = {}) {
+      const current = await this.getProjectExecutionPlanPreparation(projectId, calculationId);
+      const api = global.YarnAIProjectExecutionPlan;
+      const before = api.validateProgressState(current.state, { projectIdentity: projectId, calculationId });
+      const after = api.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      if (after.history.length < before.history.length) throw new ProjectRepositoryError("PROJECT_EXECUTION_PLAN_HISTORY_IMMUTABLE", "Immutable history.");
+      for (let index = 0; index < before.history.length; index += 1) {
+        if (canonicalize(before.history[index]) !== canonicalize(after.history[index])) throw new ProjectRepositoryError("PROJECT_EXECUTION_PLAN_HISTORY_IMMUTABLE", "Immutable revision.");
+      }
+      if (after.history.length === before.history.length && after.currentRevisionIdentity !== before.currentRevisionIdentity) throw new ProjectRepositoryError("PROJECT_EXECUTION_PLAN_HISTORY_INVALID", "Current revision mismatch.");
+      return this.updateCalculationProgress(projectId, calculationId, "PROJECT_EXECUTION_PLAN_PREPARATION", after, { ...options, baseProgressRevision: current.revision });
+    }
+
+    async getProjectExecutionStart(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PROJECT_EXECUTION_START");
+    }
+
+    async ensureProjectExecutionStart(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectExecutionStart;
+      if (!api) throw new ProjectRepositoryError("PROJECT_EXECUTION_START_VALIDATOR_MISSING", "Проверка начала выполнения недоступна.");
+      api.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      const saved = await this.ensureCalculationProgress(projectId, calculationId, "PROJECT_EXECUTION_START", state, options);
+      api.validateProgressState(saved.state, { projectIdentity: projectId, calculationId });
+      return saved;
+    }
+
+    async updateProjectExecutionStart(projectId, calculationId, state, options = {}) {
+      void projectId;
+      void calculationId;
+      void state;
+      void options;
+      throw new ProjectRepositoryError(
+        "PROJECT_EXECUTION_START_IMMUTABLE",
+        "Зафиксированное начало выполнения нельзя изменить.",
+      );
+    }
+
+    async getProjectExecutionFirstStep(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PROJECT_EXECUTION_FIRST_STEP");
+    }
+
+    async ensureProjectExecutionFirstStep(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectExecutionFirstStep;
+      const stage66Api = global.YarnAIProjectExecutionStart;
+      if (!api || !stage66Api) {
+        throw new ProjectRepositoryError(
+          "PROJECT_EXECUTION_FIRST_STEP_VALIDATOR_MISSING",
+          "Проверка первого шага недоступна.",
+        );
+      }
+      const checked = api.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      const project = await this._validatedCurrentProject(projectId);
+      const stage66Record = await this.getProjectExecutionStart(projectId, calculationId);
+      const assessment = api.assessSource({ projectIdentity: projectId, project, stage66Record, stage66Domain: stage66Api });
+      if (!assessment.ready) {
+        throw new ProjectRepositoryError(assessment.diagnostic.code, assessment.diagnostic.message);
+      }
+      api.validateBinding(checked.snapshot, assessment);
+      const saved = await this.ensureCalculationProgress(
+        projectId,
+        calculationId,
+        "PROJECT_EXECUTION_FIRST_STEP",
+        checked,
+        options,
+      );
+      const savedState = api.validateProgressState(saved.state, { projectIdentity: projectId, calculationId });
+      api.validateBinding(savedState.snapshot, assessment);
+      return saved;
+    }
+
+    async updateProjectExecutionFirstStep(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectExecutionFirstStep;
+      const stage66Api = global.YarnAIProjectExecutionStart;
+      if (!api || !stage66Api) {
+        throw new ProjectRepositoryError(
+          "PROJECT_EXECUTION_FIRST_STEP_VALIDATOR_MISSING",
+          "Проверка первого шага недоступна.",
+        );
+      }
+      const operationId = api.validateOperationId(options.operationId);
+      const after = api.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      const project = await this._validatedCurrentProject(projectId);
+      const stage66Record = await this.getProjectExecutionStart(projectId, calculationId);
+      const assessment = api.assessSource({ projectIdentity: projectId, project, stage66Record, stage66Domain: stage66Api });
+      if (!assessment.ready) throw new ProjectRepositoryError(assessment.diagnostic.code, assessment.diagnostic.message);
+      api.validateBinding(after.snapshot, assessment);
+      const current = await this.getProjectExecutionFirstStep(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Запись первого шага не найдена.");
+      const before = api.validateProgressState(current.state, { projectIdentity: projectId, calculationId });
+      api.validateBinding(before.snapshot, assessment);
+      const existingEvent = before.snapshot.audit.find((entry) => entry.operationId === operationId);
+      const proposedEvent = after.snapshot.audit.find((entry) => entry.operationId === operationId);
+      if (existingEvent) {
+        if (!proposedEvent || proposedEvent.event !== existingEvent.event) {
+          throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Operation ID уже использован другой операцией.");
+        }
+        return { project: clone(project), progress: clone(current), replayed: true };
+      }
+      if (options.expectedRevision !== before.snapshot.revision) {
+        throw new ProjectRepositoryError("REVISION_CONFLICT", "Первый шаг изменён в другой вкладке. Обновите страницу.");
+      }
+      if (options.expectedFingerprint !== before.snapshot.fingerprint) {
+        throw new ProjectRepositoryError("SOURCE_FINGERPRINT_MISMATCH", "Открыта устаревшая версия первого шага.");
+      }
+      if (!proposedEvent || proposedEvent.revision !== before.snapshot.revision + 1 || after.snapshot.revision !== before.snapshot.revision + 1) {
+        throw new ProjectRepositoryError("REVISION_CONFLICT", "Новая revision первого шага повреждена.");
+      }
+      const immutableFields = ["format", "version", "identity", "projectIdentity", "calculationId", "source", "step", "context"];
+      if (immutableFields.some((field) => api.canonicalize(before.snapshot[field]) !== api.canonicalize(after.snapshot[field])) || before.snapshot.timestamps.createdAt !== after.snapshot.timestamps.createdAt) {
+        throw new ProjectRepositoryError("PROJECT_EXECUTION_FIRST_STEP_IMMUTABLE", "Источник и цель первого шага нельзя изменить.");
+      }
+      if (before.snapshot.lifecycle === "completed") {
+        throw new ProjectRepositoryError("PROJECT_EXECUTION_FIRST_STEP_IMMUTABLE", "Завершённый первый шаг нельзя изменить.");
+      }
+      try {
+        return await this.updateCalculationProgress(
+          projectId,
+          calculationId,
+          "PROJECT_EXECUTION_FIRST_STEP",
+          after,
+          {
+            ...options,
+            baseProgressRevision: current.revision,
+            operationKind: options.operationKind || proposedEvent.event,
+          },
+        );
+      } catch (error) {
+        if (error?.code !== "PROGRESS_REVISION_CONFLICT") throw error;
+        const fresh = await this.getProjectExecutionFirstStep(projectId, calculationId);
+        if (fresh) {
+          const freshState = api.validateProgressState(fresh.state, { projectIdentity: projectId, calculationId });
+          const replay = freshState.snapshot.audit.find((entry) => entry.operationId === operationId);
+          if (replay?.event === proposedEvent.event) {
+            return { project: clone(project), progress: clone(fresh), replayed: true };
+          }
+        }
+        throw new ProjectRepositoryError("REVISION_CONFLICT", "Первый шаг изменён параллельно и не был перезаписан.");
+      }
+    }
+
+    async getProjectExecutionNextStep(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PROJECT_EXECUTION_NEXT_STEP_PREPARATION");
+    }
+
+    async ensureProjectExecutionNextStep(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectExecutionNextStep;
+      const stage65Api = global.YarnAIProjectExecutionPlan;
+      const stage66Api = global.YarnAIProjectExecutionStart;
+      const stage67Api = global.YarnAIProjectExecutionFirstStep;
+      if (!api || !stage65Api || !stage66Api || !stage67Api) {
+        throw new ProjectRepositoryError("PROJECT_EXECUTION_NEXT_STEP_VALIDATOR_MISSING", "Проверка следующего шага недоступна.");
+      }
+      const candidate = api.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      const aggregate = await this.getProject(projectId);
+      const assessment = api.assessSource({ projectIdentity: projectId, project: aggregate.project, progress: aggregate.progress, stage65Domain: stage65Api, stage66Domain: stage66Api, stage67Domain: stage67Api });
+      if (assessment.lifecycle === "blocked" && candidate.snapshot.lifecycle !== "blocked") throw new ProjectRepositoryError(assessment.diagnostic.code, assessment.diagnostic.message);
+      api.validateBinding(candidate.snapshot, assessment);
+      const existing = await this.getProjectExecutionNextStep(projectId, calculationId);
+      if (existing) {
+        const checked = api.validateProgressState(existing.state, { projectIdentity: projectId, calculationId });
+        api.validateBinding(checked.snapshot, assessment);
+        if (options.operationId === checked.snapshot.audit.operationId && candidate.snapshot.fingerprint !== checked.snapshot.fingerprint) {
+          throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Operation ID уже использован другой подготовкой.");
+        }
+        return existing;
+      }
+      const saved = await this.ensureCalculationProgress(projectId, calculationId, "PROJECT_EXECUTION_NEXT_STEP_PREPARATION", candidate, options);
+      const savedState = api.validateProgressState(saved.state, { projectIdentity: projectId, calculationId });
+      api.validateBinding(savedState.snapshot, assessment);
+      return saved;
+    }
+
+    async updateProjectExecutionNextStep(projectId, calculationId, _state, options = {}) {
+      const current = await this.getProjectExecutionNextStep(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Подготовка следующего шага не найдена.");
+      if (options.expectedRevision !== current.state?.snapshot?.revision) {
+        throw new ProjectRepositoryError("REVISION_CONFLICT", "Подготовка следующего шага уже изменена в другой вкладке.");
+      }
+      throw new ProjectRepositoryError("PROJECT_EXECUTION_NEXT_STEP_IMMUTABLE", "Подготовку следующего шага нельзя изменить.");
+    }
+    async getProjectExecutionNextStepClarification(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PROJECT_EXECUTION_NEXT_STEP_CLARIFICATION");
+    }
+
+    async ensureProjectExecutionNextStepClarification(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectExecutionNextStepClarification;
+      const stage65Api = global.YarnAIProjectExecutionPlan;
+      const stage66Api = global.YarnAIProjectExecutionStart;
+      const stage67Api = global.YarnAIProjectExecutionFirstStep;
+      const stage68Api = global.YarnAIProjectExecutionNextStep;
+      if (!api || !stage65Api || !stage66Api || !stage67Api || !stage68Api) {
+        throw new ProjectRepositoryError("PROJECT_EXECUTION_NEXT_STEP_CLARIFICATION_VALIDATOR_MISSING", "Проверка уточнения недоступна.");
+      }
+      const candidate = api.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      const aggregate = await this.getProject(projectId);
+      const assessment = api.assessSource({
+        projectIdentity: projectId, project: aggregate.project, progress: aggregate.progress,
+        stage65Domain: stage65Api, stage66Domain: stage66Api, stage67Domain: stage67Api, stage68Domain: stage68Api,
+      });
+      if (assessment.lifecycle !== "ready") {
+        throw new ProjectRepositoryError(assessment.diagnostic?.code || "PROJECT_EXECUTION_NEXT_STEP_CLARIFICATION_BLOCKED", assessment.diagnostic?.message || "Уточнение заблокировано.");
+      }
+      api.validateBinding(candidate.snapshot, assessment);
+      const existing = await this.getProjectExecutionNextStepClarification(projectId, calculationId);
+      if (existing) {
+        const checked = api.validateProgressState(existing.state, { projectIdentity: projectId, calculationId });
+        api.validateBinding(checked.snapshot, assessment);
+        if (options.operationId === checked.snapshot.audit.operationId && candidate.snapshot.fingerprint !== checked.snapshot.fingerprint) {
+          throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Operation ID уже использован другим уточнением.");
+        }
+        if (candidate.snapshot.fingerprint !== checked.snapshot.fingerprint) {
+          throw new ProjectRepositoryError("PROJECT_EXECUTION_NEXT_STEP_CLARIFICATION_IMMUTABLE", "Подтверждённое уточнение нельзя изменить.");
+        }
+        return existing;
+      }
+      if (options.expectedProjectRevision !== undefined && options.expectedProjectRevision !== aggregate.project.revision) {
+        throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      }
+      const saved = await this.ensureCalculationProgress(projectId, calculationId, "PROJECT_EXECUTION_NEXT_STEP_CLARIFICATION", candidate, options);
+      const savedState = api.validateProgressState(saved.state, { projectIdentity: projectId, calculationId });
+      api.validateBinding(savedState.snapshot, assessment);
+      if (options.operationId === savedState.snapshot.audit.operationId && candidate.snapshot.fingerprint !== savedState.snapshot.fingerprint) {
+        throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Operation ID уже использован другим уточнением.");
+      }
+      if (candidate.snapshot.fingerprint !== savedState.snapshot.fingerprint) {
+        throw new ProjectRepositoryError("PROJECT_EXECUTION_NEXT_STEP_CLARIFICATION_IMMUTABLE", "Подтверждённое уточнение нельзя изменить.");
+      }
+      return saved;
+    }
+
+    async updateProjectExecutionNextStepClarification(projectId, calculationId, _state, options = {}) {
+      const current = await this.getProjectExecutionNextStepClarification(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Подтверждённое уточнение не найдено.");
+      if (options.expectedRevision !== current.state?.snapshot?.revision) {
+        throw new ProjectRepositoryError("REVISION_CONFLICT", "Уточнение изменено в другой вкладке.");
+      }
+      throw new ProjectRepositoryError("PROJECT_EXECUTION_NEXT_STEP_CLARIFICATION_IMMUTABLE", "Подтверждённое уточнение нельзя изменить.");
+    }
+    async listFoundationSectionExecutionPreparations(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      if (project.active_calculation_id !== effectiveCalculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Расчёт проекта изменился. Подготовьте участок заново.");
+      const api = global.YarnAIFoundationSectionExecutionPreparation;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_PREPARATION_VALIDATOR_MISSING", "Проверка подготовки временно недоступна.");
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, api.KIND])));
+      await transactionComplete(transaction);
+      const selected = records.filter((entry) => entry.project_id === projectId && !entry.deleted_at);
+      for (const entry of selected) {
+        validateProgressRecord(entry, projectId, effectiveCalculationId, api.KIND);
+        if (entry.conflict_id || entry.validation_status === "IMPORTED_UNPROVEN" || entry.quarantined || entry.epoch !== entry.state?.epoch) throw new ProjectRepositoryError("PREPARATION_RECORD_CONFLICT", "Сохранённые версии подготовки конфликтуют; автоматический выбор невозможен.");
+        try { api.validateProgressState(entry.state, { allowSourceInvalid: true }); }
+        catch (error) { throw new ProjectRepositoryError(error?.code || "CORRUPTED_DRAFT", error?.userMessage || "Черновик подготовки повреждён."); }
+      }
+      selected.sort((left, right) => left.epoch - right.epoch);
+      const epochs = new Set();
+      selected.forEach((entry) => { if (epochs.has(entry.epoch)) throw new ProjectRepositoryError("PREPARATION_RECORD_CONFLICT", "Найдено несколько записей одной версии подготовки."); epochs.add(entry.epoch); });
+      for (let index = 1; index < selected.length; index += 1) {
+        if (selected[index - 1].state.lifecycle !== "stale" || selected[index].state.predecessorIdentity !== selected[index - 1].state.identity) throw new ProjectRepositoryError("PREPARATION_RECORD_CONFLICT", "Связь версий подготовки повреждена.");
+      }
+      const nonterminal = selected.filter((entry) => !["stale", "completed"].includes(entry.state.lifecycle));
+      if (nonterminal.length > 1 || (nonterminal.length === 1 && nonterminal[0] !== selected.at(-1))) throw new ProjectRepositoryError("PREPARATION_RECORD_CONFLICT", "Найдено несколько текущих версий подготовки.");
+      return clone(selected);
+    }
+
+    async getCurrentFoundationSectionExecutionPreparation(projectId, calculationId = null) {
+      const records = await this.listFoundationSectionExecutionPreparations(projectId, calculationId);
+      return records.at(-1) || null;
+    }
+
+    _foundationPreparationAssessment(aggregate, options = {}) {
+      const api = global.YarnAIFoundationSectionExecutionPreparation;
+      const assessment = api.assessSource({
+        projectId: aggregate.project.project_id, project: aggregate.project, progress: aggregate.progress,
+        stage63Domain: global.YarnAISwatchGauge, stage65Domain: global.YarnAIProjectExecutionPlan,
+        stage66Domain: global.YarnAIProjectExecutionStart, stage67Domain: global.YarnAIProjectExecutionFirstStep,
+        stage68Domain: global.YarnAIProjectExecutionNextStep, stage69Domain: global.YarnAIProjectExecutionNextStepClarification,
+        preparationProgressRevision: options.preparationProgressRevision ?? null, validatedAt: options.validatedAt || utcNow(),
+      });
+      if (assessment.lifecycle !== "ready") throw new ProjectRepositoryError(assessment.diagnostic?.code || "SOURCE_STALE", assessment.diagnostic?.message || "Исходные данные проекта изменились.");
+      return assessment;
+    }
+
+    async ensureFoundationSectionExecutionPreparation(projectId, calculationId, stateOrAssessment = null, options = {}) {
+      const api = global.YarnAIFoundationSectionExecutionPreparation;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_PREPARATION_VALIDATOR_MISSING", "Проверка подготовки временно недоступна.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Расчёт проекта изменился. Подготовьте участок заново.");
+      const existing = await this.getCurrentFoundationSectionExecutionPreparation(projectId, calculationId);
+      const assessment = this._foundationPreparationAssessment(aggregate, { validatedAt: options.timestamp, preparationProgressRevision: existing?.revision ?? null });
+      const candidate = stateOrAssessment?.kind === api.KIND ? api.validateProgressState(stateOrAssessment, { assessment }) : api.createInitialState(assessment, { epoch: 1, createdAt: options.timestamp || assessment.source.validatedAt });
+      if (existing) {
+        const checked = api.validateProgressState(existing.state, { assessment });
+        if (candidate.identity !== checked.identity || candidate.fingerprint !== checked.fingerprint) throw new ProjectRepositoryError("PREPARATION_RECORD_CONFLICT", "Текущая подготовка уже существует с другим содержимым.");
+        return clone(existing);
+      }
+      if (candidate.epoch !== 1 || candidate.predecessorIdentity !== null) throw new ProjectRepositoryError("PREPARATION_RECORD_CONFLICT", "Первая версия подготовки должна иметь epoch 1.");
+      if (options.expectedProjectRevision !== undefined && options.expectedProjectRevision !== aggregate.project.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      try {
+        return await this.ensureCalculationProgress(projectId, calculationId, api.KIND, candidate, { ...options, baseProjectRevision: aggregate.project.revision, projectStage: "foundation_section_preparation_collecting", operationKind: options.operationKind || "FOUNDATION_SECTION_PREPARATION_CREATED" });
+      } catch (error) {
+        if (!["REVISION_CONFLICT", "PROGRESS_REVISION_CONFLICT"].includes(error?.code)) throw error;
+        const fresh = await this.getCurrentFoundationSectionExecutionPreparation(projectId, calculationId);
+        if (fresh && fresh.state?.identity === candidate.identity && fresh.state?.fingerprint === candidate.fingerprint) return fresh;
+        throw error;
+      }
+    }
+
+    async updateFoundationSectionExecutionPreparation(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIFoundationSectionExecutionPreparation;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_PREPARATION_VALIDATOR_MISSING", "Проверка подготовки временно недоступна.");
+      const current = await this.getCurrentFoundationSectionExecutionPreparation(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Подготовка не найдена.");
+      const project = await this._validatedCurrentProject(projectId);
+      if (options.expectedProjectRevision !== undefined && project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      if ((options.expectedProgressRevision !== undefined && current.revision !== options.expectedProgressRevision) || (options.expectedDomainRevision !== undefined && current.state.revision !== options.expectedDomainRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Подготовка изменена в другой вкладке. Обновите страницу.");
+      const aggregate = await this.getProject(projectId);
+      let assessment = null;
+      try { assessment = this._foundationPreparationAssessment(aggregate, { validatedAt: options.timestamp, preparationProgressRevision: current.revision }); }
+      catch (error) { if (state?.lifecycle !== "stale") throw error; }
+      let candidate;
+      try { candidate = api.validateProgressState(state, state?.lifecycle === "stale" ? { allowSourceInvalid: true } : assessment ? { assessment } : { allowSourceInvalid: true }); }
+      catch (error) { throw new ProjectRepositoryError(error?.code || "CORRUPTED_DRAFT", error?.userMessage || "Подготовка повреждена."); }
+      if (candidate.identity !== current.state.identity || candidate.epoch !== current.epoch) throw new ProjectRepositoryError("PREPARATION_RECORD_CONFLICT", "Изменение относится к другой версии подготовки.");
+      if (candidate.lifecycle === "stale" && canonicalize(candidate.source) !== canonicalize(current.state.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Исходные данные проекта изменились. Подготовьте участок заново.");
+      if (!assessment && candidate.lifecycle !== "stale") throw new ProjectRepositoryError("SOURCE_STALE", "Исходные данные проекта изменились. Подготовьте участок заново.");
+      if (candidate.revision !== current.state.revision + 1) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current);
+        throw new ProjectRepositoryError(current.state.lifecycle === "completed" ? "COMPLETED_PREPARATION_IMMUTABLE" : "REVISION_CONFLICT", current.state.lifecycle === "completed" ? "Подтверждённую подготовку нельзя изменить." : "Подготовка изменена в другой вкладке.");
+      }
+      try {
+        return await this._updateFoundationSectionExecutionPreparationRecord(current, candidate, { ...options, sourceProjectRevision: aggregate.project.revision });
+      } catch (error) {
+        if (error?.code !== "REVISION_CONFLICT") throw error;
+        const receipt = candidate.operations.at(-1); const fresh = await this.getCurrentFoundationSectionExecutionPreparation(projectId, calculationId);
+        const replay = fresh?.state?.operations?.find((entry) => entry.operationId === receipt?.operationId);
+        if (replay && replay.command === receipt.command && replay.payloadFingerprint === receipt.payloadFingerprint) return fresh;
+        throw error;
+      }
+    }
+
+    async _updateFoundationSectionExecutionPreparationRecord(current, candidate, options = {}) {
+      const projectId = current.project_id; const calculationId = current.calculation_id;
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (options.sourceProjectRevision !== undefined && before.revision !== options.sourceProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+        if (before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Расчёт проекта изменился.");
+        const database = await this._database(); const read = database.transaction("progress", "readonly");
+        const stored = await requestResult(read.objectStore("progress").index("by_scope_epoch").get([projectId, calculationId, candidate.kind, current.epoch])); await transactionComplete(read);
+        if (!stored || stored.progress_id !== current.progress_id || stored.revision !== current.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Подготовка изменена в другой вкладке.");
+        const timestamp = options.timestamp || utcNow(); const nextProgress = clone(stored); nextProgress.state = clone(candidate); nextProgress.updated_at = timestamp; nextProgress.revision += 1;
+        const nextProject = clone(before); nextProject.current_stage = `foundation_section_preparation_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "FOUNDATION_SECTION_PREPARATION_UPDATED", { calculation_id: calculationId, progress_id: nextProgress.progress_id, progress_epoch: nextProgress.epoch, progress_revision: nextProgress.revision, client_operation_id: candidate.operations.at(-1)?.operationId || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const liveProject = await requestResult(transaction.objectStore("projects").get(projectId)); const liveProgress = await requestResult(transaction.objectStore("progress").get(stored.progress_id)); if (!liveProject || liveProject.revision !== before.revision || !liveProgress || liveProgress.revision !== stored.revision) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "Подготовка изменена в другой вкладке."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); }
+        catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(nextProgress);
+      });
+    }
+
+    async rebuildFoundationSectionExecutionPreparation(projectId, calculationId = null, options = {}) {
+      const api = global.YarnAIFoundationSectionExecutionPreparation;
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      const records = await this.listFoundationSectionExecutionPreparations(projectId, effectiveCalculationId);
+      const predecessor = records.at(-1);
+      if (!predecessor || predecessor.state.lifecycle !== "stale") throw new ProjectRepositoryError("INVALID_LIFECYCLE_TRANSITION", "Создать новую версию можно только после устаревшей подготовки.");
+      const aggregate = await this.getProject(projectId);
+      const assessment = this._foundationPreparationAssessment(aggregate, { validatedAt: options.timestamp });
+      const sourceProjectRevision = aggregate.project.revision;
+      const epoch = predecessor.epoch + 1;
+      const state = api.createInitialState(assessment, { epoch, predecessorIdentity: predecessor.state.identity, createdAt: options.timestamp || assessment.source.validatedAt });
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.revision !== sourceProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке.");
+        if (before.active_calculation_id !== effectiveCalculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Расчёт проекта изменился.");
+        const timestamp = options.timestamp || utcNow();
+        const progress = this._initialProgress(projectId, effectiveCalculationId, api.KIND, timestamp); progress.epoch = epoch; progress.state = clone(state);
+        const nextProject = clone(before); nextProject.current_stage = "foundation_section_preparation_collecting"; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "FOUNDATION_SECTION_PREPARATION_REBUILT", { calculation_id: effectiveCalculationId, progress_id: progress.progress_id, progress_epoch: epoch, progress_revision: 1, predecessor_identity: predecessor.state.identity, progress_state: clone(state) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database(); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); if (!storedProject || storedProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); }
+        catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    _foundationSectionExecutionAssessment(aggregate, options = {}) {
+      const api = global.YarnAIFoundationSectionExecution;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_EXECUTION_VALIDATOR_MISSING", "Проверка выполнения резинки временно недоступна.");
+      const assessment = api.assessSource({
+        projectId: aggregate.project.project_id,
+        project: aggregate.project,
+        progress: aggregate.progress,
+        stage63Domain: global.YarnAISwatchGauge,
+        stage65Domain: global.YarnAIProjectExecutionPlan,
+        stage66Domain: global.YarnAIProjectExecutionStart,
+        stage67Domain: global.YarnAIProjectExecutionFirstStep,
+        stage68Domain: global.YarnAIProjectExecutionNextStep,
+        stage69Domain: global.YarnAIProjectExecutionNextStepClarification,
+        stage70Domain: global.YarnAIFoundationSectionExecutionPreparation,
+        validatedAt: options.validatedAt || utcNow(),
+      });
+      if (assessment.lifecycle !== "ready") throw new ProjectRepositoryError(assessment.diagnostic?.code || "SOURCE_STALE", assessment.diagnostic?.message || "Исходные данные проекта изменились.");
+      return assessment;
+    }
+
+    async getFoundationSectionExecution(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "FOUNDATION_SECTION_EXECUTION");
+    }
+
+    async ensureFoundationSectionExecution(projectId, calculationId, stateOrAssessment = null, options = {}) {
+      const api = global.YarnAIFoundationSectionExecution;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_EXECUTION_VALIDATOR_MISSING", "Проверка выполнения резинки временно недоступна.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      const assessment = this._foundationSectionExecutionAssessment(aggregate, { validatedAt: options.timestamp });
+      const candidate = stateOrAssessment?.kind === api.KIND
+        ? api.validateProgressState(stateOrAssessment, { assessment })
+        : api.createInitialState(assessment, { createdAt: options.timestamp || new Date().toISOString() });
+      if (candidate.lifecycle !== "ready" || candidate.revision !== 1 || candidate.operations.length !== 0) throw new ProjectRepositoryError("INVALID_LIFECYCLE_TRANSITION", "Новая запись выполнения должна ожидать начала.");
+      const existing = await this.getFoundationSectionExecution(projectId, calculationId);
+      if (existing) {
+        const checked = api.validateProgressState(existing.state, { assessment });
+        if (checked.identity === candidate.identity && checked.fingerprint === candidate.fingerprint) return clone(existing);
+        throw new ProjectRepositoryError("FOUNDATION_EXECUTION_RECORD_CONFLICT", "Сохранённое выполнение конфликтует с подготовкой.");
+      }
+      if (options.expectedProjectRevision !== undefined && options.expectedProjectRevision !== aggregate.project.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      try {
+        return await this.ensureCalculationProgress(projectId, calculationId, api.KIND, candidate, {
+          ...options,
+          baseProjectRevision: aggregate.project.revision,
+          projectStage: "foundation_section_execution_ready",
+          operationKind: options.operationKind || "FOUNDATION_SECTION_EXECUTION_CREATED",
+        });
+      } catch (error) {
+        if (!["REVISION_CONFLICT", "PROGRESS_REVISION_CONFLICT"].includes(error?.code)) throw error;
+        const fresh = await this.getFoundationSectionExecution(projectId, calculationId);
+        if (fresh?.state?.identity === candidate.identity && fresh.state.fingerprint === candidate.fingerprint) return fresh;
+        throw error;
+      }
+    }
+
+    async updateFoundationSectionExecution(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIFoundationSectionExecution;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_EXECUTION_VALIDATOR_MISSING", "Проверка выполнения резинки временно недоступна.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      const assessment = this._foundationSectionExecutionAssessment(aggregate, { validatedAt: options.timestamp });
+      let after;
+      try { after = api.validateProgressState(state, { assessment }); }
+      catch (error) { throw new ProjectRepositoryError(error?.code || "EXECUTION_STATE_CORRUPTED", error?.userMessage || "Состояние выполнения повреждено."); }
+      const current = await this.getFoundationSectionExecution(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Выполнение резинки не найдено.");
+      const before = api.validateProgressState(current.state, { assessment });
+      const proposed = after.operations.at(-1);
+      if (proposed?.command === "resume" && global.YarnAIFoundationSectionMeasurement) {
+        const measurementApi = global.YarnAIFoundationSectionMeasurement;
+        const candidates = aggregate.progress.filter((entry) => entry?.kind === measurementApi.KIND && entry?.project_id === projectId && entry?.calculation_id === calculationId && !entry.deleted_at);
+        const boundary = measurementApi.resolveAuthoritativeHistory(candidates); const latestMeasurement = boundary.authoritativeState;
+        if (boundary.terminalReached) throw new ProjectRepositoryError("TARGET_ALREADY_REACHED", "Целевая высота уже подтверждена физическим измерением.");
+        if (boundary.status !== "valid") throw new ProjectRepositoryError(boundary.diagnostic?.code || "MEASUREMENT_HISTORY_CONFLICT", boundary.diagnostic?.message || "История измерений повреждена; продолжение заблокировано.");
+        if (["collecting", "reviewing"].includes(latestMeasurement?.lifecycle)) throw new ProjectRepositoryError("MEASUREMENT_IN_PROGRESS", "Сначала завершите открытую проверку высоты.");
+      }
+      const replay = proposed && before.operations.find((entry) => entry.operationId === proposed.operationId);
+      if (replay) {
+        if (replay.command !== proposed.command || replay.payloadFingerprint !== proposed.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Эта операция уже использована для другого действия.");
+        return { project: clone(aggregate.project), progress: clone(current), replayed: true };
+      }
+      if ((options.expectedProgressRevision !== undefined && current.revision !== options.expectedProgressRevision) || (options.expectedDomainRevision !== undefined && before.revision !== options.expectedDomainRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Выполнение изменено в другой вкладке. Обновите страницу.");
+      if (after.revision !== before.revision + 1 || proposed?.resultingRevision !== after.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Ревизия выполнения повреждена.");
+      if (api.canonicalize(after.source) !== api.canonicalize(before.source) || api.canonicalize(after.executionPlan) !== api.canonicalize(before.executionPlan) || after.identity !== before.identity || after.timestamps.createdAt !== before.timestamps.createdAt || after.physicalResult !== null) throw new ProjectRepositoryError("FOUNDATION_EXECUTION_IMMUTABLE", "Подтверждённый план выполнения нельзя изменить.");
+      try {
+        return await this.updateCalculationProgress(projectId, calculationId, api.KIND, after, {
+          ...options,
+          baseProgressRevision: current.revision,
+          projectStage: `foundation_section_execution_${after.lifecycle}`,
+          operationKind: options.operationKind || `FOUNDATION_SECTION_EXECUTION_${proposed.command.toUpperCase()}`,
+        });
+      } catch (error) {
+        if (error?.code !== "PROGRESS_REVISION_CONFLICT") throw error;
+        const fresh = await this.getFoundationSectionExecution(projectId, calculationId);
+        const freshReceipt = fresh?.state?.operations?.find((entry) => entry.operationId === proposed?.operationId);
+        if (freshReceipt?.command === proposed?.command && freshReceipt.payloadFingerprint === proposed?.payloadFingerprint) return { project: clone((await this.getProject(projectId)).project), progress: fresh, replayed: true };
+        throw new ProjectRepositoryError("REVISION_CONFLICT", "Выполнение изменено параллельно и не было перезаписано.");
+      }
+    }
+
+    _foundationSectionMeasurementAssessment(aggregate, options = {}) {
+      const api = global.YarnAIFoundationSectionMeasurement;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_MEASUREMENT_VALIDATOR_MISSING", "Проверка физического измерения временно недоступна.");
+      const assessment = api.assessSource({
+        projectId: aggregate.project.project_id,
+        project: aggregate.project,
+        progress: aggregate.progress,
+        stage63Domain: global.YarnAISwatchGauge,
+        stage65Domain: global.YarnAIProjectExecutionPlan,
+        stage66Domain: global.YarnAIProjectExecutionStart,
+        stage67Domain: global.YarnAIProjectExecutionFirstStep,
+        stage68Domain: global.YarnAIProjectExecutionNextStep,
+        stage69Domain: global.YarnAIProjectExecutionNextStepClarification,
+        stage70Domain: global.YarnAIFoundationSectionExecutionPreparation,
+        stage71Domain: global.YarnAIFoundationSectionExecution,
+        validatedAt: options.validatedAt || utcNow(),
+      });
+      if (assessment.lifecycle !== "ready") throw new ProjectRepositoryError(assessment.diagnostic?.code || "SOURCE_STALE", assessment.diagnostic?.message || "Исходные данные проекта изменились.");
+      return assessment;
+    }
+
+    async listFoundationSectionMeasurements(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId);
+      const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      if (project.active_calculation_id !== effectiveCalculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      const api = global.YarnAIFoundationSectionMeasurement;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_MEASUREMENT_VALIDATOR_MISSING", "Проверка физического измерения временно недоступна.");
+      const database = await this._database();
+      const transaction = database.transaction("progress", "readonly");
+      const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, api.KIND])));
+      await transactionComplete(transaction);
+      const selected = records.filter((entry) => entry.project_id === projectId && !entry.deleted_at);
+      for (const entry of selected) {
+        validateProgressRecord(entry, projectId, effectiveCalculationId, api.KIND);
+        if (entry.conflict_id || entry.quarantined || entry.validation_status === "IMPORTED_UNPROVEN" || entry.imported_unproven || entry.epoch !== entry.state?.epoch) throw new ProjectRepositoryError("MEASUREMENT_HISTORY_CONFLICT", "Сохранённые попытки измерения конфликтуют.");
+        try { api.validateProgressState(entry.state); }
+        catch (error) { throw new ProjectRepositoryError(error?.code || "MEASUREMENT_STATE_CORRUPTED", error?.userMessage || "Сохранённое измерение повреждено."); }
+      }
+      try { return clone(api.validateHistory(selected)); }
+      catch (error) { throw new ProjectRepositoryError(error?.code || "MEASUREMENT_HISTORY_CONFLICT", error?.userMessage || "История измерений повреждена."); }
+    }
+
+    async getCurrentFoundationSectionMeasurement(projectId, calculationId = null) {
+      const records = await this.listFoundationSectionMeasurements(projectId, calculationId);
+      return records.at(-1) || null;
+    }
+
+    async ensureFoundationSectionMeasurement(projectId, calculationId, stateOrAssessment = null, options = {}) {
+      const api = global.YarnAIFoundationSectionMeasurement;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_MEASUREMENT_VALIDATOR_MISSING", "Проверка физического измерения временно недоступна.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      const assessment = this._foundationSectionMeasurementAssessment(aggregate, { validatedAt: options.timestamp });
+      const history = await this.listFoundationSectionMeasurements(projectId, calculationId);
+      const predecessor = history.at(-1) || null;
+      if (predecessor && predecessor.state.lifecycle !== "completed") {
+        const current = api.validateProgressState(predecessor.state, { assessment });
+        if (stateOrAssessment?.kind === api.KIND) {
+          const proposed = api.validateProgressState(stateOrAssessment, { assessment });
+          if (proposed.identity !== current.identity || proposed.fingerprint !== current.fingerprint) throw new ProjectRepositoryError("MEASUREMENT_HISTORY_CONFLICT", "Текущая попытка уже существует с другим содержимым.");
+        }
+        return clone(predecessor);
+      }
+      if (predecessor?.state.completedSnapshot?.result === "TARGET_REACHED") throw new ProjectRepositoryError("TARGET_ALREADY_REACHED", "Целевая высота уже подтверждена физическим измерением.");
+      if (predecessor && assessment.source.executionStateRevision <= predecessor.state.source.executionStateRevision) throw new ProjectRepositoryError("NEW_EXECUTION_REQUIRED", "Перед новой проверкой продолжите вязать резинку и снова явно приостановите работу.");
+      const epoch = predecessor ? predecessor.epoch + 1 : 1;
+      const candidate = stateOrAssessment?.kind === api.KIND
+        ? api.validateProgressState(stateOrAssessment, { assessment })
+        : api.createInitialState(assessment, { epoch, predecessorIdentity: predecessor?.state.identity || null, createdAt: options.timestamp || utcNow() });
+      if (candidate.epoch !== epoch || candidate.predecessorIdentity !== (predecessor?.state.identity || null) || candidate.lifecycle !== "collecting" || candidate.revision !== 1) throw new ProjectRepositoryError("MEASUREMENT_HISTORY_CONFLICT", "Новая попытка измерения имеет неверную связь с историей.");
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      const sourceProjectRevision = aggregate.project.revision;
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.revision !== sourceProjectRevision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке.");
+        const timestamp = options.timestamp || utcNow();
+        const progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = epoch; progress.state = clone(candidate);
+        const nextProject = clone(before); nextProject.current_stage = "foundation_section_measurement_collecting"; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "FOUNDATION_SECTION_MEASUREMENT_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: epoch, progress_revision: 1, predecessor_identity: candidate.predecessorIdentity, execution_state_revision: candidate.source.executionStateRevision, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database(); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const liveProject = await requestResult(transaction.objectStore("projects").get(projectId)); if (!liveProject || liveProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); }
+        catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async updateFoundationSectionMeasurement(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIFoundationSectionMeasurement;
+      if (!api) throw new ProjectRepositoryError("FOUNDATION_MEASUREMENT_VALIDATOR_MISSING", "Проверка физического измерения временно недоступна.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      const assessment = this._foundationSectionMeasurementAssessment(aggregate, { validatedAt: options.timestamp });
+      let after; try { after = api.validateProgressState(state, { assessment }); } catch (error) { throw new ProjectRepositoryError(error?.code || "MEASUREMENT_STATE_CORRUPTED", error?.userMessage || "Состояние измерения повреждено."); }
+      const current = await this.getCurrentFoundationSectionMeasurement(projectId, calculationId);
+      if (!current || current.epoch !== after.epoch) throw new ProjectRepositoryError("MEASUREMENT_HISTORY_CONFLICT", "Изменение относится не к текущей попытке.");
+      const before = api.validateProgressState(current.state, { assessment });
+      const proposed = after.operations.at(-1); const replay = proposed && before.operations.find((entry) => entry.operationId === proposed.operationId);
+      if (replay) { if (replay.command !== proposed.command || replay.payloadFingerprint !== proposed.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Эта операция уже использована для другого действия."); return { project: clone(aggregate.project), progress: clone(current), replayed: true }; }
+      if (before.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_MEASUREMENT_IMMUTABLE", "Подтверждённое физическое измерение нельзя изменить.");
+      if ((options.expectedProgressRevision !== undefined && current.revision !== options.expectedProgressRevision) || (options.expectedDomainRevision !== undefined && before.revision !== options.expectedDomainRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Измерение изменено в другой вкладке. Обновите страницу.");
+      if (after.revision !== before.revision + 1 || proposed?.resultingRevision !== after.revision || after.identity !== before.identity || api.canonicalize(after.source) !== api.canonicalize(before.source) || api.canonicalize(after.context) !== api.canonicalize(before.context) || after.timestamps.createdAt !== before.timestamps.createdAt || after.predecessorIdentity !== before.predecessorIdentity) throw new ProjectRepositoryError("MEASUREMENT_STATE_CORRUPTED", "Неизменяемая часть попытки была изменена.");
+      const sourceProjectRevision = aggregate.project.revision;
+      try {
+        return await this._serialize(projectId, async () => {
+          const project = await this._validatedCurrentProject(projectId); if (project.revision !== sourceProjectRevision || project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке.");
+          const database = await this._database(); const read = database.transaction("progress", "readonly"); const stored = await requestResult(read.objectStore("progress").index("by_scope_epoch").get([projectId, calculationId, api.KIND, current.epoch])); await transactionComplete(read);
+          if (!stored || stored.progress_id !== current.progress_id || stored.revision !== current.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Измерение изменено в другой вкладке.");
+          const timestamp = options.timestamp || utcNow(); const nextProgress = clone(stored); nextProgress.state = clone(after); nextProgress.updated_at = timestamp; nextProgress.revision += 1;
+          const suffix = after.lifecycle === "completed" ? after.completedSnapshot.result.toLowerCase() : after.lifecycle; const nextProject = clone(project); nextProject.current_stage = `foundation_section_measurement_${suffix}`; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+          const operation = createOperation(nextProject, options.operationKind || `FOUNDATION_SECTION_MEASUREMENT_${proposed.command.toUpperCase()}`, { calculation_id: calculationId, progress_id: stored.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, client_operation_id: proposed.operationId, progress_state: clone(after) }, timestamp, project.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+          const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+          try { const liveProject = await requestResult(transaction.objectStore("projects").get(projectId)); const liveProgress = await requestResult(transaction.objectStore("progress").get(stored.progress_id)); if (!liveProject || liveProject.revision !== project.revision || !liveProgress || liveProgress.revision !== stored.revision) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "Измерение изменено в другой вкладке."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); }
+          catch (error) { throw mapStorageError(error); }
+          this._notify(projectId, nextProject.revision, operation.kind); return { project: clone(nextProject), progress: clone(nextProgress), replayed: false };
+        });
+      } catch (error) {
+        if (error?.code !== "REVISION_CONFLICT") throw error;
+        const fresh = await this.getCurrentFoundationSectionMeasurement(projectId, calculationId); const receipt = fresh?.state?.operations?.find((entry) => entry.operationId === proposed?.operationId);
+        if (receipt?.command === proposed?.command && receipt.payloadFingerprint === proposed?.payloadFingerprint) return { project: clone((await this.getProject(projectId)).project), progress: fresh, replayed: true };
+        throw error;
+      }
+    }
+
+    _primaryFabricPreparationAssessment(aggregate, options = {}) {
+      const api = global.YarnAIPrimaryFabricPreparation;
+      if (!api) throw new ProjectRepositoryError("PRIMARY_FABRIC_PREPARATION_VALIDATOR_MISSING", "Проверка подготовки основного полотна временно недоступна.");
+      const assessment = api.assessSource({
+        projectId: aggregate.project.project_id,
+        project: aggregate.project,
+        progress: aggregate.progress,
+        stage63Domain: global.YarnAISwatchGauge,
+        stage65Domain: global.YarnAIProjectExecutionPlan,
+        stage66Domain: global.YarnAIProjectExecutionStart,
+        stage67Domain: global.YarnAIProjectExecutionFirstStep,
+        stage68Domain: global.YarnAIProjectExecutionNextStep,
+        stage69Domain: global.YarnAIProjectExecutionNextStepClarification,
+        stage70Domain: global.YarnAIFoundationSectionExecutionPreparation,
+        stage71Domain: global.YarnAIFoundationSectionExecution,
+        stage72Domain: global.YarnAIFoundationSectionMeasurement,
+        validatedAt: options.validatedAt || utcNow(),
+      });
+      if (assessment.lifecycle !== "ready") throw new ProjectRepositoryError(assessment.diagnostic?.code || "SOURCE_STALE", assessment.diagnostic?.message || "Исходные данные проекта изменились.");
+      return assessment;
+    }
+
+    async getPrimaryFabricPreparation(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PRIMARY_FABRIC_PREPARATION");
+    }
+
+    async ensurePrimaryFabricPreparation(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIPrimaryFabricPreparation;
+      if (!api) throw new ProjectRepositoryError("PRIMARY_FABRIC_PREPARATION_VALIDATOR_MISSING", "Проверка подготовки основного полотна временно недоступна.");
+      let candidate;
+      try { candidate = api.validateProgressState(state); }
+      catch (error) { throw new ProjectRepositoryError(error?.code || "PREPARATION_STATE_CORRUPTED", error?.userMessage || "Подготовка основного полотна повреждена."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Подготовка относится к другому проекту или расчёту.");
+      if (options.operationId && options.operationId !== candidate.operationReceipt.operationId) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Operation ID не совпадает с подготовкой.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      const assessment = this._primaryFabricPreparationAssessment(aggregate, { validatedAt: options.timestamp });
+      try { api.validateBinding(candidate, assessment); }
+      catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || "Подготовка не соответствует текущему проекту."); }
+      const matching = aggregate.progress.filter((entry) => entry?.kind === api.KIND && entry?.project_id === projectId && entry?.calculation_id === calculationId && !entry.deleted_at);
+      if (matching.length > 1 || matching.some((entry) => entry.conflict_id || entry.quarantined || entry.validation_status === "IMPORTED_UNPROVEN" || entry.imported_unproven)) throw new ProjectRepositoryError("PRIMARY_FABRIC_PREPARATION_CONFLICT", "Сохранённые подготовки основного полотна конфликтуют.");
+      const existing = matching[0] || null;
+      if (existing) {
+        let checked;
+        try { checked = api.validateProgressState(existing.state, { assessment }); }
+        catch (error) { throw new ProjectRepositoryError(error?.code || "PREPARATION_STATE_CORRUPTED", error?.userMessage || "Сохранённая подготовка повреждена."); }
+        if (checked.operationReceipt.operationId === candidate.operationReceipt.operationId && checked.operationReceipt.payloadFingerprint !== candidate.operationReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Operation ID уже использован с другими ответами.");
+        if (checked.fingerprint !== candidate.fingerprint) throw new ProjectRepositoryError("PRIMARY_FABRIC_PREPARATION_IMMUTABLE", "Подтверждённую подготовку основного полотна нельзя изменить.");
+        return clone(existing);
+      }
+      if (options.expectedProjectRevision !== undefined && options.expectedProjectRevision !== aggregate.project.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      try {
+        const saved = await this.ensureCalculationProgress(projectId, calculationId, api.KIND, candidate, {
+          ...options,
+          baseProjectRevision: aggregate.project.revision,
+          projectStage: options.projectStage || "primary_fabric_preparation_completed",
+          operationKind: options.operationKind || "PRIMARY_FABRIC_PREPARATION_COMPLETED",
+        });
+        const checked = api.validateProgressState(saved.state);
+        if (checked.fingerprint !== candidate.fingerprint) throw new ProjectRepositoryError("PRIMARY_FABRIC_PREPARATION_IMMUTABLE", "Сохранённая подготовка не совпадает с отправленной.");
+        return clone(saved);
+      } catch (error) {
+        if (!["REVISION_CONFLICT", "PROGRESS_REVISION_CONFLICT"].includes(error?.code)) throw error;
+        const fresh = await this.getPrimaryFabricPreparation(projectId, calculationId);
+        if (fresh) {
+          const checked = api.validateProgressState(fresh.state);
+          if (checked.operationReceipt.operationId === candidate.operationReceipt.operationId && checked.operationReceipt.payloadFingerprint === candidate.operationReceipt.payloadFingerprint && checked.fingerprint === candidate.fingerprint) return clone(fresh);
+        }
+        throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      }
+    }
+
+    async updatePrimaryFabricPreparation(projectId, calculationId, _state, options = {}) {
+      const current = await this.getPrimaryFabricPreparation(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Подготовка основного полотна не найдена.");
+      if (options.expectedRevision !== current.state?.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Подготовка изменена в другой вкладке.");
+      throw new ProjectRepositoryError("PRIMARY_FABRIC_PREPARATION_IMMUTABLE", "Подтверждённую подготовку основного полотна нельзя изменить.");
+    }
+
+    _primaryFabricExecutionAssessment(aggregate, options = {}) {
+      const api = global.YarnAIPrimaryFabricExecution;
+      if (!api) throw new ProjectRepositoryError("PRIMARY_FABRIC_EXECUTION_VALIDATOR_MISSING", "Проверка выполнения основного полотна временно недоступна.");
+      const assessment = api.assessSource({
+        projectId: aggregate.project.project_id, project: aggregate.project, progress: aggregate.progress,
+        stage63Domain: global.YarnAISwatchGauge, stage65Domain: global.YarnAIProjectExecutionPlan,
+        stage66Domain: global.YarnAIProjectExecutionStart, stage67Domain: global.YarnAIProjectExecutionFirstStep,
+        stage68Domain: global.YarnAIProjectExecutionNextStep, stage69Domain: global.YarnAIProjectExecutionNextStepClarification,
+        stage70Domain: global.YarnAIFoundationSectionExecutionPreparation, stage71Domain: global.YarnAIFoundationSectionExecution,
+        stage72Domain: global.YarnAIFoundationSectionMeasurement, stage73Domain: global.YarnAIPrimaryFabricPreparation,
+        validatedAt: options.validatedAt || utcNow(),
+      });
+      if (assessment.lifecycle !== "ready") throw new ProjectRepositoryError(assessment.diagnostic?.code || "SOURCE_STALE", assessment.diagnostic?.message || "Исходные данные проекта изменились.");
+      return assessment;
+    }
+
+    async getPrimaryFabricExecution(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) { const project = await this._validatedCurrentProject(projectId); effectiveCalculationId = project.active_calculation_id; }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PRIMARY_FABRIC_EXECUTION");
+    }
+
+    async ensurePrimaryFabricExecution(projectId, calculationId, stateOrAssessment = null, options = {}) {
+      const api = global.YarnAIPrimaryFabricExecution;
+      if (!api) throw new ProjectRepositoryError("PRIMARY_FABRIC_EXECUTION_VALIDATOR_MISSING", "Проверка выполнения основного полотна временно недоступна.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      const assessment = this._primaryFabricExecutionAssessment(aggregate, { validatedAt: options.timestamp });
+      let candidate;
+      try { candidate = stateOrAssessment?.kind === api.KIND ? api.validateProgressState(stateOrAssessment, { assessment }) : api.createInitialState(assessment, { createdAt: options.timestamp || utcNow() }); }
+      catch (error) { throw new ProjectRepositoryError(error?.code || "EXECUTION_STATE_CORRUPTED", error?.userMessage || "Выполнение основного полотна повреждено."); }
+      if (candidate.lifecycle !== "ready" || candidate.revision !== 1 || candidate.operations.length !== 0) throw new ProjectRepositoryError("INVALID_LIFECYCLE_TRANSITION", "Новая запись выполнения должна ожидать начала.");
+      const existing = await this.getPrimaryFabricExecution(projectId, calculationId);
+      if (existing) { const checked = api.validateProgressState(existing.state, { assessment }); if (checked.identity === candidate.identity && checked.fingerprint === candidate.fingerprint) return clone(existing); throw new ProjectRepositoryError("PRIMARY_FABRIC_EXECUTION_RECORD_CONFLICT", "Сохранённое выполнение конфликтует с подготовкой."); }
+      if (options.expectedProjectRevision !== undefined && options.expectedProjectRevision !== aggregate.project.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      try { return await this.ensureCalculationProgress(projectId, calculationId, api.KIND, candidate, { ...options, baseProjectRevision: aggregate.project.revision, projectStage: "primary_fabric_execution_ready", operationKind: options.operationKind || "PRIMARY_FABRIC_EXECUTION_CREATED" }); }
+      catch (error) { if (!["REVISION_CONFLICT", "PROGRESS_REVISION_CONFLICT"].includes(error?.code)) throw error; const fresh = await this.getPrimaryFabricExecution(projectId, calculationId); if (fresh?.state?.identity === candidate.identity && fresh.state.fingerprint === candidate.fingerprint) return fresh; throw error; }
+    }
+
+    async updatePrimaryFabricExecution(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIPrimaryFabricExecution;
+      if (!api) throw new ProjectRepositoryError("PRIMARY_FABRIC_EXECUTION_VALIDATOR_MISSING", "Проверка выполнения основного полотна временно недоступна.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      const assessment = this._primaryFabricExecutionAssessment(aggregate, { validatedAt: options.timestamp }); let after;
+      try { after = api.validateProgressState(state, { assessment }); } catch (error) { throw new ProjectRepositoryError(error?.code || "EXECUTION_STATE_CORRUPTED", error?.userMessage || "Состояние выполнения повреждено."); }
+      const current = await this.getPrimaryFabricExecution(projectId, calculationId); if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Выполнение основного полотна не найдено.");
+      const before = api.validateProgressState(current.state, { assessment }); const proposed = after.operations.at(-1); const replay = proposed && before.operations.find((entry) => entry.operationId === proposed.operationId);
+      if (proposed?.command === "resume" && global.YarnAIPrimaryFabricMeasurement) {
+        const measurementApi = global.YarnAIPrimaryFabricMeasurement;
+        const candidates = aggregate.progress.filter((entry) => entry?.kind === measurementApi.KIND && entry?.project_id === projectId && entry?.calculation_id === calculationId && !entry.deleted_at);
+        const boundary = measurementApi.resolveAuthoritativeHistory(candidates); const latestMeasurement = boundary.authoritativeState;
+        if (boundary.terminalReached) throw new ProjectRepositoryError("TARGET_ALREADY_REACHED", "Целевая высота основного полотна уже подтверждена физическим измерением.");
+        if (boundary.status !== "valid") throw new ProjectRepositoryError(boundary.diagnostic?.code || "MEASUREMENT_HISTORY_CONFLICT", boundary.diagnostic?.message || "История измерений повреждена; продолжение заблокировано.");
+        if (latestMeasurement?.lifecycle === "collecting") throw new ProjectRepositoryError("MEASUREMENT_IN_PROGRESS", "Сначала завершите открытую проверку высоты.");
+      }
+      if (replay) { if (replay.command !== proposed.command || replay.payloadFingerprint !== proposed.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Эта операция уже использована для другого действия."); return { project: clone(aggregate.project), progress: clone(current), replayed: true }; }
+      if ((options.expectedProgressRevision !== undefined && current.revision !== options.expectedProgressRevision) || (options.expectedDomainRevision !== undefined && before.revision !== options.expectedDomainRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Выполнение изменено в другой вкладке. Обновите страницу.");
+      if (after.revision !== before.revision + 1 || proposed?.resultingRevision !== after.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Ревизия выполнения повреждена.");
+      if (api.canonicalize(after.source) !== api.canonicalize(before.source) || api.canonicalize(after.executionPlan) !== api.canonicalize(before.executionPlan) || after.identity !== before.identity || after.timestamps.createdAt !== before.timestamps.createdAt || after.physicalResult !== null) throw new ProjectRepositoryError("PRIMARY_FABRIC_EXECUTION_IMMUTABLE", "Подтверждённый план выполнения нельзя изменить.");
+      try { return await this.updateCalculationProgress(projectId, calculationId, api.KIND, after, { ...options, baseProgressRevision: current.revision, projectStage: `primary_fabric_execution_${after.lifecycle}`, operationKind: options.operationKind || `PRIMARY_FABRIC_EXECUTION_${proposed.command.toUpperCase()}` }); }
+      catch (error) { if (error?.code !== "PROGRESS_REVISION_CONFLICT") throw error; const fresh = await this.getPrimaryFabricExecution(projectId, calculationId); const receipt = fresh?.state?.operations?.find((entry) => entry.operationId === proposed?.operationId); if (receipt?.command === proposed?.command && receipt.payloadFingerprint === proposed?.payloadFingerprint) return { project: clone((await this.getProject(projectId)).project), progress: fresh, replayed: true }; throw new ProjectRepositoryError("REVISION_CONFLICT", "Выполнение изменено параллельно и не было перезаписано."); }
+    }
+
+    _primaryFabricMeasurementAssessment(aggregate, options = {}) {
+      const api = global.YarnAIPrimaryFabricMeasurement;
+      if (!api) throw new ProjectRepositoryError("PRIMARY_FABRIC_MEASUREMENT_VALIDATOR_MISSING", "Проверка физического измерения основного полотна временно недоступна.");
+      const assessment = api.assessSource({
+        projectId: aggregate.project.project_id, project: aggregate.project, progress: aggregate.progress,
+        stage63Domain: global.YarnAISwatchGauge, stage65Domain: global.YarnAIProjectExecutionPlan,
+        stage66Domain: global.YarnAIProjectExecutionStart, stage67Domain: global.YarnAIProjectExecutionFirstStep,
+        stage68Domain: global.YarnAIProjectExecutionNextStep, stage69Domain: global.YarnAIProjectExecutionNextStepClarification,
+        stage70Domain: global.YarnAIFoundationSectionExecutionPreparation, stage71Domain: global.YarnAIFoundationSectionExecution,
+        stage72Domain: global.YarnAIFoundationSectionMeasurement, stage73Domain: global.YarnAIPrimaryFabricPreparation,
+        stage74Domain: global.YarnAIPrimaryFabricExecution, validatedAt: options.validatedAt || utcNow(),
+      });
+      if (assessment.lifecycle !== "ready") throw new ProjectRepositoryError(assessment.diagnostic?.code || "SOURCE_STALE", assessment.diagnostic?.message || "Исходные данные проекта изменились.");
+      return assessment;
+    }
+
+    async listPrimaryFabricMeasurements(projectId, calculationId = null) {
+      const project = await this._validatedCurrentProject(projectId); const effectiveCalculationId = calculationId || project.active_calculation_id;
+      if (!effectiveCalculationId) return []; if (project.active_calculation_id !== effectiveCalculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      const api = global.YarnAIPrimaryFabricMeasurement; if (!api) throw new ProjectRepositoryError("PRIMARY_FABRIC_MEASUREMENT_VALIDATOR_MISSING", "Проверка физического измерения основного полотна временно недоступна.");
+      const database = await this._database(); const transaction = database.transaction("progress", "readonly"); const records = await requestResult(transaction.objectStore("progress").index("by_calculation_kind").getAll(global.IDBKeyRange.only([effectiveCalculationId, api.KIND]))); await transactionComplete(transaction);
+      const selected = records.filter((entry) => entry.project_id === projectId && !entry.deleted_at);
+      for (const entry of selected) { validateProgressRecord(entry, projectId, effectiveCalculationId, api.KIND); if (entry.conflict_id || entry.quarantined || entry.validation_status === "IMPORTED_UNPROVEN" || entry.imported_unproven || entry.epoch !== entry.state?.epoch) throw new ProjectRepositoryError("MEASUREMENT_HISTORY_CONFLICT", "Сохранённые попытки измерения конфликтуют."); try { api.validateProgressState(entry.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "MEASUREMENT_STATE_CORRUPTED", error?.userMessage || "Сохранённое измерение повреждено."); } }
+      try { return clone(api.validateHistory(selected)); } catch (error) { throw new ProjectRepositoryError(error?.code || "MEASUREMENT_HISTORY_CONFLICT", error?.userMessage || "История измерений повреждена."); }
+    }
+
+    async getCurrentPrimaryFabricMeasurement(projectId, calculationId = null) {
+      const records = await this.listPrimaryFabricMeasurements(projectId, calculationId); return records.at(-1) || null;
+    }
+
+    async ensurePrimaryFabricMeasurement(projectId, calculationId, stateOrAssessment = null, options = {}) {
+      const api = global.YarnAIPrimaryFabricMeasurement; if (!api) throw new ProjectRepositoryError("PRIMARY_FABRIC_MEASUREMENT_VALIDATOR_MISSING", "Проверка физического измерения основного полотна временно недоступна.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился.");
+      const assessment = this._primaryFabricMeasurementAssessment(aggregate, { validatedAt: options.timestamp }); const history = await this.listPrimaryFabricMeasurements(projectId, calculationId); const predecessor = history.at(-1) || null;
+      if (predecessor && predecessor.state.lifecycle !== "completed") { const current = api.validateProgressState(predecessor.state, { assessment }); if (stateOrAssessment?.kind === api.KIND) { const proposed = api.validateProgressState(stateOrAssessment, { assessment }); if (proposed.identity !== current.identity || proposed.fingerprint !== current.fingerprint) throw new ProjectRepositoryError("MEASUREMENT_HISTORY_CONFLICT", "Текущая попытка уже существует с другим содержимым."); } return clone(predecessor); }
+      if (predecessor?.state.completedSnapshot?.result === "TARGET_REACHED") throw new ProjectRepositoryError("TARGET_ALREADY_REACHED", "Целевая высота основного полотна уже подтверждена физическим измерением.");
+      if (predecessor && assessment.source.stage74StateRevision <= predecessor.state.source.stage74StateRevision) throw new ProjectRepositoryError("NEW_EXECUTION_REQUIRED", "Перед новой проверкой продолжите основное полотно и снова явно приостановите работу.");
+      const epoch = predecessor ? predecessor.epoch + 1 : 1; const candidate = stateOrAssessment?.kind === api.KIND ? api.validateProgressState(stateOrAssessment, { assessment }) : api.createInitialState(assessment, { epoch, predecessorIdentity: predecessor?.state.identity || null, createdAt: options.timestamp || utcNow() });
+      if (candidate.epoch !== epoch || candidate.predecessorIdentity !== (predecessor?.state.identity || null) || candidate.lifecycle !== "collecting" || candidate.revision !== 1) throw new ProjectRepositoryError("MEASUREMENT_HISTORY_CONFLICT", "Новая попытка измерения имеет неверную связь с историей.");
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу."); const sourceProjectRevision = aggregate.project.revision;
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== sourceProjectRevision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке.");
+        const timestamp = options.timestamp || utcNow(); const progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = epoch; progress.state = clone(candidate); const nextProject = clone(before); nextProject.current_stage = "primary_fabric_measurement_collecting"; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PRIMARY_FABRIC_MEASUREMENT_CREATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: epoch, progress_revision: 1, predecessor_identity: candidate.predecessorIdentity, stage74_state_revision: candidate.source.stage74StateRevision, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const database = await this._database(); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite"); try { const liveProject = await requestResult(transaction.objectStore("projects").get(projectId)); if (!liveProject || liveProject.revision !== before.revision) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async updatePrimaryFabricMeasurement(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIPrimaryFabricMeasurement; if (!api) throw new ProjectRepositoryError("PRIMARY_FABRIC_MEASUREMENT_VALIDATOR_MISSING", "Проверка физического измерения основного полотна временно недоступна.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Активный расчёт проекта изменился."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      const assessment = this._primaryFabricMeasurementAssessment(aggregate, { validatedAt: options.timestamp }); let after; try { after = api.validateProgressState(state, { assessment }); } catch (error) { throw new ProjectRepositoryError(error?.code || "MEASUREMENT_STATE_CORRUPTED", error?.userMessage || "Состояние измерения повреждено."); }
+      const current = await this.getCurrentPrimaryFabricMeasurement(projectId, calculationId); if (!current || current.epoch !== after.epoch) throw new ProjectRepositoryError("MEASUREMENT_HISTORY_CONFLICT", "Изменение относится не к текущей попытке."); const before = api.validateProgressState(current.state, { assessment }); const proposed = after.operations.at(-1); const replay = proposed && before.operations.find((entry) => entry.operationId === proposed.operationId);
+      if (replay) { if (replay.command !== proposed.command || replay.payloadFingerprint !== proposed.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Эта операция уже использована для другого действия."); return { project: clone(aggregate.project), progress: clone(current), replayed: true }; }
+      if (before.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_MEASUREMENT_IMMUTABLE", "Подтверждённое физическое измерение нельзя изменить."); if ((options.expectedProgressRevision !== undefined && current.revision !== options.expectedProgressRevision) || (options.expectedDomainRevision !== undefined && before.revision !== options.expectedDomainRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Измерение изменено в другой вкладке. Обновите страницу.");
+      if (after.revision !== before.revision + 1 || proposed?.resultingRevision !== after.revision || after.identity !== before.identity || api.canonicalize(after.source) !== api.canonicalize(before.source) || api.canonicalize(after.context) !== api.canonicalize(before.context) || after.timestamps.createdAt !== before.timestamps.createdAt || after.predecessorIdentity !== before.predecessorIdentity) throw new ProjectRepositoryError("MEASUREMENT_STATE_CORRUPTED", "Неизменяемая часть попытки была изменена."); const sourceProjectRevision = aggregate.project.revision;
+      try { return await this._serialize(projectId, async () => {
+        const project = await this._validatedCurrentProject(projectId); if (project.revision !== sourceProjectRevision || project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке."); const database = await this._database(); const read = database.transaction("progress", "readonly"); const stored = await requestResult(read.objectStore("progress").index("by_scope_epoch").get([projectId, calculationId, api.KIND, current.epoch])); await transactionComplete(read); if (!stored || stored.progress_id !== current.progress_id || stored.revision !== current.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Измерение изменено в другой вкладке.");
+        const timestamp = options.timestamp || utcNow(); const nextProgress = clone(stored); nextProgress.state = clone(after); nextProgress.updated_at = timestamp; nextProgress.revision += 1; const suffix = after.completedSnapshot.result.toLowerCase(); const nextProject = clone(project); nextProject.current_stage = `primary_fabric_measurement_${suffix}`; nextProject.updated_at = timestamp; nextProject.revision += 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PRIMARY_FABRIC_MEASUREMENT_COMPLETED", { calculation_id: calculationId, progress_id: stored.progress_id, progress_epoch: current.epoch, progress_revision: nextProgress.revision, client_operation_id: proposed.operationId, progress_state: clone(after) }, timestamp, project.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite"); try { const liveProject = await requestResult(transaction.objectStore("projects").get(projectId)); const liveProgress = await requestResult(transaction.objectStore("progress").get(stored.progress_id)); if (!liveProject || liveProject.revision !== project.revision || !liveProgress || liveProgress.revision !== stored.revision) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "Измерение изменено в другой вкладке."); } await allocateOperationMetadata(transaction, operation); transaction.objectStore("progress").put(nextProgress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return { project: clone(nextProject), progress: clone(nextProgress), replayed: false };
+      }); } catch (error) { if (error?.code !== "REVISION_CONFLICT") throw error; const fresh = await this.getCurrentPrimaryFabricMeasurement(projectId, calculationId); const receipt = fresh?.state?.operations?.find((entry) => entry.operationId === proposed?.operationId); if (receipt?.command === proposed?.command && receipt.payloadFingerprint === proposed?.payloadFingerprint) return { project: clone((await this.getProject(projectId)).project), progress: fresh, replayed: true }; throw error; }
+    }
+
+    async getProjectNextSectionPlanning(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PROJECT_NEXT_SECTION_PLANNING");
+    }
+
+    async ensureProjectNextSectionPlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectNextSectionPlanning;
+      const dependencies = {
+        stage63Domain: global.YarnAISwatchGauge, stage65Domain: global.YarnAIProjectExecutionPlan,
+        stage66Domain: global.YarnAIProjectExecutionStart, stage67Domain: global.YarnAIProjectExecutionFirstStep,
+        stage68Domain: global.YarnAIProjectExecutionNextStep, stage69Domain: global.YarnAIProjectExecutionNextStepClarification,
+        stage70Domain: global.YarnAIFoundationSectionExecutionPreparation, stage71Domain: global.YarnAIFoundationSectionExecution,
+        stage72Domain: global.YarnAIFoundationSectionMeasurement, stage73Domain: global.YarnAIPrimaryFabricPreparation,
+        stage74Domain: global.YarnAIPrimaryFabricExecution, stage75Domain: global.YarnAIPrimaryFabricMeasurement,
+      };
+      if (!api || Object.values(dependencies).some((value) => !value)) {
+        throw new ProjectRepositoryError("PROJECT_NEXT_SECTION_PLANNING_VALIDATOR_MISSING", "Проверка планирования следующего участка недоступна.");
+      }
+      const candidate = api.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      const aggregate = await this.getProject(projectId);
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) {
+        throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      }
+      const assessment = api.assessSource({ projectId, project: aggregate.project, progress: aggregate.progress, ...dependencies, validatedAt: options.timestamp });
+      if (assessment.lifecycle !== "ready") throw new ProjectRepositoryError(assessment.diagnostic?.code || "SOURCE_STALE", assessment.diagnostic?.message || "Source chain планирования недоступна.");
+      api.validateBinding(candidate.snapshot, assessment);
+      const existing = await this.getProjectNextSectionPlanning(projectId, calculationId);
+      if (existing) {
+        const checked = api.validateProgressState(existing.state, { projectIdentity: projectId, calculationId });
+        api.validateBinding(checked.snapshot, assessment);
+        if (options.operationId === checked.snapshot.audit.operationId && candidate.snapshot.fingerprint !== checked.snapshot.fingerprint) {
+          throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Operation ID уже использован другим уточнением.");
+        }
+        if (candidate.snapshot.fingerprint !== checked.snapshot.fingerprint) {
+          throw new ProjectRepositoryError("PROJECT_NEXT_SECTION_PLANNING_IMMUTABLE", "Подтверждённое направление нельзя изменить задним числом.");
+        }
+        return clone(existing);
+      }
+      const saved = await this.ensureCalculationProgress(projectId, calculationId, api.KIND, candidate, {
+        ...options, baseProjectRevision: aggregate.project.revision, projectStage: "next_section_direction_confirmed",
+        operationKind: options.operationKind || "PROJECT_NEXT_SECTION_DIRECTION_CONFIRMED",
+      });
+      const savedState = api.validateProgressState(saved.state, { projectIdentity: projectId, calculationId });
+      api.validateBinding(savedState.snapshot, assessment);
+      if (savedState.snapshot.fingerprint !== candidate.snapshot.fingerprint) {
+        throw new ProjectRepositoryError("PROJECT_NEXT_SECTION_PLANNING_IMMUTABLE", "Сохранённое планирование не совпадает с подтверждённым.");
+      }
+      return saved;
+    }
+
+    async updateProjectNextSectionPlanning(projectId, calculationId, _state, options = {}) {
+      const current = await this.getProjectNextSectionPlanning(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Планирование следующего участка не найдено.");
+      if (options.expectedRevision !== current.state?.snapshot?.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Планирование изменено в другой вкладке.");
+      throw new ProjectRepositoryError("PROJECT_NEXT_SECTION_PLANNING_IMMUTABLE", "Подтверждённое планирование нельзя изменить.");
+    }
+
+    async getProjectConstructionStrategyPlanning(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PROJECT_CONSTRUCTION_STRATEGY_PLANNING");
+    }
+
+    async ensureProjectConstructionStrategyPlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectConstructionStrategyPlanning;
+      const dependencies = {
+        stage63Domain: global.YarnAISwatchGauge, stage65Domain: global.YarnAIProjectExecutionPlan,
+        stage66Domain: global.YarnAIProjectExecutionStart, stage67Domain: global.YarnAIProjectExecutionFirstStep,
+        stage68Domain: global.YarnAIProjectExecutionNextStep, stage69Domain: global.YarnAIProjectExecutionNextStepClarification,
+        stage70Domain: global.YarnAIFoundationSectionExecutionPreparation, stage71Domain: global.YarnAIFoundationSectionExecution,
+        stage72Domain: global.YarnAIFoundationSectionMeasurement, stage73Domain: global.YarnAIPrimaryFabricPreparation,
+        stage74Domain: global.YarnAIPrimaryFabricExecution, stage75Domain: global.YarnAIPrimaryFabricMeasurement,
+        stage76Domain: global.YarnAIProjectNextSectionPlanning,
+      };
+      if (!api || Object.values(dependencies).some((value) => !value)) throw new ProjectRepositoryError("PROJECT_CONSTRUCTION_STRATEGY_PLANNING_VALIDATOR_MISSING", "Проверка стратегии конструкции недоступна.");
+      const candidate = api.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      const aggregate = await this.getProject(projectId);
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      const assessment = api.assessSource({ projectId, project: aggregate.project, progress: aggregate.progress, ...dependencies, validatedAt: options.timestamp });
+      if (assessment.lifecycle !== "ready") throw new ProjectRepositoryError(assessment.diagnostic?.code || "SOURCE_STALE", assessment.diagnostic?.message || "Source chain стратегии конструкции недоступна.");
+      api.validateBinding(candidate.snapshot, assessment);
+      const existing = await this.getProjectConstructionStrategyPlanning(projectId, calculationId);
+      if (existing) {
+        const checked = api.validateProgressState(existing.state, { projectIdentity: projectId, calculationId }); api.validateBinding(checked.snapshot, assessment);
+        if (options.operationId === checked.snapshot.audit.operationId && candidate.snapshot.fingerprint !== checked.snapshot.fingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Operation ID уже использован другим решением.");
+        if (candidate.snapshot.fingerprint !== checked.snapshot.fingerprint) throw new ProjectRepositoryError("PROJECT_CONSTRUCTION_STRATEGY_PLANNING_IMMUTABLE", "Подтверждённую стратегию конструкции нельзя изменить задним числом.");
+        return clone(existing);
+      }
+      const saved = await this.ensureCalculationProgress(projectId, calculationId, api.KIND, candidate, { ...options, baseProjectRevision: aggregate.project.revision, projectStage: "construction_strategy_confirmed", operationKind: options.operationKind || "PROJECT_CONSTRUCTION_STRATEGY_CONFIRMED" });
+      const savedState = api.validateProgressState(saved.state, { projectIdentity: projectId, calculationId }); api.validateBinding(savedState.snapshot, assessment);
+      if (savedState.snapshot.fingerprint !== candidate.snapshot.fingerprint) throw new ProjectRepositoryError("PROJECT_CONSTRUCTION_STRATEGY_PLANNING_IMMUTABLE", "Сохранённая стратегия не совпадает с подтверждённой.");
+      return saved;
+    }
+
+    async updateProjectConstructionStrategyPlanning(projectId, calculationId, _state, options = {}) {
+      const current = await this.getProjectConstructionStrategyPlanning(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Стратегия конструкции не найдена.");
+      if (options.expectedRevision !== current.state?.snapshot?.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Стратегия изменена в другой вкладке.");
+      throw new ProjectRepositoryError("PROJECT_CONSTRUCTION_STRATEGY_PLANNING_IMMUTABLE", "Подтверждённую стратегию конструкции нельзя изменить.");
+    }
+
+    async getProjectShapingPolicyPlanning(projectId, calculationId = null) {
+      let effectiveCalculationId = calculationId;
+      if (!effectiveCalculationId) {
+        const project = await this._validatedCurrentProject(projectId);
+        effectiveCalculationId = project.active_calculation_id;
+      }
+      if (!effectiveCalculationId) return null;
+      return this.getCalculationProgress(projectId, effectiveCalculationId, "PROJECT_SHAPING_POLICY_PLANNING");
+    }
+
+    async ensureProjectShapingPolicyPlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectShapingPolicyPlanning;
+      const dependencies = {
+        stage63Domain: global.YarnAISwatchGauge, stage65Domain: global.YarnAIProjectExecutionPlan,
+        stage66Domain: global.YarnAIProjectExecutionStart, stage67Domain: global.YarnAIProjectExecutionFirstStep,
+        stage68Domain: global.YarnAIProjectExecutionNextStep, stage69Domain: global.YarnAIProjectExecutionNextStepClarification,
+        stage70Domain: global.YarnAIFoundationSectionExecutionPreparation, stage71Domain: global.YarnAIFoundationSectionExecution,
+        stage72Domain: global.YarnAIFoundationSectionMeasurement, stage73Domain: global.YarnAIPrimaryFabricPreparation,
+        stage74Domain: global.YarnAIPrimaryFabricExecution, stage75Domain: global.YarnAIPrimaryFabricMeasurement,
+        stage76Domain: global.YarnAIProjectNextSectionPlanning, stage77Domain: global.YarnAIProjectConstructionStrategyPlanning,
+      };
+      if (!api || Object.values(dependencies).some((value) => !value)) throw new ProjectRepositoryError("PROJECT_SHAPING_POLICY_PLANNING_VALIDATOR_MISSING", "Проверка формирования реглана недоступна.");
+      const candidate = api.validateProgressState(state, { projectIdentity: projectId, calculationId });
+      const aggregate = await this.getProject(projectId);
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Проект изменён в другой вкладке. Обновите страницу.");
+      const assessment = api.assessSource({ projectId, project: aggregate.project, progress: aggregate.progress, ...dependencies, validatedAt: options.timestamp });
+      if (assessment.lifecycle !== "ready") throw new ProjectRepositoryError(assessment.diagnostic?.code || "SOURCE_STALE", assessment.diagnostic?.message || "Source chain формирования недоступна.");
+      api.validateBinding(candidate.snapshot, assessment);
+      const existing = await this.getProjectShapingPolicyPlanning(projectId, calculationId);
+      if (existing) {
+        const checked = api.validateProgressState(existing.state, { projectIdentity: projectId, calculationId }); api.validateBinding(checked.snapshot, assessment);
+        if (options.operationId === checked.snapshot.audit.operationId && candidate.snapshot.fingerprint !== checked.snapshot.fingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "Operation ID уже использован другим решением.");
+        if (candidate.snapshot.fingerprint !== checked.snapshot.fingerprint) throw new ProjectRepositoryError("PROJECT_SHAPING_POLICY_PLANNING_IMMUTABLE", "Подтверждённый способ формирования нельзя изменить задним числом.");
+        return clone(existing);
+      }
+      const saved = await this.ensureCalculationProgress(projectId, calculationId, api.KIND, candidate, { ...options, baseProjectRevision: aggregate.project.revision, projectStage: "shaping_policy_confirmed", operationKind: options.operationKind || "PROJECT_SHAPING_POLICY_CONFIRMED" });
+      const savedState = api.validateProgressState(saved.state, { projectIdentity: projectId, calculationId }); api.validateBinding(savedState.snapshot, assessment);
+      if (savedState.snapshot.fingerprint !== candidate.snapshot.fingerprint) throw new ProjectRepositoryError("PROJECT_SHAPING_POLICY_PLANNING_IMMUTABLE", "Сохранённый способ формирования не совпадает с подтверждённым.");
+      return saved;
+    }
+
+    async updateProjectShapingPolicyPlanning(projectId, calculationId, _state, options = {}) {
+      const current = await this.getProjectShapingPolicyPlanning(projectId, calculationId);
+      if (!current) throw new ProjectRepositoryError("PROGRESS_NOT_FOUND", "Способ формирования не найден.");
+      if (options.expectedRevision !== current.state?.snapshot?.revision) throw new ProjectRepositoryError("REVISION_CONFLICT", "Способ формирования изменён в другой вкладке.");
+      throw new ProjectRepositoryError("PROJECT_SHAPING_POLICY_PLANNING_IMMUTABLE", "Подтверждённый способ формирования нельзя изменить.");
+    }
+
+    async getProjectSleeveTargetGeometryPlanningHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectSleeveTargetGeometryPlanning;
+      if (!api) throw new ProjectRepositoryError("PROJECT_SLEEVE_TARGET_GEOMETRY_PLANNING_VALIDATOR_MISSING", "Stage 79 validation is unavailable.");
+      const aggregate = await this.getProject(projectId);
+      const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch);
+      const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index];
+        if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("PLANNING_HISTORY_CONFLICT", "Stage 79 progress history is not contiguous, current, and correctly scoped.");
+        let state;
+        try { state = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PLANNING_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 79 state is corrupted."); }
+        if (state.epoch !== item.epoch || state.projectId !== projectId || state.calculationId !== effectiveCalculationId || item.revision !== state.revision) throw new ProjectRepositoryError("PLANNING_HISTORY_CONFLICT", "Stage 79 repository/state revision binding is corrupted.");
+        if (index < records.length - 1 && state.lifecycle !== "completed") throw new ProjectRepositoryError("PLANNING_HISTORY_CONFLICT", "Only a completed Stage 79 epoch may have a successor.");
+        if (index > 0 && state.predecessorIdentity !== checked[index - 1].state.identity) throw new ProjectRepositoryError("PLANNING_HISTORY_CONFLICT", "Stage 79 predecessor identity is corrupted.");
+        checked.push({ ...clone(item), state: clone(state) });
+      }
+      return checked;
+    }
+
+    async getProjectSleeveTargetGeometryPlanning(projectId, calculationId = null) {
+      const history = await this.getProjectSleeveTargetGeometryPlanningHistory(projectId, calculationId);
+      return history.length ? clone(history.at(-1)) : null;
+    }
+
+    async saveProjectSleeveTargetGeometryPlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectSleeveTargetGeometryPlanning;
+      const application = global.YarnAIProjectSleeveTargetGeometryPlanningApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_SLEEVE_TARGET_GEOMETRY_PLANNING_VALIDATOR_MISSING", "Stage 79 validation or source reconstruction is unavailable.");
+      let candidate;
+      try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 79 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 79 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 79 does not belong to the active calculation.");
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 79 write.");
+      let sources;
+      try { sources = application.reconstructAuthoritativeSources({ aggregate, domain: api, dependencies: application.dependenciesFromGlobal(global), validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 79 source chain is stale."); }
+      if (candidate.source.sourceBindingFingerprint !== api.fingerprint(sources)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 79 was derived from another authoritative source chain.");
+      const history = await this.getProjectSleeveTargetGeometryPlanningHistory(projectId, calculationId);
+      const operationReceipt = candidate.operations.find((entry) => entry.operationId === options.operationId) || null;
+      if (options.operationId) for (const historical of history) {
+        const receipt = historical.state.operations.find((entry) => entry.operationId === options.operationId);
+        if (!receipt) continue;
+        if (!operationReceipt || receipt.command !== operationReceipt.command || receipt.payloadFingerprint !== operationReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 79 operation id was already used with different semantics.");
+        if (historical.state.fingerprint === candidate.fingerprint) return clone(historical);
+      }
+      const current = history.at(-1) || null;
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 79 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current);
+        if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_EPOCH_IMMUTABLE", "A completed Stage 79 epoch cannot be replaced.");
+        if (options.expectedRepositoryRevision !== current.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 79 changed concurrently.");
+      } else if (candidate.epoch === current.epoch + 1) {
+        if (current.state.lifecycle !== "completed" || candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("PLANNING_HISTORY_CONFLICT", "A new Stage 79 epoch must supersede the current immutable completion.");
+      } else if (candidate.epoch < current.epoch) {
+        const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical);
+        throw new ProjectRepositoryError("STALE_EPOCH", "A stale Stage 79 epoch cannot mutate current state.");
+      } else throw new ProjectRepositoryError("PLANNING_HISTORY_CONFLICT", "Stage 79 epochs must be contiguous.");
+
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or authoritative source chain changed before the Stage 79 write.");
+        const timestamp = options.timestamp || utcNow(); const database = await this._database();
+        const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId);
+        const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 79 changed concurrently.");
+        let progress;
+        if (current && candidate.epoch === current.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; }
+        else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `sleeve_target_geometry_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_SLEEVE_TARGET_GEOMETRY_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.sourceBindingFingerprint, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp);
+        const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null;
+          if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 79 progress changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation);
+          current && candidate.epoch === current.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress);
+          transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async getProjectSleevePhysicalExecutionHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectSleevePhysicalExecution;
+      if (!api) throw new ProjectRepositoryError("PROJECT_SLEEVE_PHYSICAL_EXECUTION_VALIDATOR_MISSING", "Stage 80 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch);
+      const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index];
+        if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("SLEEVE_EXECUTION_HISTORY_CONFLICT", "Stage 80 history is not contiguous, current, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "SLEEVE_EXECUTION_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 80 state is corrupted."); }
+        if (checkedState.preparationEpoch !== item.epoch || checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId) throw new ProjectRepositoryError("SLEEVE_EXECUTION_HISTORY_CONFLICT", "Stage 80 repository/state scope is corrupted.");
+        if (index > 0 && checkedState.predecessorPreparationIdentity !== checked[index - 1].state.preparation.identity) throw new ProjectRepositoryError("SLEEVE_EXECUTION_HISTORY_CONFLICT", "Stage 80 preparation lineage is corrupted.");
+        checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectSleevePhysicalExecution(projectId, calculationId = null) {
+      const history = await this.getProjectSleevePhysicalExecutionHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null;
+    }
+
+    async saveProjectSleevePhysicalExecution(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectSleevePhysicalExecution; const application = global.YarnAIProjectSleevePhysicalExecutionApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_SLEEVE_PHYSICAL_EXECUTION_VALIDATOR_MISSING", "Stage 80 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 80 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 80 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 80 does not belong to the active calculation.");
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 80 write.");
+      let source; try { source = application.reconstructStage79Source({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 79 source is stale."); }
+      if (candidate.source.fingerprint !== source.binding.fingerprint) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 80 was derived from another completed Stage 79 plan.");
+      const history = await this.getProjectSleevePhysicalExecutionHistory(projectId, calculationId); const current = history.at(-1) || null;
+      function receipts(aggregateState) { const result = []; for (const component of Object.values(aggregateState.components)) for (const attempt of component.attempts) result.push(...attempt.operationReceipts); return result; }
+      const candidateReceipt = options.operationId ? receipts(candidate).find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) {
+        const prior = receipts(historical.state).find((entry) => entry.operationId === options.operationId); if (!prior) continue;
+        if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 80 operation id was already used with different semantics.");
+        if (historical.state.fingerprint === candidate.fingerprint) return clone(historical);
+      }
+      if (!current) {
+        if (candidate.preparationEpoch !== 1 || candidate.aggregateRevision !== 1 || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 80 preparation has stale repository expectations.");
+      } else if (candidate.preparationEpoch === current.state.preparationEpoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current);
+        if (options.expectedRepositoryRevision !== current.revision || candidate.aggregateRevision !== current.state.aggregateRevision + 1 || candidate.identity !== current.state.identity || candidate.preparation.fingerprint !== current.state.preparation.fingerprint) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 80 changed concurrently.");
+        for (const slot of api.COMPONENT_SLOTS) {
+          const beforeAttempts = current.state.components[slot].attempts; const afterAttempts = candidate.components[slot].attempts;
+          if (afterAttempts.length < beforeAttempts.length || afterAttempts.length > beforeAttempts.length + 1) throw new ProjectRepositoryError("COMPLETED_RESULT_IMMUTABLE", "Stage 80 component history cannot be deleted or rewritten.");
+          for (let index = 0; index < beforeAttempts.length; index += 1) if (beforeAttempts[index].lifecycle === "completed" && canonicalize(beforeAttempts[index]) !== canonicalize(afterAttempts[index])) throw new ProjectRepositoryError("COMPLETED_RESULT_IMMUTABLE", "A completed physical sleeve result is immutable.");
+          if (afterAttempts.length > beforeAttempts.length && beforeAttempts.at(-1).lifecycle !== "completed") throw new ProjectRepositoryError("SLEEVE_EXECUTION_HISTORY_CONFLICT", "A component rework attempt requires an immutable completed predecessor.");
+        }
+      } else if (candidate.preparationEpoch === current.state.preparationEpoch + 1) {
+        if (candidate.predecessorPreparationIdentity !== current.state.preparation.identity || candidate.aggregateRevision !== 1 || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("SLEEVE_EXECUTION_HISTORY_CONFLICT", "A new Stage 80 preparation must explicitly supersede the current preparation.");
+      } else if (candidate.preparationEpoch < current.state.preparationEpoch) {
+        const historical = history[candidate.preparationEpoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical);
+        throw new ProjectRepositoryError("STALE_EPOCH", "A stale Stage 80 preparation cannot mutate current state.");
+      } else throw new ProjectRepositoryError("SLEEVE_EXECUTION_HISTORY_CONFLICT", "Stage 80 preparation epochs must be contiguous.");
+
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 79 source changed before the Stage 80 write.");
+        const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId);
+        const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 80 changed concurrently.");
+        let progress;
+        if (current && candidate.preparationEpoch === current.state.preparationEpoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; }
+        else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.preparationEpoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `sleeve_physical_execution_${api.projectView(candidate).lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || "PROJECT_SLEEVE_PHYSICAL_EXECUTION_UPDATED", { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, aggregate_revision: candidate.aggregateRevision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null;
+          if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 80 progress changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation); current && candidate.preparationEpoch === current.state.preparationEpoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress);
+          transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async getProjectSleevePairValidationHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectSleevePairValidation;
+      if (!api) throw new ProjectRepositoryError("PROJECT_SLEEVE_PAIR_VALIDATION_VALIDATOR_MISSING", "Stage 81 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch);
+      const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index];
+        if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("SLEEVE_PAIR_VALIDATION_HISTORY_CONFLICT", "Stage 81 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "SLEEVE_PAIR_VALIDATION_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 81 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.validationEpoch !== item.epoch || checkedState.revision !== item.revision || index > 0 && checkedState.predecessorIdentity !== checked[index - 1].state.identity || index === 0 && checkedState.predecessorIdentity !== null) throw new ProjectRepositoryError("SLEEVE_PAIR_VALIDATION_HISTORY_CONFLICT", "Stage 81 epoch lineage or revision binding is corrupted.");
+        checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectSleevePairValidation(projectId, calculationId = null) {
+      const history = await this.getProjectSleevePairValidationHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null;
+    }
+
+    async saveProjectSleevePairValidation(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectSleevePairValidation; const application = global.YarnAIProjectSleevePairValidationApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_SLEEVE_PAIR_VALIDATION_VALIDATOR_MISSING", "Stage 81 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 81 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 81 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 81 does not belong to the active calculation.");
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 81 write.");
+      let pair; try { pair = application.reconstructCurrentPair({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 80 pair is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(pair.sourceBundle.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(pair.sourceBundle.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 81 targets another Stage 80 result pair.");
+      const history = await this.getProjectSleevePairValidationHistory(projectId, calculationId); const current = history.at(-1) || null;
+      const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) {
+        const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue;
+        if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 81 operation id was already used with different semantics.");
+        if (historical.state.fingerprint === candidate.fingerprint) return clone(historical);
+      }
+      if (!current) {
+        if (candidate.validationEpoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 81 epoch has stale repository expectations.");
+      } else if (candidate.validationEpoch === current.state.validationEpoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current);
+        if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_VALIDATION_IMMUTABLE", "A completed Stage 81 validation cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.review.fingerprint !== current.state.review.fingerprint) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 81 changed concurrently.");
+      } else if (candidate.validationEpoch === current.state.validationEpoch + 1) {
+        if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || canonicalize(candidate.source) === canonicalize(current.state.source) || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("SLEEVE_PAIR_VALIDATION_HISTORY_CONFLICT", "A new Stage 81 epoch must bind a new current source pair and preserve its predecessor.");
+      } else if (candidate.validationEpoch < current.state.validationEpoch) {
+        const historical = history[candidate.validationEpoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical);
+        throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 81 epoch cannot mutate current state.");
+      } else throw new ProjectRepositoryError("SLEEVE_PAIR_VALIDATION_HISTORY_CONFLICT", "Stage 81 epochs must be contiguous.");
+
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 81 write.");
+        const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId);
+        const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        const liveSource = liveRecords.find((entry) => entry.progress_id === candidate.source.stage80ProgressId);
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 81 changed concurrently.");
+        if (!liveSource || liveSource.revision !== candidate.source.stage80RepositoryRevision || liveSource.state?.fingerprint !== candidate.source.stage80StateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 80 changed before the Stage 81 write.");
+        let progress;
+        if (current && candidate.validationEpoch === current.state.validationEpoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; }
+        else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.validationEpoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `sleeve_pair_validation_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_SLEEVE_PAIR_VALIDATION_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; const storedSource = await requestResult(transaction.objectStore("progress").get(candidate.source.stage80ProgressId));
+          if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint) || !storedSource || storedSource.revision !== candidate.source.stage80RepositoryRevision || storedSource.state?.fingerprint !== candidate.source.stage80StateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project, Stage 80 source, or Stage 81 record changed concurrently."); }
+          await allocateOperationMetadata(transaction, operation); current && candidate.validationEpoch === current.state.validationEpoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress);
+          transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async getProjectBodyUnderarmPhysicalConfirmationHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectBodyUnderarmPhysicalConfirmation;
+      if (!api) throw new ProjectRepositoryError("PROJECT_BODY_UNDERARM_PHYSICAL_CONFIRMATION_VALIDATOR_MISSING", "Stage 82 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id;
+      if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch);
+      const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index];
+        if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("BODY_UNDERARM_CONFIRMATION_HISTORY_CONFLICT", "Stage 82 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "BODY_UNDERARM_CONFIRMATION_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 82 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("BODY_UNDERARM_CONFIRMATION_HISTORY_CONFLICT", "Stage 82 epoch lineage or revision binding is corrupted.");
+        checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectBodyUnderarmPhysicalConfirmation(projectId, calculationId = null) {
+      const history = await this.getProjectBodyUnderarmPhysicalConfirmationHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null;
+    }
+
+    async saveProjectBodyUnderarmPhysicalConfirmation(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectBodyUnderarmPhysicalConfirmation; const application = global.YarnAIProjectBodyUnderarmPhysicalConfirmationApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_BODY_UNDERARM_PHYSICAL_CONFIRMATION_VALIDATOR_MISSING", "Stage 82 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 82 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 82 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId);
+      if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 82 does not belong to the active calculation.");
+      if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 82 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 82 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 82 targets another predecessor chain.");
+      const history = await this.getProjectBodyUnderarmPhysicalConfirmationHistory(projectId, calculationId); const current = history.at(-1) || null;
+      const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) {
+        const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue;
+        if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 82 operation id was already used with different semantics.");
+        if (historical.state.fingerprint === candidate.fingerprint) return clone(historical);
+      }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesResultIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 82 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current);
+        if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_BODY_RESULT_IMMUTABLE", "A completed Stage 82 physical result cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesResultIdentity !== current.state.supersedesResultIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 82 changed concurrently or immutable attempt fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const isRework = candidate.supersedesResultIdentity !== null;
+        if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision) || isRework && (current.state.lifecycle !== "completed" || candidate.supersedesResultIdentity !== current.state.completedResult?.identity) || !isRework && canonicalize(candidate.source) === canonicalize(current.state.source)) throw new ProjectRepositoryError("BODY_UNDERARM_CONFIRMATION_HISTORY_CONFLICT", "A new Stage 82 epoch must preserve predecessor/result lineage and bind a new source or explicit rework.");
+      } else if (candidate.epoch < current.state.epoch) {
+        const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 82 epoch cannot mutate current state.");
+      } else throw new ProjectRepositoryError("BODY_UNDERARM_CONFIRMATION_HISTORY_CONFLICT", "Stage 82 epochs must be contiguous.");
+
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 82 write.");
+        const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 82 changed concurrently.");
+        for (const binding of candidate.source.body.bindings) { const live = liveRecords.find((entry) => entry.progress_id === binding.progressId); if (!live || live.kind !== binding.kind || live.revision !== binding.repositoryRevision || api.fingerprint(live.state) !== binding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 82 source ${binding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `body_underarm_physical_confirmation_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_BODY_UNDERARM_PHYSICAL_CONFIRMATION_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, body_source_fingerprint: candidate.source.body.fingerprint, stage81_entry_binding_fingerprint: candidate.source.entryGate.fingerprint, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision);
+        const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try {
+          const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null;
+          if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 82 record changed concurrently."); }
+          for (const binding of candidate.source.body.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(binding.progressId)); if (!storedSource || storedSource.revision !== binding.repositoryRevision || api.fingerprint(storedSource.state) !== binding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 82 predecessor changed during commit."); } }
+          await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction);
+        } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async getProjectUnderarmAllocationPlanningHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectUnderarmAllocationPlanning;
+      if (!api) throw new ProjectRepositoryError("PROJECT_UNDERARM_ALLOCATION_PLANNING_VALIDATOR_MISSING", "Stage 83 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("UNDERARM_ALLOCATION_HISTORY_CONFLICT", "Stage 83 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "UNDERARM_ALLOCATION_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 83 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("UNDERARM_ALLOCATION_HISTORY_CONFLICT", "Stage 83 epoch lineage or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectUnderarmAllocationPlanning(projectId, calculationId = null) { const history = await this.getProjectUnderarmAllocationPlanningHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectUnderarmAllocationPlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectUnderarmAllocationPlanning; const application = global.YarnAIProjectUnderarmAllocationPlanningApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_UNDERARM_ALLOCATION_PLANNING_VALIDATOR_MISSING", "Stage 83 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 83 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 83 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 83 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 83 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 83 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 83 targets another predecessor chain.");
+      const history = await this.getProjectUnderarmAllocationPlanningHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 83 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesPlanIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 83 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_UNDERARM_PLAN_IMMUTABLE", "A completed Stage 83 plan cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesPlanIdentity !== current.state.supersedesPlanIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 83 changed concurrently or immutable attempt fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const isRework = candidate.supersedesPlanIdentity !== null; if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision) || isRework && (current.state.lifecycle !== "completed" || candidate.supersedesPlanIdentity !== current.state.completedPlan?.identity) || !isRework && canonicalize(candidate.source) === canonicalize(current.state.source)) throw new ProjectRepositoryError("UNDERARM_ALLOCATION_HISTORY_CONFLICT", "A new Stage 83 epoch must preserve predecessor/plan lineage and bind a new source or explicit rework.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 83 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("UNDERARM_ALLOCATION_HISTORY_CONFLICT", "Stage 83 epochs must be contiguous.");
+
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 83 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 83 changed concurrently.");
+        for (const binding of candidate.source.bindings) { const live = liveRecords.find((entry) => entry.progress_id === binding.progressId); if (!live || live.kind !== binding.kind || live.revision !== binding.repositoryRevision || api.fingerprint(live.state) !== binding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 83 source ${binding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `underarm_allocation_planning_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_UNDERARM_ALLOCATION_PLANNING_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, review_fingerprint: candidate.review?.reviewFingerprint || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 83 record changed concurrently."); } for (const binding of candidate.source.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(binding.progressId)); if (!storedSource || storedSource.revision !== binding.repositoryRevision || api.fingerprint(storedSource.state) !== binding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 83 predecessor changed during commit."); } } await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async getProjectJoinLayoutPlanningHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectJoinLayoutPlanning;
+      if (!api) throw new ProjectRepositoryError("PROJECT_JOIN_LAYOUT_PLANNING_VALIDATOR_MISSING", "Stage 84 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("JOIN_LAYOUT_HISTORY_CONFLICT", "Stage 84 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "JOIN_LAYOUT_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 84 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("JOIN_LAYOUT_HISTORY_CONFLICT", "Stage 84 epoch lineage or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectJoinLayoutPlanning(projectId, calculationId = null) { const history = await this.getProjectJoinLayoutPlanningHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectJoinLayoutPlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectJoinLayoutPlanning; const application = global.YarnAIProjectJoinLayoutPlanningApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_JOIN_LAYOUT_PLANNING_VALIDATOR_MISSING", "Stage 84 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 84 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 84 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 84 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 84 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 84 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 84 targets another predecessor chain.");
+      const history = await this.getProjectJoinLayoutPlanningHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 84 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesPlanIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 84 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_JOIN_LAYOUT_IMMUTABLE", "A completed Stage 84 plan cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesPlanIdentity !== current.state.supersedesPlanIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 84 changed concurrently or immutable attempt fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const isRework = candidate.supersedesPlanIdentity !== null; if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision) || isRework && (current.state.lifecycle !== "completed" || candidate.supersedesPlanIdentity !== current.state.completedPlan?.identity) || !isRework && canonicalize(candidate.source) === canonicalize(current.state.source)) throw new ProjectRepositoryError("JOIN_LAYOUT_HISTORY_CONFLICT", "A new Stage 84 epoch must preserve predecessor/plan lineage and bind a new source or explicit rework.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 84 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("JOIN_LAYOUT_HISTORY_CONFLICT", "Stage 84 epochs must be contiguous.");
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 84 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 84 changed concurrently.");
+        for (const binding of candidate.source.bindings) { const live = liveRecords.find((entry) => entry.progress_id === binding.progressId); if (!live || live.kind !== binding.kind || live.revision !== binding.repositoryRevision || api.fingerprint(live.state) !== binding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 84 source ${binding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `join_layout_planning_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_JOIN_LAYOUT_PLANNING_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, review_fingerprint: candidate.review?.reviewFingerprint || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 84 record changed concurrently."); } for (const binding of candidate.source.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(binding.progressId)); if (!storedSource || storedSource.revision !== binding.repositoryRevision || api.fingerprint(storedSource.state) !== binding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 84 predecessor changed during commit."); } } await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async getProjectUnderarmAllocationExecutionHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectUnderarmAllocationExecution;
+      if (!api) throw new ProjectRepositoryError("PROJECT_UNDERARM_ALLOCATION_EXECUTION_VALIDATOR_MISSING", "Stage 85 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index];
+        if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("UNDERARM_EXECUTION_HISTORY_CONFLICT", "Stage 85 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "UNDERARM_EXECUTION_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 85 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("UNDERARM_EXECUTION_HISTORY_CONFLICT", "Stage 85 epoch lineage or revision binding is corrupted.");
+        checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectUnderarmAllocationExecution(projectId, calculationId = null) { const history = await this.getProjectUnderarmAllocationExecutionHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectUnderarmAllocationExecution(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectUnderarmAllocationExecution; const application = global.YarnAIProjectUnderarmAllocationExecutionApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_UNDERARM_ALLOCATION_EXECUTION_VALIDATOR_MISSING", "Stage 85 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 85 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 85 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 85 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 85 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 85 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 85 targets another predecessor chain.");
+      const history = await this.getProjectUnderarmAllocationExecutionHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 85 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesResultIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 85 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_UNDERARM_EXECUTION_IMMUTABLE", "A completed Stage 85 result cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesResultIdentity !== current.state.supersedesResultIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 85 changed concurrently or immutable attempt fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const isRework = candidate.supersedesResultIdentity !== null; if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision) || isRework && (current.state.lifecycle !== "completed" || candidate.supersedesResultIdentity !== current.state.completedResult?.identity) || !isRework && canonicalize(candidate.source) === canonicalize(current.state.source)) throw new ProjectRepositoryError("UNDERARM_EXECUTION_HISTORY_CONFLICT", "A new Stage 85 epoch must preserve predecessor/result lineage and bind a new source or explicit rework.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 85 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("UNDERARM_EXECUTION_HISTORY_CONFLICT", "Stage 85 epochs must be contiguous.");
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 85 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 85 changed concurrently.");
+        for (const binding of candidate.source.bindings) { const live = liveRecords.find((entry) => entry.progress_id === binding.progressId); if (!live || live.kind !== binding.kind || live.revision !== binding.repositoryRevision || api.fingerprint(live.state) !== binding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 85 source ${binding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `underarm_allocation_execution_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_UNDERARM_ALLOCATION_EXECUTION_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, review_fingerprint: candidate.review?.reviewFingerprint || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 85 record changed concurrently."); } for (const binding of candidate.source.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(binding.progressId)); if (!storedSource || storedSource.revision !== binding.repositoryRevision || api.fingerprint(storedSource.state) !== binding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 85 predecessor changed during commit."); } } await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async getProjectRaglanInterfacePlanningHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectRaglanInterfacePlanning;
+      if (!api) throw new ProjectRepositoryError("PROJECT_RAGLAN_INTERFACE_PLANNING_VALIDATOR_MISSING", "Stage 86 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("RAGLAN_INTERFACE_HISTORY_CONFLICT", "Stage 86 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "RAGLAN_INTERFACE_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 86 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("RAGLAN_INTERFACE_HISTORY_CONFLICT", "Stage 86 epoch lineage or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectRaglanInterfacePlanning(projectId, calculationId = null) { const history = await this.getProjectRaglanInterfacePlanningHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectRaglanInterfacePlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectRaglanInterfacePlanning; const application = global.YarnAIProjectRaglanInterfacePlanningApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_RAGLAN_INTERFACE_PLANNING_VALIDATOR_MISSING", "Stage 86 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 86 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 86 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 86 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 86 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 86 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 86 targets another predecessor chain.");
+      const history = await this.getProjectRaglanInterfacePlanningHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 86 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesPlanIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 86 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_RAGLAN_INTERFACE_PLAN_IMMUTABLE", "A completed Stage 86 plan cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesPlanIdentity !== current.state.supersedesPlanIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 86 changed concurrently or immutable attempt fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const isRework = candidate.supersedesPlanIdentity !== null; if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision) || isRework && (current.state.lifecycle !== "completed" || candidate.supersedesPlanIdentity !== current.state.completedPlan?.identity) || !isRework && canonicalize(candidate.source) === canonicalize(current.state.source)) throw new ProjectRepositoryError("RAGLAN_INTERFACE_HISTORY_CONFLICT", "A new Stage 86 epoch must preserve predecessor/plan lineage and bind a new source or explicit rework.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 86 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("RAGLAN_INTERFACE_HISTORY_CONFLICT", "Stage 86 epochs must be contiguous.");
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 86 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 86 changed concurrently.");
+        for (const binding of candidate.source.bindings) { const live = liveRecords.find((entry) => entry.progress_id === binding.progressId); if (!live || live.kind !== binding.kind || live.revision !== binding.repositoryRevision || api.fingerprint(live.state) !== binding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 86 source ${binding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `raglan_interface_planning_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_RAGLAN_INTERFACE_PLANNING_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, review_fingerprint: candidate.review?.reviewFingerprint || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 86 record changed concurrently."); } for (const binding of candidate.source.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(binding.progressId)); if (!storedSource || storedSource.revision !== binding.repositoryRevision || api.fingerprint(storedSource.state) !== binding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 86 predecessor changed during commit."); } } await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async getProjectBodySleevesJoinExecutionHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectBodySleevesJoinExecution;
+      if (!api) throw new ProjectRepositoryError("PROJECT_BODY_SLEEVES_JOIN_EXECUTION_VALIDATOR_MISSING", "Stage 87 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("BODY_SLEEVES_JOIN_HISTORY_CONFLICT", "Stage 87 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "BODY_SLEEVES_JOIN_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 87 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("BODY_SLEEVES_JOIN_HISTORY_CONFLICT", "Stage 87 epoch lineage or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectBodySleevesJoinExecution(projectId, calculationId = null) { const history = await this.getProjectBodySleevesJoinExecutionHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectBodySleevesJoinExecution(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectBodySleevesJoinExecution; const application = global.YarnAIProjectBodySleevesJoinExecutionApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_BODY_SLEEVES_JOIN_EXECUTION_VALIDATOR_MISSING", "Stage 87 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 87 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 87 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 87 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 87 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 87 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 87 targets another predecessor chain.");
+      const history = await this.getProjectBodySleevesJoinExecutionHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 87 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesResultIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 87 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_BODY_SLEEVES_JOIN_IMMUTABLE", "A completed Stage 87 result cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesResultIdentity !== current.state.supersedesResultIdentity || canonicalize(candidate.recovery) !== canonicalize(current.state.recovery) || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 87 changed concurrently or immutable attempt fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const isCompletedRework = candidate.supersedesResultIdentity !== null; const isRecoveredAttempt = candidate.recovery?.physicalRestorationConfirmed === true && candidate.recovery?.abandonedAttemptIdentity === current.state.identity; if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision) || !isRecoveredAttempt && canonicalize(candidate.source) === canonicalize(current.state.source) || isCompletedRework && (current.state.lifecycle !== "completed" || candidate.supersedesResultIdentity !== current.state.completedResult?.identity) || !isCompletedRework && current.state.lifecycle === "completed") throw new ProjectRepositoryError("BODY_SLEEVES_JOIN_HISTORY_CONFLICT", "A new Stage 87 epoch must preserve predecessor/result lineage and bind a new source or explicit physical recovery.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 87 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("BODY_SLEEVES_JOIN_HISTORY_CONFLICT", "Stage 87 epochs must be contiguous.");
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 87 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 87 changed concurrently.");
+        for (const binding of candidate.source.bindings) { const live = liveRecords.find((entry) => entry.progress_id === binding.progressId); if (!live || live.kind !== binding.kind || live.revision !== binding.repositoryRevision || api.fingerprint(live.state) !== binding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 87 source ${binding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `body_sleeves_join_execution_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_BODY_SLEEVES_JOIN_EXECUTION_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, review_fingerprint: candidate.review?.reviewFingerprint || null, physical_cursor: candidate.actionCursor, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 87 record changed concurrently."); } for (const binding of candidate.source.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(binding.progressId)); if (!storedSource || storedSource.revision !== binding.repositoryRevision || api.fingerprint(storedSource.state) !== binding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 87 predecessor changed during commit."); } } await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async ensureProjectBodySleevesJoinExecution(projectId, calculationId, state, options = {}) { return this.saveProjectBodySleevesJoinExecution(projectId, calculationId, state, options); }
+    async updateProjectBodySleevesJoinExecution(projectId, calculationId, state, options = {}) { return this.saveProjectBodySleevesJoinExecution(projectId, calculationId, state, options); }
+
+    async getProjectYokeTargetGeometryPlanningHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectYokeTargetGeometryPlanning;
+      if (!api) throw new ProjectRepositoryError("PROJECT_YOKE_TARGET_GEOMETRY_PLANNING_VALIDATOR_MISSING", "Stage 88 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("YOKE_TARGET_GEOMETRY_HISTORY_CONFLICT", "Stage 88 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "YOKE_TARGET_GEOMETRY_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 88 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("YOKE_TARGET_GEOMETRY_HISTORY_CONFLICT", "Stage 88 epoch lineage or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectYokeTargetGeometryPlanning(projectId, calculationId = null) { const history = await this.getProjectYokeTargetGeometryPlanningHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectYokeTargetGeometryPlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectYokeTargetGeometryPlanning; const application = global.YarnAIProjectYokeTargetGeometryPlanningApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_YOKE_TARGET_GEOMETRY_PLANNING_VALIDATOR_MISSING", "Stage 88 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 88 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 88 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 88 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 88 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 88 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 88 targets another predecessor chain.");
+      const history = await this.getProjectYokeTargetGeometryPlanningHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 88 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesPlanIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 88 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_YOKE_TARGET_GEOMETRY_IMMUTABLE", "A completed Stage 88 result cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesPlanIdentity !== current.state.supersedesPlanIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 88 changed concurrently or immutable plan fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const completedReplacement = current.state.lifecycle === "completed" && candidate.supersedesPlanIdentity === current.state.completedPlan?.identity; const staleUncompletedReplacement = current.state.lifecycle !== "completed" && candidate.supersedesPlanIdentity === null && canonicalize(candidate.source) !== canonicalize(current.state.source); if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || !completedReplacement && !staleUncompletedReplacement || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("YOKE_TARGET_GEOMETRY_HISTORY_CONFLICT", "A new Stage 88 epoch must replace a stale uncompleted source or supersede the current immutable result.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 88 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("YOKE_TARGET_GEOMETRY_HISTORY_CONFLICT", "Stage 88 epochs must be contiguous.");
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 88 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 88 changed concurrently.");
+        for (const binding of candidate.source.bindings) { const live = liveRecords.find((entry) => entry.progress_id === binding.progressId); if (!live || live.kind !== binding.kind || live.revision !== binding.repositoryRevision || api.fingerprint(live.state) !== binding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 88 source ${binding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `yoke_target_geometry_planning_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_YOKE_TARGET_GEOMETRY_PLANNING_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, review_fingerprint: candidate.review?.reviewFingerprint || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 88 record changed concurrently."); } for (const binding of candidate.source.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(binding.progressId)); if (!storedSource || storedSource.revision !== binding.repositoryRevision || api.fingerprint(storedSource.state) !== binding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 88 predecessor changed during commit."); } } await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async ensureProjectYokeTargetGeometryPlanning(projectId, calculationId, state, options = {}) { return this.saveProjectYokeTargetGeometryPlanning(projectId, calculationId, state, options); }
+    async updateProjectYokeTargetGeometryPlanning(projectId, calculationId, state, options = {}) { return this.saveProjectYokeTargetGeometryPlanning(projectId, calculationId, state, options); }
+
+    async getProjectRaglanShapingSchedulePlanningHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectRaglanShapingSchedulePlanning;
+      if (!api) throw new ProjectRepositoryError("PROJECT_RAGLAN_SHAPING_SCHEDULE_PLANNING_VALIDATOR_MISSING", "Stage 89 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("RAGLAN_SHAPING_SCHEDULE_HISTORY_CONFLICT", "Stage 89 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "RAGLAN_SHAPING_SCHEDULE_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 89 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("RAGLAN_SHAPING_SCHEDULE_HISTORY_CONFLICT", "Stage 89 epoch lineage or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectRaglanShapingSchedulePlanning(projectId, calculationId = null) { const history = await this.getProjectRaglanShapingSchedulePlanningHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectRaglanShapingSchedulePlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectRaglanShapingSchedulePlanning; const application = global.YarnAIProjectRaglanShapingSchedulePlanningApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_RAGLAN_SHAPING_SCHEDULE_PLANNING_VALIDATOR_MISSING", "Stage 89 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 89 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 89 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 89 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 89 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 89 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 89 targets another predecessor chain.");
+      const history = await this.getProjectRaglanShapingSchedulePlanningHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 89 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesScheduleIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 89 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_RAGLAN_SHAPING_SCHEDULE_IMMUTABLE", "A completed Stage 89 result cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesScheduleIdentity !== current.state.supersedesScheduleIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 89 changed concurrently or immutable schedule fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const completedReplacement = current.state.lifecycle === "completed" && candidate.supersedesScheduleIdentity === current.state.completedSchedule?.identity; const staleUncompletedReplacement = current.state.lifecycle !== "completed" && candidate.supersedesScheduleIdentity === null && canonicalize(candidate.source) !== canonicalize(current.state.source); if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || !completedReplacement && !staleUncompletedReplacement || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("RAGLAN_SHAPING_SCHEDULE_HISTORY_CONFLICT", "A new Stage 89 epoch must replace a stale uncompleted source or supersede the current immutable schedule.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 89 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("RAGLAN_SHAPING_SCHEDULE_HISTORY_CONFLICT", "Stage 89 epochs must be contiguous.");
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 89 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 89 changed concurrently.");
+        for (const binding of candidate.source.bindings) { const live = liveRecords.find((entry) => entry.progress_id === binding.progressId); if (!live || live.kind !== binding.kind || live.revision !== binding.repositoryRevision || api.fingerprint(live.state) !== binding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 89 source ${binding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `raglan_shaping_schedule_planning_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_RAGLAN_SHAPING_SCHEDULE_PLANNING_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, eligibility_fingerprint: candidate.eligibilityBinding?.fingerprint || null, review_fingerprint: candidate.scheduleReview?.reviewFingerprint || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 89 record changed concurrently."); } for (const binding of candidate.source.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(binding.progressId)); if (!storedSource || storedSource.revision !== binding.repositoryRevision || api.fingerprint(storedSource.state) !== binding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 89 predecessor changed during commit."); } } await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async ensureProjectRaglanShapingSchedulePlanning(projectId, calculationId, state, options = {}) { return this.saveProjectRaglanShapingSchedulePlanning(projectId, calculationId, state, options); }
+    async updateProjectRaglanShapingSchedulePlanning(projectId, calculationId, state, options = {}) { return this.saveProjectRaglanShapingSchedulePlanning(projectId, calculationId, state, options); }
+
+    async getProjectRaglanShapingExecutionHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectRaglanShapingExecution;
+      if (!api) throw new ProjectRepositoryError("PROJECT_RAGLAN_SHAPING_EXECUTION_VALIDATOR_MISSING", "Stage 90 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("RAGLAN_SHAPING_EXECUTION_HISTORY_CONFLICT", "Stage 90 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "RAGLAN_SHAPING_EXECUTION_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 90 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("RAGLAN_SHAPING_EXECUTION_HISTORY_CONFLICT", "Stage 90 epoch lineage or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectRaglanShapingExecution(projectId, calculationId = null) { const history = await this.getProjectRaglanShapingExecutionHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectRaglanShapingExecution(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectRaglanShapingExecution; const application = global.YarnAIProjectRaglanShapingExecutionApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_RAGLAN_SHAPING_EXECUTION_VALIDATOR_MISSING", "Stage 90 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 90 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 90 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 90 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 90 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 90 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 90 targets another Stage 89 schedule.");
+      const history = await this.getProjectRaglanShapingExecutionHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 90 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesAttemptIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 90 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_RAGLAN_SHAPING_EXECUTION_IMMUTABLE", "A completed Stage 90 result cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesAttemptIdentity !== current.state.supersedesAttemptIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 90 changed concurrently or immutable attempt fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const recoveryEpoch = candidate.predecessorIdentity === current.state.identity && candidate.supersedesAttemptIdentity === current.state.identity && candidate.revision === 1 && candidate.recovery?.priorAttemptIdentity === current.state.identity; const replacementAfterRestoration = candidate.predecessorIdentity === current.state.identity && candidate.supersedesAttemptIdentity === current.state.identity && candidate.revision === 1 && current.state.recovery?.stage87BoundaryRestored === true && canonicalize(candidate.source) !== canonicalize(current.state.source); if (current.state.lifecycle === "completed" || !recoveryEpoch && !replacementAfterRestoration || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("RAGLAN_SHAPING_EXECUTION_HISTORY_CONFLICT", "A new Stage 90 epoch requires explicit physical recovery and contiguous lineage.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 90 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("RAGLAN_SHAPING_EXECUTION_HISTORY_CONFLICT", "Stage 90 epochs must be contiguous.");
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 90 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 90 changed concurrently.");
+        for (const sourceBinding of candidate.source.bindings) { const live = liveRecords.find((entry) => entry.progress_id === sourceBinding.progressId); if (!live || live.kind !== sourceBinding.kind || live.revision !== sourceBinding.repositoryRevision || api.fingerprint(live.state) !== sourceBinding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 90 source ${sourceBinding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `raglan_shaping_execution_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_RAGLAN_SHAPING_EXECUTION_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, schedule_fingerprint: candidate.source.schedule.fingerprint, current_round: candidate.scheduleCursor.currentRoundNumber, last_confirmed_round: candidate.scheduleCursor.lastPhysicallyConfirmedRound, terminal_review_fingerprint: candidate.terminalReview?.reviewFingerprint || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project or Stage 90 record changed concurrently."); } for (const sourceBinding of candidate.source.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(sourceBinding.progressId)); if (!storedSource || storedSource.revision !== sourceBinding.repositoryRevision || api.fingerprint(storedSource.state) !== sourceBinding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 90 predecessor changed during commit."); } } await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async ensureProjectRaglanShapingExecution(projectId, calculationId, state, options = {}) { return this.saveProjectRaglanShapingExecution(projectId, calculationId, state, options); }
+    async updateProjectRaglanShapingExecution(projectId, calculationId, state, options = {}) { return this.saveProjectRaglanShapingExecution(projectId, calculationId, state, options); }
+
+    async getProjectNecklineOpeningPlanningHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectNecklineOpeningPlanning;
+      if (!api) throw new ProjectRepositoryError("PROJECT_NECKLINE_OPENING_PLANNING_VALIDATOR_MISSING", "Stage 91 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("NECKLINE_OPENING_PLANNING_HISTORY_CONFLICT", "Stage 91 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "NECKLINE_OPENING_PLANNING_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 91 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("NECKLINE_OPENING_PLANNING_HISTORY_CONFLICT", "Stage 91 epoch lineage or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectNecklineOpeningPlanning(projectId, calculationId = null) { const history = await this.getProjectNecklineOpeningPlanningHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectNecklineOpeningPlanning(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectNecklineOpeningPlanning; const application = global.YarnAIProjectNecklineOpeningPlanningApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_NECKLINE_OPENING_PLANNING_VALIDATOR_MISSING", "Stage 91 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateV3State(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Only a valid Stage 91 V3 state may be written; V1 and V2 are read-only."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 91 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 91 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 91 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 91 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 91 targets another Stage 90 physical boundary.");
+      const history = await this.getProjectNecklineOpeningPlanningHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 91 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesPlanIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 91 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_PLAN_IMMUTABLE", "A completed Stage 91 plan cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesPlanIdentity !== current.state.supersedesPlanIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 91 changed concurrently or immutable plan fields were changed.");
+      } else if (candidate.epoch === current.state.epoch + 1) {
+        const sameSourceRework = current.state.lifecycle === "completed" && canonicalize(candidate.source) === canonicalize(current.state.source) && candidate.supersedesPlanIdentity === current.state.completedPlan?.identity; const legacyV3Replacement = current.state.contractVersion < 3 && candidate.contractVersion === 3 && canonicalize(candidate.source) === canonicalize(current.state.source) && candidate.supersedesPlanIdentity === (current.state.completedPlan?.identity || null); const recoveredSourceReplacement = canonicalize(candidate.source) !== canonicalize(current.state.source) && candidate.supersedesPlanIdentity === (current.state.completedPlan?.identity || null); if (candidate.predecessorIdentity !== current.state.identity || candidate.revision !== 1 || !sameSourceRework && !legacyV3Replacement && !recoveredSourceReplacement || ![undefined, null, 0, current.revision].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("NECKLINE_OPENING_PLANNING_HISTORY_CONFLICT", "A new Stage 91 epoch requires contiguous lineage and completed-plan rework, a read-only V1/V2 replacement, or a newly restored Stage 90 source.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 91 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("NECKLINE_OPENING_PLANNING_HISTORY_CONFLICT", "Stage 91 epochs must be contiguous.");
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 91 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const [liveRecords, liveOperations] = await Promise.all([readByProject(database, "progress", "by_project_updated", projectId), readByProject(database, "operations", "by_project_time", projectId)]); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current && candidate.epoch === current.state.epoch + 1 && liveOperations.some((entry) => entry.payload?.calculation_id === calculationId && (/PROJECT_NECKLINE_OPENING_EXECUTION/.test(entry.kind || "") || entry.payload?.source_stage91_plan_identity))) throw new ProjectRepositoryError("PHYSICAL_RESTORATION_REQUIRED", "A durable Stage 92 start receipt blocks ordinary Stage 91 rework.");
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 91 changed concurrently.");
+        for (const sourceBinding of candidate.source.bindings) { const live = liveRecords.find((entry) => entry.progress_id === sourceBinding.progressId); if (!live || live.kind !== sourceBinding.kind || live.revision !== sourceBinding.repositoryRevision || api.fingerprint(live.state) !== sourceBinding.stateFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", `Stage 91 source ${sourceBinding.kind} changed before write.`); }
+        let progress; if (current && candidate.epoch === current.state.epoch) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `neckline_opening_planning_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_NECKLINE_OPENING_PLANNING_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_binding_fingerprint: candidate.source.fingerprint, review_fingerprint: candidate.review?.reviewFingerprint || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint)) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 91 changed concurrently."); } for (const sourceBinding of candidate.source.bindings) { const storedSource = await requestResult(transaction.objectStore("progress").get(sourceBinding.progressId)); if (!storedSource || storedSource.revision !== sourceBinding.repositoryRevision || api.fingerprint(storedSource.state) !== sourceBinding.stateFingerprint) { transaction.abort(); throw new ProjectRepositoryError("SOURCE_STALE", "A Stage 91 predecessor changed during commit."); } } await allocateOperationMetadata(transaction, operation); current && candidate.epoch === current.state.epoch ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async ensureProjectNecklineOpeningPlanning(projectId, calculationId, state, options = {}) { return this.saveProjectNecklineOpeningPlanning(projectId, calculationId, state, options); }
+    async updateProjectNecklineOpeningPlanning(projectId, calculationId, state, options = {}) { return this.saveProjectNecklineOpeningPlanning(projectId, calculationId, state, options); }
+
+    async getProjectNecklineOpeningExecutionHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectNecklineOpeningExecution;
+      if (!api) throw new ProjectRepositoryError("PROJECT_NECKLINE_OPENING_EXECUTION_VALIDATOR_MISSING", "Stage 92 validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("NECKLINE_OPENING_EXECUTION_HISTORY_CONFLICT", "Stage 92 history is not contiguous, safe, and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "NECKLINE_OPENING_EXECUTION_HISTORY_CONFLICT", error?.userMessage || error?.message || "Stage 92 state is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== (checked.at(-1)?.state?.identity || null)) throw new ProjectRepositoryError("NECKLINE_OPENING_EXECUTION_HISTORY_CONFLICT", "Stage 92 epoch lineage or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectNecklineOpeningExecution(projectId, calculationId = null) { const history = await this.getProjectNecklineOpeningExecutionHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectNecklineOpeningExecution(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectNecklineOpeningExecution; const application = global.YarnAIProjectNecklineOpeningExecutionApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_NECKLINE_OPENING_EXECUTION_VALIDATOR_MISSING", "Stage 92 validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Stage 92 state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Stage 92 belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Stage 92 does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 92 write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 92 predecessor chain is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Stage 92 targets another Stage 91 V3 plan.");
+      const history = await this.getProjectNecklineOpeningExecutionHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The Stage 92 operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) {
+        if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || candidate.supersedesExecutionIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first Stage 92 epoch has stale repository expectations.");
+      } else if (candidate.epoch === current.state.epoch) {
+        if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_NECKLINE_OPENING_EXECUTION_IMMUTABLE", "A completed Stage 92 result cannot be changed in place.");
+        if (options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.predecessorIdentity !== current.state.predecessorIdentity || candidate.supersedesExecutionIdentity !== current.state.supersedesExecutionIdentity || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 92 changed concurrently or immutable execution fields were changed.");
+      } else if (candidate.epoch < current.state.epoch) { const historical = history[candidate.epoch - 1]; if (historical?.state.fingerprint === candidate.fingerprint) return clone(historical); throw new ProjectRepositoryError("STALE_EPOCH", "A historical Stage 92 epoch cannot mutate current state."); } else throw new ProjectRepositoryError("NECKLINE_OPENING_EXECUTION_HISTORY_CONFLICT", "Stage 92 does not create replacement epochs without a future dedicated restoration contract.");
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the Stage 92 write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Stage 92 changed concurrently.");
+        const storedStage91 = liveRecords.find((entry) => entry.progress_id === candidate.source.stage91.progressId); if (!storedStage91 || storedStage91.kind !== "PROJECT_NECKLINE_OPENING_PLANNING" || storedStage91.revision !== candidate.source.stage91.repositoryRevision || api.fingerprint(storedStage91.state) !== candidate.source.stage91.stateFingerprint || storedStage91.state?.completedPlan?.fingerprint !== candidate.source.stage91.planFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", "The Stage 91 V3 source changed before the Stage 92 write.");
+        let progress; if (current) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = candidate.epoch; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `neckline_opening_execution_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_NECKLINE_OPENING_EXECUTION_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_stage91_plan_identity: candidate.source.stage91.planIdentity, source_stage91_plan_fingerprint: candidate.source.stage91.planFingerprint, next_step_ordinal: candidate.cursor.nextStepOrdinal, last_confirmed_step_ordinal: candidate.cursor.lastConfirmedStepOrdinal, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; const sourceProgress = await requestResult(transaction.objectStore("progress").get(candidate.source.stage91.progressId)); if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint) || !sourceProgress || sourceProgress.revision !== candidate.source.stage91.repositoryRevision || api.fingerprint(sourceProgress.state) !== candidate.source.stage91.stateFingerprint || sourceProgress.state?.completedPlan?.fingerprint !== candidate.source.stage91.planFingerprint) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project, Stage 91 source, or Stage 92 record changed concurrently."); } await allocateOperationMetadata(transaction, operation); current ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async ensureProjectNecklineOpeningExecution(projectId, calculationId, state, options = {}) { return this.saveProjectNecklineOpeningExecution(projectId, calculationId, state, options); }
+    async updateProjectNecklineOpeningExecution(projectId, calculationId, state, options = {}) { return this.saveProjectNecklineOpeningExecution(projectId, calculationId, state, options); }
+
+    async getProjectRealizedFinishableEdgeEvidenceHistory(projectId, calculationId = null) {
+      const api = global.YarnAIProjectRealizedFinishableEdgeEvidence;
+      if (!api) throw new ProjectRepositoryError("PROJECT_REALIZED_FINISHABLE_EDGE_EVIDENCE_VALIDATOR_MISSING", "Realized edge-evidence validation is unavailable.");
+      const aggregate = await this.getProject(projectId); const effectiveCalculationId = calculationId || aggregate.project.active_calculation_id; if (!effectiveCalculationId) return [];
+      const records = aggregate.progress.filter((entry) => entry.kind === api.KIND && entry.calculation_id === effectiveCalculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch); const checked = [];
+      for (let index = 0; index < records.length; index += 1) {
+        const item = records[index]; if (item.project_id !== projectId || item.epoch !== index + 1 || item.epoch !== 1 || !Number.isSafeInteger(item.revision) || item.revision < 1 || item.conflict_id || item.quarantined || item.imported_unproven || item.validation_status === "IMPORTED_UNPROVEN" || item.stale) throw new ProjectRepositoryError("REALIZED_EDGE_EVIDENCE_HISTORY_CONFLICT", "Realized edge-evidence history is not safe and correctly scoped.");
+        let checkedState; try { checkedState = api.validateState(item.state); } catch (error) { throw new ProjectRepositoryError(error?.code || "REALIZED_EDGE_EVIDENCE_HISTORY_CONFLICT", error?.userMessage || error?.message || "Realized edge evidence is corrupted."); }
+        if (checkedState.projectId !== projectId || checkedState.calculationId !== effectiveCalculationId || checkedState.epoch !== item.epoch || checkedState.revision !== item.revision || checkedState.predecessorIdentity !== null) throw new ProjectRepositoryError("REALIZED_EDGE_EVIDENCE_HISTORY_CONFLICT", "Realized edge-evidence scope, epoch, or revision binding is corrupted."); checked.push({ ...clone(item), state: clone(checkedState) });
+      }
+      return checked;
+    }
+
+    async getProjectRealizedFinishableEdgeEvidence(projectId, calculationId = null) { const history = await this.getProjectRealizedFinishableEdgeEvidenceHistory(projectId, calculationId); return history.length ? clone(history.at(-1)) : null; }
+
+    async saveProjectRealizedFinishableEdgeEvidence(projectId, calculationId, state, options = {}) {
+      const api = global.YarnAIProjectRealizedFinishableEdgeEvidence; const application = global.YarnAIProjectRealizedFinishableEdgeEvidenceApplication;
+      if (!api || !application) throw new ProjectRepositoryError("PROJECT_REALIZED_FINISHABLE_EDGE_EVIDENCE_VALIDATOR_MISSING", "Realized edge-evidence validation or source reconstruction is unavailable.");
+      let candidate; try { candidate = api.validateState(state); } catch (error) { throw new ProjectRepositoryError(error?.code || "PROGRESS_STATE_INVALID", error?.userMessage || error?.message || "Realized edge-evidence state is invalid."); }
+      if (candidate.projectId !== projectId || candidate.calculationId !== calculationId) throw new ProjectRepositoryError("PROJECT_OR_CALCULATION_MISMATCH", "Realized edge evidence belongs to another project or calculation.");
+      const aggregate = await this.getProject(projectId); if (aggregate.project.active_calculation_id !== calculationId) throw new ProjectRepositoryError("CALCULATION_MISMATCH", "Realized edge evidence does not belong to the active calculation."); if (options.expectedProjectRevision !== undefined && aggregate.project.revision !== options.expectedProjectRevision) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the edge-evidence write.");
+      let authoritative; try { authoritative = application.reconstructAuthoritativeContext({ aggregate, domain: api, validatedAt: options.timestamp }); } catch (error) { throw new ProjectRepositoryError(error?.code || "SOURCE_STALE", error?.userMessage || error?.message || "The authoritative Stage 92 predecessor is stale."); }
+      if (canonicalize(candidate.source) !== canonicalize(authoritative.source) || options.expectedSource && canonicalize(options.expectedSource) !== canonicalize(authoritative.source)) throw new ProjectRepositoryError("SOURCE_STALE", "Realized edge evidence targets another Stage 92 result.");
+      const history = await this.getProjectRealizedFinishableEdgeEvidenceHistory(projectId, calculationId); const current = history.at(-1) || null; const candidateReceipt = options.operationId ? candidate.operationReceipts.find((entry) => entry.operationId === options.operationId) : null;
+      if (options.operationId) for (const historical of history) { const prior = historical.state.operationReceipts.find((entry) => entry.operationId === options.operationId); if (!prior) continue; if (!candidateReceipt || prior.command !== candidateReceipt.command || prior.payloadFingerprint !== candidateReceipt.payloadFingerprint) throw new ProjectRepositoryError("OPERATION_ID_CONFLICT", "The edge-evidence operation id was already used with different semantics."); if (historical.state.fingerprint === candidate.fingerprint) return clone(historical); }
+      if (!current) { if (candidate.epoch !== 1 || candidate.revision !== 1 || candidate.predecessorIdentity !== null || ![undefined, null, 0].includes(options.expectedRepositoryRevision)) throw new ProjectRepositoryError("REVISION_CONFLICT", "The first edge-evidence record has stale repository expectations."); }
+      else { if (candidate.fingerprint === current.state.fingerprint) return clone(current); if (current.state.lifecycle === "completed") throw new ProjectRepositoryError("COMPLETED_REALIZED_EDGE_EVIDENCE_IMMUTABLE", "Completed realized edge evidence cannot be changed."); if (candidate.epoch !== current.state.epoch || options.expectedRepositoryRevision !== current.revision || options.expectedDomainRevision !== undefined && options.expectedDomainRevision !== current.state.revision || candidate.revision !== current.state.revision + 1 || candidate.identity !== current.state.identity || canonicalize(candidate.source) !== canonicalize(current.state.source) || candidate.timestamps.createdAt !== current.state.timestamps.createdAt) throw new ProjectRepositoryError("REVISION_CONFLICT", "Realized edge evidence changed concurrently or immutable fields were changed."); }
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId); if (before.revision !== aggregate.project.revision || before.active_calculation_id !== calculationId) throw new ProjectRepositoryError("REVISION_CONFLICT", "The project changed before the edge-evidence write."); const timestamp = options.timestamp || utcNow(); const database = await this._database(); const liveRecords = await readByProject(database, "progress", "by_project_updated", projectId); const liveCurrent = liveRecords.filter((entry) => entry.kind === api.KIND && entry.calculation_id === calculationId && !entry.deleted_at).sort((left, right) => left.epoch - right.epoch).at(-1) || null;
+        if (current ? (!liveCurrent || liveCurrent.progress_id !== current.progress_id || liveCurrent.revision !== current.revision || liveCurrent.state?.fingerprint !== current.state.fingerprint) : Boolean(liveCurrent)) throw new ProjectRepositoryError("REVISION_CONFLICT", "Realized edge evidence changed concurrently.");
+        const storedStage92 = liveRecords.find((entry) => entry.progress_id === candidate.source.stage92.progressId); if (!storedStage92 || storedStage92.kind !== "PROJECT_NECKLINE_OPENING_EXECUTION" || storedStage92.revision !== candidate.source.stage92.repositoryRevision || api.fingerprint(storedStage92.state) !== candidate.source.stage92.stateFingerprint || storedStage92.state?.completedResult?.fingerprint !== candidate.source.stage92.resultFingerprint) throw new ProjectRepositoryError("SOURCE_STALE", "The Stage 92 source changed before the edge-evidence write.");
+        let progress; if (current) { progress = clone(current); progress.state = clone(candidate); progress.revision = current.revision + 1; progress.updated_at = timestamp; } else { progress = this._initialProgress(projectId, calculationId, api.KIND, timestamp); progress.epoch = 1; progress.revision = 1; progress.state = clone(candidate); }
+        const nextProject = clone(before); nextProject.current_stage = `realized_finishable_edge_evidence_${candidate.lifecycle}`; nextProject.updated_at = timestamp; nextProject.revision = before.revision + 1; nextProject.materialized_checksum = await checksumPayload(projectChecksumPayload(nextProject));
+        const operation = createOperation(nextProject, options.operationKind || `PROJECT_REALIZED_FINISHABLE_EDGE_EVIDENCE_${candidate.lifecycle.toUpperCase()}`, { calculation_id: calculationId, progress_id: progress.progress_id, progress_epoch: progress.epoch, progress_revision: progress.revision, domain_revision: candidate.revision, client_operation_id: options.operationId || null, source_stage92_result_identity: candidate.source.stage92.resultIdentity, source_stage92_result_fingerprint: candidate.source.stage92.resultFingerprint, topology_fingerprint: candidate.review?.topology?.fingerprint || candidate.completedEvidence?.topologyFingerprint || null, progress_state: clone(candidate) }, timestamp, before.revision, nextProject.revision); const checkpoint = createCheckpoint(nextProject, nextProject.materialized_checksum, nextProject.revision, timestamp); const transaction = database.transaction(["projects", "progress", "operations", "checkpoints", "meta"], "readwrite");
+        try { const storedProject = await requestResult(transaction.objectStore("projects").get(projectId)); const storedProgress = current ? await requestResult(transaction.objectStore("progress").get(current.progress_id)) : null; const sourceProgress = await requestResult(transaction.objectStore("progress").get(candidate.source.stage92.progressId)); if (!storedProject || storedProject.revision !== before.revision || current && (!storedProgress || storedProgress.revision !== current.revision || storedProgress.state?.fingerprint !== current.state.fingerprint) || !sourceProgress || sourceProgress.revision !== candidate.source.stage92.repositoryRevision || api.fingerprint(sourceProgress.state) !== candidate.source.stage92.stateFingerprint || sourceProgress.state?.completedResult?.fingerprint !== candidate.source.stage92.resultFingerprint) { transaction.abort(); throw new ProjectRepositoryError("REVISION_CONFLICT", "The project, Stage 92 source, or evidence record changed concurrently."); } await allocateOperationMetadata(transaction, operation); current ? transaction.objectStore("progress").put(progress) : transaction.objectStore("progress").add(progress); transaction.objectStore("projects").put(nextProject); transaction.objectStore("operations").add(operation); transaction.objectStore("checkpoints").add(checkpoint); await transactionComplete(transaction); } catch (error) { throw mapStorageError(error); }
+        this._notify(projectId, nextProject.revision, operation.kind); return clone(progress);
+      });
+    }
+
+    async ensureProjectRealizedFinishableEdgeEvidence(projectId, calculationId, state, options = {}) { return this.saveProjectRealizedFinishableEdgeEvidence(projectId, calculationId, state, options); }
+    async updateProjectRealizedFinishableEdgeEvidence(projectId, calculationId, state, options = {}) { return this.saveProjectRealizedFinishableEdgeEvidence(projectId, calculationId, state, options); }
 
     async getPatternExecutionSession(projectId, calculationId = null) {
       let effectiveCalculationId = calculationId;
@@ -4510,6 +6582,46 @@
         throw new ProjectRepositoryError(
           "PATTERN_EXECUTION_SESSION_REVISION_INVALID",
           "Revision сессии выполнения устарела или повреждена.",
+        );
+      }
+      return this.updateCalculationProgress(
+        projectId,
+        calculationId,
+        "PATTERN_EXECUTION_SESSION",
+        state,
+        { ...options, baseProgressRevision: current.revision },
+      );
+    }
+
+    async replacePatternExecutionSessionLineage(projectId, calculationId, state, options = {}) {
+      const current = await this.getPatternExecutionSession(projectId, calculationId);
+      if (!current) {
+        throw new ProjectRepositoryError(
+          "PATTERN_EXECUTION_SESSION_NOT_FOUND",
+          "Запись сессии выполнения не найдена.",
+        );
+      }
+      const previous = current.state;
+      const evidence = Array.isArray(state?.supersededPhysicalLineages)
+        ? state.supersededPhysicalLineages.find((entry) => entry?.sessionId === previous?.id && entry?.sessionRevision === previous?.revision && entry?.sessionFingerprint === previous?.sessionFingerprint)
+        : null;
+      const preservedVirtual = previous?.virtualDryRun
+        ? state?.historicalVirtualDryRuns?.some((entry) => entry?.id === previous.virtualDryRun.id && entry?.runFingerprint === previous.virtualDryRun.runFingerprint)
+        : true;
+      if (
+        previous?.status !== "stale" || previous?.planSnapshot !== null || (previous?.execution?.actions || []).length ||
+        (previous?.completedActionIds || []).length || (previous?.skippedActionIds || []).length ||
+        state?.kind !== "PATTERN_EXECUTION_SESSION" || state?.projectId !== projectId || state?.id === previous?.id ||
+        state?.revision !== 1 || state?.status !== "waiting" || state?.planSnapshot !== null ||
+        (state?.execution?.actions || []).length || (state?.completedActionIds || []).length || (state?.skippedActionIds || []).length ||
+        !evidence || !preservedVirtual ||
+        options.expectedPreviousSessionId !== previous.id ||
+        options.expectedPreviousSessionRevision !== previous.revision ||
+        options.expectedPreviousSessionFingerprint !== previous.sessionFingerprint
+      ) {
+        throw new ProjectRepositoryError(
+          "PATTERN_EXECUTION_LINEAGE_REPLACEMENT_INVALID",
+          "Новая physical lineage не доказала сохранение stale-сессии и нулевого физического progress.",
         );
       }
       return this.updateCalculationProgress(
@@ -7256,6 +9368,26 @@
     async exportPatternEvolutionClosures(projectId, calculationId = null) { const api = global.YarnAIPatternEvolutionClosure; const records = await this.listPatternEvolutionClosures(projectId, calculationId); return records.map((entry) => api.serializePatternEvolutionClosure(entry.state)); }
     async importPatternEvolutionClosure(projectId, serialized, options = {}) { const api = global.YarnAIPatternEvolutionClosure; const existing = await this.listPatternEvolutionClosures(projectId, options.calculationId || null); const result = api.importPatternEvolutionClosure(existing, serialized, options); if (["malformed", "collision"].includes(result.status)) { await this._quarantinePatternEvolutionClosure({ progress_id: null, state: serialized, updated_at: options.timestamp }, result.quarantine?.reasonCode || "INVALID_PATTERN_EVOLUTION_CLOSURE_IMPORT"); return result; } if (!result.changed) return result; const stored = await this.savePatternEvolutionClosure(projectId, result.record, { timestamp: options.timestamp || result.record.updatedAt, allowImported: true }); return { ...result, stored }; }
 
+    async getPhoto(projectId, photoId) {
+      if (!isUuidv7(projectId) || !isUuidv7(photoId)) {
+        throw new ProjectRepositoryError(
+          "INVALID_PHOTO_SCOPE",
+          "?????? ?? ?????????? ??????????.",
+        );
+      }
+      await this._validatedCurrentProject(projectId);
+      const database = await this._database();
+      const metadataTransaction = database.transaction("photos", "readonly");
+      const metadata = await requestResult(metadataTransaction.objectStore("photos").get(photoId));
+      await transactionComplete(metadataTransaction);
+      if (!metadata || metadata.project_id !== projectId || metadata.deleted_at) return null;
+      const blobTransaction = database.transaction("photo_blobs", "readonly");
+      const blobRecord = await requestResult(
+        blobTransaction.objectStore("photo_blobs").index("by_photo_variant").get([photoId, "ORIGINAL"]),
+      );
+      await transactionComplete(blobTransaction);
+      return { metadata: clone(metadata), blob: blobRecord?.blob || null };
+    }
     async addPhoto(projectId, blob, metadata = {}) {
       if (!(blob instanceof Blob) || !blob.type.startsWith("image/")) {
         throw new ProjectRepositoryError(
@@ -7282,13 +9414,28 @@
       const sha256 = [...new Uint8Array(hash)]
         .map((byte) => byte.toString(16).padStart(2, "0"))
         .join("");
+      const database = await this._database();
+      const duplicateTransaction = database.transaction("photos", "readonly");
+      const duplicates = await requestResult(
+        duplicateTransaction.objectStore("photos").index("by_sha256").getAll(sha256),
+      );
+      await transactionComplete(duplicateTransaction);
+      const requestedPurpose = String(metadata.purpose ?? "PROJECT_REFERENCE").slice(0, 120);
+      const duplicate = duplicates.find((entry) =>
+        entry.project_id === projectId &&
+        !entry.deleted_at &&
+        entry.status === "READY" &&
+        entry.purpose === requestedPurpose &&
+        (entry.calculation_id ?? null) === (metadata.calculation_id ?? null),
+      );
+      if (duplicate) return clone(duplicate);
       const photoId = uuidv7();
       const photo = {
         schema_version: 1,
         photo_id: photoId,
         project_id: projectId,
         partition_key: PARTITION_KEY,
-        purpose: metadata.purpose ?? "PROJECT_REFERENCE",
+        purpose: requestedPurpose,
         calculation_id: metadata.calculation_id ?? null,
         display_name: String(metadata.display_name ?? "Изображение").slice(0, 120),
         source_mime: blob.type,
@@ -7337,7 +9484,6 @@
         project.revision,
         project.revision,
       );
-      const database = await this._database();
       const transaction = database.transaction(
         ["photos", "photo_blobs", "operations", "meta"],
         "readwrite",
@@ -7352,6 +9498,310 @@
         throw mapStorageError(error);
       }
       return clone(photo);
+    }
+    async deletePhoto(projectId, photoId) {
+      if (!isUuidv7(projectId) || !isUuidv7(photoId)) {
+        throw new ProjectRepositoryError("INVALID_PHOTO_SCOPE", "Фотография относится к неизвестному проекту.");
+      }
+      const project = await this._validatedCurrentProject(projectId);
+      const database = await this._database();
+      const readTransaction = database.transaction("photos", "readonly");
+      const current = await requestResult(readTransaction.objectStore("photos").get(photoId));
+      await transactionComplete(readTransaction);
+      if (!current || current.deleted_at) return null;
+      if (current.project_id !== projectId) throw new ProjectRepositoryError(
+        "INVALID_PHOTO_SCOPE", "Фотография относится к другому проекту.");
+      const timestamp = utcNow();
+      const next = clone(current);
+      next.status = "DELETED";
+      next.deleted_at = timestamp;
+      next.purge_after = timestamp;
+      next.updated_at = timestamp;
+      next.revision = (Number.isInteger(current.revision) ? current.revision : 0) + 1;
+      const operation = createOperation(project, "PHOTO_DELETED", { photo_id: photoId }, timestamp, project.revision, project.revision);
+      const transaction = database.transaction(["photos", "photo_blobs", "operations", "meta"], "readwrite");
+      try {
+        const stored = await requestResult(transaction.objectStore("photos").get(photoId));
+        if (!stored || stored.project_id !== projectId || stored.revision !== current.revision) {
+          transaction.abort();
+          throw new ProjectRepositoryError("PHOTO_REVISION_CONFLICT", "Фотография изменилась в другой вкладке.");
+        }
+        const blobs = await requestResult(transaction.objectStore("photo_blobs").index("by_photo_variant").getAll(
+          global.IDBKeyRange.bound([photoId, ""], [photoId, "\uffff"]),
+        ));
+        await allocateOperationMetadata(transaction, operation);
+        transaction.objectStore("photos").put(next);
+        blobs.forEach((entry) => transaction.objectStore("photo_blobs").delete(entry.blob_id));
+        transaction.objectStore("operations").add(operation);
+        await transactionComplete(transaction);
+      } catch (error) {
+        throw mapStorageError(error);
+      }
+      return clone(next);
+    }
+
+    async deletePhotoAndUpdateCalculationProgress(
+      projectId,
+      photoId,
+      calculationId,
+      kind,
+      state,
+      options = {},
+    ) {
+      if (!isUuidv7(projectId) || !isUuidv7(photoId) || !isUuidv7(calculationId)) {
+        throw new ProjectRepositoryError(
+          "INVALID_PHOTO_SCOPE",
+          "Фотография относится к неизвестному проекту или расчёту.",
+        );
+      }
+      if (typeof kind !== "string" || !kind.trim() || !state || typeof state !== "object" || Array.isArray(state)) {
+        throw new ProjectRepositoryError(
+          "INVALID_PROGRESS_STATE",
+          "Новое состояние прогресса имеет неверный формат.",
+        );
+      }
+      return this._serialize(projectId, async () => {
+        const before = await this._validatedCurrentProject(projectId);
+        if (before.workspace_status === "DELETED") {
+          throw new ProjectRepositoryError(
+            "INVALID_LIFECYCLE_TRANSITION",
+            "Нельзя удалить фотографию из проекта в корзине.",
+          );
+        }
+        if (before.active_calculation_id !== calculationId) {
+          throw new ProjectRepositoryError(
+            "CALCULATION_MISMATCH",
+            "Фотография относится не к активному расчёту проекта.",
+          );
+        }
+        const database = await this._database();
+        const readTransaction = database.transaction(["progress", "photos"], "readonly");
+        const currentProgress = await requestResult(
+          readTransaction.objectStore("progress").index("by_scope_epoch").get([
+            projectId,
+            calculationId,
+            kind,
+            1,
+          ]),
+        );
+        const currentPhoto = await requestResult(
+          readTransaction.objectStore("photos").get(photoId),
+        );
+        await transactionComplete(readTransaction);
+        if (!currentProgress) {
+          throw new ProjectRepositoryError(
+            "PROGRESS_NOT_FOUND",
+            "Запись прогресса проекта не найдена.",
+          );
+        }
+        validateProgressRecord(currentProgress, projectId, calculationId, kind);
+        if (
+          options.baseProgressRevision !== undefined &&
+          currentProgress.revision !== options.baseProgressRevision
+        ) {
+          throw new ProjectRepositoryError(
+            "PROGRESS_REVISION_CONFLICT",
+            "Прогресс изменён в другой вкладке. Обновите страницу.",
+          );
+        }
+        if (!currentPhoto || currentPhoto.deleted_at) {
+          throw new ProjectRepositoryError(
+            "PHOTO_NOT_FOUND",
+            "Фотография уже удалена или не найдена.",
+          );
+        }
+        if (
+          currentPhoto.project_id !== projectId ||
+          (currentPhoto.calculation_id ?? null) !== calculationId ||
+          (options.expectedPurpose && currentPhoto.purpose !== options.expectedPurpose)
+        ) {
+          throw new ProjectRepositoryError(
+            "INVALID_PHOTO_SCOPE",
+            "Фотография относится к другому проекту, расчёту или назначению.",
+          );
+        }
+
+        const timestamp = options.timestamp ?? utcNow();
+        const nextProgress = clone(currentProgress);
+        nextProgress.state = clone(state);
+        nextProgress.updated_at = timestamp;
+        nextProgress.revision = currentProgress.revision + 1;
+
+        const nextPhoto = clone(currentPhoto);
+        nextPhoto.status = "DELETED";
+        nextPhoto.deleted_at = timestamp;
+        nextPhoto.purge_after = timestamp;
+        nextPhoto.updated_at = timestamp;
+        nextPhoto.revision = (Number.isInteger(currentPhoto.revision) ? currentPhoto.revision : 0) + 1;
+
+        const nextProject = clone(before);
+        if (typeof options.projectStage === "string") {
+          nextProject.current_stage = options.projectStage;
+        }
+        nextProject.updated_at = timestamp;
+        nextProject.revision = before.revision + 1;
+        nextProject.materialized_checksum = await checksumPayload(
+          projectChecksumPayload(nextProject),
+        );
+        validateProjectRecord(nextProject);
+
+        const operation = createOperation(
+          nextProject,
+          options.operationKind ?? "PHOTO_DELETED_WITH_PROGRESS_UPDATED",
+          {
+            calculation_id: calculationId,
+            photo_id: photoId,
+            photo_revision: nextPhoto.revision,
+            progress_id: nextProgress.progress_id,
+            progress_kind: kind,
+            progress_revision: nextProgress.revision,
+            progress_state: clone(nextProgress.state),
+          },
+          timestamp,
+          before.revision,
+          nextProject.revision,
+        );
+        const checkpoint = createCheckpoint(
+          nextProject,
+          nextProject.materialized_checksum,
+          nextProject.revision,
+          timestamp,
+        );
+        const transaction = database.transaction(
+          ["projects", "progress", "photos", "photo_blobs", "operations", "checkpoints", "meta"],
+          "readwrite",
+        );
+        try {
+          const storedProject = await requestResult(
+            transaction.objectStore("projects").get(projectId),
+          );
+          const storedProgress = await requestResult(
+            transaction.objectStore("progress").get(nextProgress.progress_id),
+          );
+          const storedPhoto = await requestResult(
+            transaction.objectStore("photos").get(photoId),
+          );
+          if (
+            !storedProject ||
+            storedProject.revision !== before.revision ||
+            !storedProgress ||
+            storedProgress.revision !== currentProgress.revision ||
+            !storedPhoto ||
+            storedPhoto.project_id !== projectId ||
+            (storedPhoto.calculation_id ?? null) !== calculationId ||
+            storedPhoto.revision !== currentPhoto.revision ||
+            storedPhoto.deleted_at
+          ) {
+            transaction.abort();
+            throw new ProjectRepositoryError(
+              "PHOTO_REVISION_CONFLICT",
+              "Фотография или прогресс изменились в другой вкладке.",
+            );
+          }
+          const blobs = await requestResult(
+            transaction.objectStore("photo_blobs").index("by_photo_variant").getAll(
+              global.IDBKeyRange.bound([photoId, ""], [photoId, "\uffff"]),
+            ),
+          );
+          await allocateOperationMetadata(transaction, operation);
+          transaction.objectStore("progress").put(nextProgress);
+          transaction.objectStore("photos").put(nextPhoto);
+          blobs.forEach((entry) => transaction.objectStore("photo_blobs").delete(entry.blob_id));
+          transaction.objectStore("projects").put(nextProject);
+          transaction.objectStore("operations").add(operation);
+          transaction.objectStore("checkpoints").add(checkpoint);
+          await transactionComplete(transaction);
+        } catch (error) {
+          throw mapStorageError(error);
+        }
+        this._notify(projectId, nextProject.revision, operation.kind);
+        return {
+          project: clone(nextProject),
+          progress: clone(nextProgress),
+          photo: clone(nextPhoto),
+        };
+      });
+    }
+
+
+    async saveProjectDetailsCollaborationDraft(requestId, projectId, payload, options = {}) {
+      if (!isUuidv7(requestId) || !isUuidv7(projectId)) {
+        throw new ProjectRepositoryError(
+          "INVALID_COLLABORATION_DRAFT_SCOPE",
+          "Идентификаторы локального черновика совместной проверки повреждены.",
+        );
+      }
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        throw new ProjectRepositoryError(
+          "INVALID_COLLABORATION_DRAFT",
+          "Локальный черновик совместной проверки имеет неверный формат.",
+        );
+      }
+      const timestamp = options.timestamp || utcNow();
+      if (!isTimestamp(timestamp)) {
+        throw new ProjectRepositoryError(
+          "INVALID_COLLABORATION_DRAFT_TIMESTAMP",
+          "Время сохранения локального черновика повреждено.",
+        );
+      }
+      const database = await this._database();
+      const readTransaction = database.transaction("transfer_receipts", "readonly");
+      const receipts = await requestResult(readTransaction.objectStore("transfer_receipts").getAll());
+      await transactionComplete(readTransaction);
+      const existing = receipts.find((entry) =>
+        entry.transfer_kind === "PROJECT_DETAILS_COLLABORATION_DRAFT" &&
+        entry.external_id === requestId,
+      );
+      const requestFingerprint = payload.request?.fingerprint;
+      if (
+        existing &&
+        (existing.project_id !== projectId || existing.payload?.request?.fingerprint !== requestFingerprint)
+      ) {
+        throw new ProjectRepositoryError(
+          "COLLABORATION_REQUEST_COLLISION",
+          "Запрос с таким identity уже открыт с другим содержимым.",
+        );
+      }
+      const checksum = await checksumPayload(payload);
+      const receipt = {
+        transfer_id: existing?.transfer_id || uuidv7(),
+        transfer_kind: "PROJECT_DETAILS_COLLABORATION_DRAFT",
+        external_id: requestId,
+        checksum,
+        project_id: projectId,
+        collision: false,
+        created_at: existing?.created_at || timestamp,
+        updated_at: timestamp,
+        payload: clone(payload),
+      };
+      const transaction = database.transaction("transfer_receipts", "readwrite");
+      transaction.objectStore("transfer_receipts").put(receipt);
+      await transactionComplete(transaction);
+      return clone(receipt);
+    }
+
+    async getProjectDetailsCollaborationDraft(requestId) {
+      if (!isUuidv7(requestId)) {
+        throw new ProjectRepositoryError(
+          "INVALID_COLLABORATION_DRAFT_ID",
+          "Идентификатор локального черновика повреждён.",
+        );
+      }
+      const database = await this._database();
+      const transaction = database.transaction("transfer_receipts", "readonly");
+      const receipts = await requestResult(transaction.objectStore("transfer_receipts").getAll());
+      await transactionComplete(transaction);
+      const matches = receipts.filter((entry) =>
+        entry.transfer_kind === "PROJECT_DETAILS_COLLABORATION_DRAFT" &&
+        entry.external_id === requestId,
+      );
+      if (matches.length > 1 || matches[0]?.collision) {
+        throw new ProjectRepositoryError(
+          "COLLABORATION_DRAFT_COLLISION",
+          "Обнаружена коллизия локального черновика совместной проверки.",
+        );
+      }
+      return matches[0] ? clone(matches[0]) : null;
     }
 
     async exportProject(projectId) {
@@ -7545,6 +9995,18 @@
         importedProject.updated_at = importedProject.created_at;
         importedProject.last_opened_at = null;
         importedProject.revision = 1;
+      }
+      const initializationHistory = importedProject.draft_input?.project_initializations;
+      if (initializationHistory) {
+        const initializationApi = global.YarnAIProjectInitialization;
+        if (!initializationApi?.importInitializationHistory) throw new ProjectRepositoryError("PROJECT_INITIALIZATION_API_MISSING", "?????? ?????? ??????? ??????????: ?????? Stage 61 ?? ????????.");
+        importedProject.draft_input.project_initializations = initializationApi.importInitializationHistory(initializationHistory, {
+          sourceProjectIdentity: sourceProjectId,
+          projectIdentity: projectId,
+          collision,
+          importedAt: importedProject.updated_at,
+          identityProvider: collision ? () => uuidv7() : undefined,
+        });
       }
       importedProject.materialized_checksum = await checksumPayload(
         projectChecksumPayload(importedProject),
@@ -7742,6 +10204,9 @@
         const importedState = clone(entry.state);
         if (entry.kind === "PATTERN_ANALYSIS_REVIEW") {
           validateImportedPatternAnalysisReview(importedState, sourceProjectId);
+        }
+        if (entry.kind === "SOURCE_PATTERN_INSTRUCTION_EVIDENCE") {
+          validateImportedSourceInstructionEvidence(importedState, sourceProjectId);
         }
         if (entry.kind === "PATTERN_TECHNOLOGY_DRAFT") {
           validateImportedPatternTechnologyDraft(importedState, sourceProjectId);
@@ -8012,6 +10477,27 @@
         }];
       });
       importedProgress.forEach((entry) => {
+        if (entry.kind !== "SOURCE_PATTERN_INSTRUCTION_EVIDENCE") return;
+        const state = entry.state;
+        const previousSnapshot = state.confirmedSnapshot ? clone(state.confirmedSnapshot) : null;
+        const previousFingerprint = state.confirmedSnapshotFingerprint || null;
+        if (collision) {
+          state.id = uuidv7();
+          state.binding.projectId = projectId;
+        }
+        if (previousSnapshot) state.history = [...(Array.isArray(state.history) ? state.history : []), { evidenceRevision: state.revision, resultIdentity: state.resultIdentity, resultFingerprint: state.resultFingerprint, confirmedSnapshot: previousSnapshot, confirmedSnapshotFingerprint: previousFingerprint, supersededAt: timestamp }].slice(-24);
+        state.bindingFingerprint = fnv1a32Fingerprint(state.binding);
+        state.revision = Math.max(1, Number(state.revision) || 1) + 1;
+        state.status = "stale";
+        state.freshness = "stale";
+        state.updatedAt = timestamp;
+        state.confirmedAt = null;
+        state.confirmedSnapshot = null;
+        state.confirmedSnapshotFingerprint = null;
+        state.error = { code: "IMPORT_SOURCE_IDENTITY_UNPROVEN" };
+        state.audit = [...(Array.isArray(state.audit) ? state.audit : []), { type: "imported_stale", at: timestamp, revision: state.revision, sourceProjectId, projectId }].slice(-24);
+      });
+      importedProgress.forEach((entry) => {
         if (entry.kind !== "PATTERN_ANALYSIS_REVIEW") return;
         const originalSourceId = entry.state?.sourceSemanticAnalysisId;
         if (collision && semanticStateIdMap.has(originalSourceId)) {
@@ -8101,7 +10587,8 @@
             }
           }
           state.immutableSourceFingerprint = fnv1a32Fingerprint(state.immutableSourceSnapshot);
-          state.sourceConfirmedFingerprint = state.immutableSourceFingerprint;
+          if (state.inputContractVersion === 2) state.sourceProjectionFingerprint = state.immutableSourceFingerprint;
+          else state.sourceConfirmedFingerprint = state.immutableSourceFingerprint;
           if (state.draftResult) state.draftFingerprint = fnv1a32Fingerprint(state.draftResult);
         }
         const sourceReview = importedProgress.find(
@@ -8268,6 +10755,13 @@
           sourceImportRevision: state.sourceImportRevision,
         });
         state.sourceAlgorithmVersion = sourceTechnologyDraft.state.algorithmVersion;
+        if (Object.prototype.hasOwnProperty.call(state, "sourceExecutableInputIdentity")) {
+          const executableInput = sourceTechnologyReview.state.confirmedSnapshot?.executableTechnologyPlanInput || null;
+          state.sourceExecutableInputIdentity = executableInput?.identity ?? null;
+          state.sourceExecutableInputFingerprint = executableInput?.fingerprint ?? null;
+          state.sourceStage20ResultIdentity = executableInput?.binding?.stage20ResultIdentity ?? null;
+          state.sourceStage20ProjectionFingerprint = executableInput?.binding?.stage20SourceProjectionFingerprint ?? null;
+        }
         state.planningInputFingerprint = patternExecutionPlanningInputFingerprint(state);
         state.revision = Math.max(1, Number(state.revision) || 1) + 1;
         state.updatedAt = timestamp;

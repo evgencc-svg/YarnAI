@@ -2,6 +2,7 @@
 
 (function exposePatternAnalysisReview(globalObject) {
   const VERSION = 1;
+  const CONFIRMED_SNAPSHOT_CONTRACT_VERSION = 2;
   const PROGRESS_KIND = "PATTERN_ANALYSIS_REVIEW";
   const STATUSES = Object.freeze(["waiting", "reviewing", "needs_attention", "ready_to_confirm", "confirmed", "failed"]);
   const DECISIONS = Object.freeze(["accepted", "corrected", "rejected", "unresolved"]);
@@ -142,35 +143,43 @@
       if (originalValue === undefined || originalValue === null || originalValue === "") return;
       const evidence = normalizeEvidence(source.evidence || evidenceForCategory(result, category));
       const sourceOffsets = offsetsFromEvidence(evidence, source);
+      const deterministic = source.status === "confirmed" && text(source.recognitionReason);
       const item = {
         itemId: stableId("item", { category, subtype, originalValue, identity, sourceOffsets, evidence: evidence.map(evidenceIdentity) }),
         projectId, category, subtype, identity: String(identity || ""),
         originalValue: copy(originalValue), reviewedValue: copy(originalValue),
         unit: source.unit ?? unitFromValue(originalValue), status: "pending",
         severity: "informational", confidence: finiteOrNull(source.confidence),
-        evidence, sourceOffsets, decision: "unresolved", notes: "", updatedAt: null,
+        evidence, sourceOffsets, decision: deterministic ? "accepted" : "unresolved", notes: "", updatedAt: null,
         metadata: copy(source.metadata || {}),
       };
       item.severity = classifyReviewItem(item);
       items.push(item);
     };
 
-    add("craft", "craft", result.craft?.value, { confidence: result.craft?.confidence });
-    add("product", "garment", result.garment?.type, result.garment || {});
-    for (const key of ["method", "direction", "workedInRound", "seamless"]) add("construction", key, result.construction?.[key], result.construction || {}, key);
-    for (const [index, value] of array(result.construction?.features).entries()) add("construction", "feature", value, result.construction || {}, index);
-    for (const [index, value] of array(result.sizing?.labels).entries()) add("sizes", "label", value, { confidence: result.sizing?.confidence }, index);
-    for (const [index, value] of array(result.sizing?.measurements).entries()) add("sizes", "measurement", value, { ...value, confidence: value?.confidence ?? result.sizing?.confidence, evidence: value?.evidence, metadata: { conflictKey: `measurement:${String(value?.name || value?.type || index)}:${String(value?.unit || "")}` } }, value?.name || value?.type || index);
-    for (const subtype of ["stitches", "rows"]) for (const [index, value] of array(result.gauge?.[subtype]).entries()) add("gauge", subtype, value, { ...value, confidence: value?.confidence ?? result.gauge?.confidence, evidence: value?.evidence || result.gauge?.evidence, metadata: { conflictKey: `gauge:${subtype}:${String(value?.per || "")}:${String(value?.unit || "")}` } }, index);
-    for (const subtype of ["names", "weights", "fiberContent", "amounts", "colors"]) for (const [index, value] of array(result.yarn?.[subtype]).entries()) add("yarn", subtype, value, { ...(object(value) ? value : {}), confidence: object(value)?.confidence ?? result.yarn?.confidence, evidence: object(value)?.evidence || result.yarn?.evidence }, index);
-    for (const subtype of ["needleSizes", "hookSizes", "other"]) for (const [index, value] of array(result.tools?.[subtype]).entries()) add("tools", subtype, value, { ...(object(value) ? value : {}), confidence: object(value)?.confidence ?? result.tools?.confidence, evidence: object(value)?.evidence, metadata: { conflictKey: `${subtype}:primary` } }, index);
-    if (result.tools?.cableNeedleMentioned) add("tools", "cableNeedleMentioned", true, { confidence: result.tools?.confidence });
-    if (result.tools?.stitchMarkersMentioned) add("tools", "stitchMarkersMentioned", true, { confidence: result.tools?.confidence });
-    for (const [index, value] of array(result.abbreviations).entries()) add("abbreviations", "definition", value, { ...value, evidence: value?.evidence, metadata: { conflictKey: `abbreviation:${String(value?.abbreviation || value?.short || "")}` } }, value?.abbreviation || index);
-    for (const [index, value] of array(result.sections).entries()) add("sections", "section", value, { ...value, evidence: value?.evidence }, value?.id || value?.title || value?.name || index);
-    for (const [index, value] of array(result.rowInstructions).entries()) add("rows", "row", value, { ...value, evidence: value?.evidence }, value?.rowNumber || value?.number || value?.identity || index);
-    for (const [index, value] of array(result.repeatInstructions).entries()) add("repeats", "repeat", value, { ...value, evidence: value?.evidence }, value?.rowIdentity || value?.start || index);
-    for (const subtype of ["castOn", "bindOff", "stitches", "rows", "repeats"]) for (const [index, value] of array(result.counts?.[subtype]).entries()) add("counts", subtype, value, { ...value, evidence: value?.evidence, metadata: value?.rowIdentity ? { conflictKey: `count:${subtype}:${String(value.rowIdentity)}` } : {} }, value?.rowIdentity || value?.start || index);
+    const ledger = array(result.parameterLedger);
+    if (ledger.length) {
+      for (const value of ledger) { const category = ledgerCategory(value.semanticType); add(category, value.semanticType, { semanticType: value.semanticType, canonicalValue: copy(value.canonicalValue), rawValue: value.rawValue, unit: value.unit, status: value.status, recognitionReason: value.recognitionReason, equivalentMentions: copy(value.equivalentMentions || []) }, { unit: value.unit, confidence: value.confidence, evidence: value.provenance, status: value.status, recognitionReason: value.recognitionReason, metadata: { evidenceDomain: "SOURCE_PATTERN_EVIDENCE" } }, value.semanticType); }
+    } else {
+      add("craft", "craft", result.craft?.value, { confidence: result.craft?.confidence });
+      add("product", "garment", result.garment?.type, result.garment || {});
+      for (const key of ["method", "direction", "workedInRound", "seamless"]) add("construction", key, result.construction?.[key], result.construction || {}, key);
+      for (const [index, value] of array(result.construction?.features).entries()) add("construction", "feature", value, result.construction || {}, index);
+      for (const [index, value] of array(result.sizing?.labels).entries()) add("sizes", "label", value, { confidence: result.sizing?.confidence }, index);
+      for (const [index, value] of array(result.sizing?.measurements).entries()) add("sizes", "measurement", value, { ...value, confidence: value?.confidence ?? result.sizing?.confidence, evidence: value?.evidence, metadata: { conflictKey: `measurement:${String(value?.name || value?.type || index)}:${String(value?.unit || "")}` } }, value?.name || value?.type || index);
+      for (const subtype of ["stitches", "rows"]) for (const [index, value] of array(result.gauge?.[subtype]).entries()) add("gauge", subtype, value, { ...value, confidence: value?.confidence ?? result.gauge?.confidence, evidence: value?.evidence || result.gauge?.evidence, metadata: { conflictKey: `gauge:${subtype}:${String(value?.per || "")}:${String(value?.unit || "")}` } }, index);
+      for (const subtype of ["names", "weights", "fiberContent", "amounts", "colors"]) for (const [index, value] of array(result.yarn?.[subtype]).entries()) add("yarn", subtype, value, { ...(object(value) ? value : {}), confidence: object(value)?.confidence ?? result.yarn?.confidence, evidence: object(value)?.evidence || result.yarn?.evidence }, index);
+      for (const subtype of ["needleSizes", "hookSizes", "other"]) for (const [index, value] of array(result.tools?.[subtype]).entries()) add("tools", subtype, value, { ...(object(value) ? value : {}), confidence: object(value)?.confidence ?? result.tools?.confidence, evidence: object(value)?.evidence, metadata: { conflictKey: `${subtype}:primary` } }, index);
+      if (result.tools?.cableNeedleMentioned) add("tools", "cableNeedleMentioned", true, { confidence: result.tools?.confidence });
+      if (result.tools?.stitchMarkersMentioned) add("tools", "stitchMarkersMentioned", true, { confidence: result.tools?.confidence });
+      for (const [index, value] of array(result.abbreviations).entries()) add("abbreviations", "definition", value, { ...value, evidence: value?.evidence, metadata: { conflictKey: `abbreviation:${String(value?.abbreviation || value?.short || "")}` } }, value?.abbreviation || index);
+      for (const [index, value] of array(result.sections).entries()) add("sections", "section", value, { ...value, evidence: value?.evidence }, value?.id || value?.title || value?.name || index);
+      for (const [index, value] of array(result.rowInstructions).entries()) add("rows", "row", value, { ...value, evidence: value?.evidence }, value?.rowNumber || value?.number || value?.identity || index);
+      for (const [index, value] of array(result.repeatInstructions).entries()) add("repeats", "repeat", value, { ...value, evidence: value?.evidence }, value?.rowIdentity || value?.start || index);
+      for (const subtype of ["castOn", "bindOff", "stitches", "rows", "repeats"]) for (const [index, value] of array(result.counts?.[subtype]).entries()) add("counts", subtype, value, { ...value, evidence: value?.evidence, metadata: value?.rowIdentity ? { conflictKey: `count:${subtype}:${String(value.rowIdentity)}` } : {} }, value?.rowIdentity || value?.start || index);
+    }
+
+    addUserAdaptationReviewItems(result.userAdaptationProfile, add);
 
     items.sort(compareItems);
     const conflictGroups = buildConflictGroups(items);
@@ -193,6 +202,35 @@
     if (["yarn", "tools", "sizes", "abbreviations", "rows"].includes(category)) return "important";
     if (["sections", "metadata", "notes", "construction"].includes(category)) return "informational";
     return "important";
+  }
+
+  function ledgerCategory(semanticType) {
+    const type = String(semanticType || "");
+    if (type === "document.craft") return "craft";
+    if (type.startsWith("garment.")) return "product";
+    if (type.startsWith("source.sizes.") || type.startsWith("source.sizing.")) return "sizes";
+    if (type.startsWith("source.gauge")) return "gauge";
+    if (type.startsWith("source.tools.")) return "tools";
+    if (type.startsWith("source.yarn.")) return "yarn";
+    if (type.startsWith("source.construction")) return "construction";
+    return "metadata";
+  }
+
+  function addUserAdaptationReviewItems(profile, add) {
+    if (!object(profile)) return;
+    const source = (value, evidence, recognitionReason, unit = null) => ({
+      unit, evidence, status: "confirmed", recognitionReason,
+      metadata: { evidenceDomain: "USER_ADAPTATION_PROFILE", dataSpace: "USER_ADAPTATION_PROFILE" },
+      confidence: finiteOrNull(value?.confidence),
+    });
+    if (profile.selectedSize) add("sizes", "adaptation.selected_size", profile.selectedSize, source(profile.selectedSize, profile.selectedSize.evidence, "user_profile_explicit_size", "size"), "selected_size");
+    for (const [index, value] of array(profile.measurements).entries()) add("sizes", "adaptation.measurement", value, source(value, value?.evidence, "user_profile_labeled_measurement", value?.unit), value?.kind || index);
+    for (const [index, value] of array(profile.gauge?.entries).entries()) add("gauge", "adaptation.gauge", value, source(profile.gauge, value?.evidence, value?.recognitionReason || "user_profile_structured_gauge", value?.unit), value?.pairId || index);
+    for (const [index, value] of array(profile.tools?.needleSizes).entries()) add("tools", "adaptation.needles", value, source(profile.tools, value?.evidence, value?.recognitionReason || "user_profile_metric_needles", "mm"), index);
+    for (const [index, value] of array(profile.yarn?.names).entries()) add("yarn", "adaptation.yarn_name", value, source(profile.yarn, value?.evidence, "user_profile_structured_yarn_name"), index);
+    for (const [index, value] of array(profile.yarn?.fiberContent).entries()) add("yarn", "adaptation.fibre", value, source(profile.yarn, value?.evidence, "user_profile_structured_fibre"), index);
+    for (const [index, value] of array(profile.yarn?.weights).entries()) add("yarn", "adaptation.yarn_weight", value, source(profile.yarn, profile.yarn?.evidence, "user_profile_structured_yarn_weight"), index);
+    for (const [index, value] of array(profile.yarn?.amounts).entries()) add("yarn", "adaptation.length_or_weight", value, source(profile.yarn, value?.evidence, "user_profile_structured_length_or_weight", value?.unit), index);
   }
 
   function buildConflictGroups(items) {
@@ -342,7 +380,7 @@
       itemId: item.itemId, category: item.category, subtype: item.subtype,
       value: copy(item.reviewedValue), unit: item.unit, decision: item.decision,
       notes: item.notes,
-      provenance: { originalValue: copy(item.originalValue), confidence: item.confidence, evidence: copy(item.evidence), sourceOffsets: copy(item.sourceOffsets) },
+      provenance: { originalValue: copy(item.originalValue), confidence: item.confidence, evidence: copy(item.evidence), sourceOffsets: copy(item.sourceOffsets), evidenceDomain: item.metadata?.evidenceDomain || evidenceDomainOf(item.evidence) || "SOURCE_PATTERN_EVIDENCE" },
     }));
     included.sort(compareItems);
     const unresolvedWarnings = next.reviewedData.items.filter((item) => item.decision === "unresolved" && item.severity !== "critical").map((item) => ({ code: "REVIEW_UNRESOLVED_NONCRITICAL", itemId: item.itemId, severity: item.severity }));
@@ -361,12 +399,161 @@
     next.revision += 1;
     next.status = "confirmed";
     next.validation = validation;
-    next.confirmedSnapshot = deepFreeze(snapshot);
+    next.confirmedSnapshot = deepFreeze(upgradeConfirmedSnapshot(snapshot, {
+      reviewId: next.id, reviewRevision: next.revision,
+      semanticResult: semantic?.result,
+    }));
     next.confirmedAt = now;
     next.updatedAt = now;
     next.operation = null;
     next.lastError = null;
     return next;
+  }
+
+  function authoritativeConfirmedSnapshot(review) {
+    requireValidState(review);
+    if (review.status !== "confirmed" || !review.confirmedSnapshot) throw reviewError("REVIEW_CONFIRMED_SNAPSHOT_MISSING", "Для projection требуется подтверждённый snapshot Stage 19.");
+    return deepFreeze(upgradeConfirmedSnapshot(review.confirmedSnapshot, {
+      reviewId: review.id, reviewRevision: review.revision,
+      semanticResult: review.originalSnapshot?.result,
+    }));
+  }
+
+  function upgradeConfirmedSnapshot(snapshot, context = {}) {
+    const base = copy(snapshot);
+    const allValues = array(base.values);
+    const sourceValues = allValues.filter((item) => confirmedItemDomain(item) !== "USER_ADAPTATION_PROFILE");
+    const adaptationValues = allValues.filter((item) => confirmedItemDomain(item) === "USER_ADAPTATION_PROFILE");
+    const semanticProfile = context.semanticResult?.userAdaptationProfile;
+    const sourcePatternEvidence = buildSourcePatternEvidence(sourceValues, base, context);
+    const userAdaptationProfile = buildUserAdaptationProfile(adaptationValues, semanticProfile, base, context);
+    return {
+      ...base,
+      confirmedSnapshotContractVersion: CONFIRMED_SNAPSHOT_CONTRACT_VERSION,
+      sourcePatternEvidence,
+      userAdaptationProfile,
+      authoritativeProjectionFingerprint: fingerprint({
+        contractVersion: CONFIRMED_SNAPSHOT_CONTRACT_VERSION,
+        projectId: base.projectId,
+        sourceSemanticAnalysisId: base.sourceSemanticAnalysisId,
+        sourceSemanticAnalysisRevision: base.sourceSemanticAnalysisRevision,
+        sourceSemanticFingerprint: base.sourceSemanticFingerprint,
+        sourceImportRevision: base.sourceImportRevision,
+        reviewId: context.reviewId || null,
+        reviewRevision: context.reviewRevision || null,
+        sourcePatternEvidence,
+        userAdaptationProfile,
+      }),
+    };
+  }
+
+  function buildSourcePatternEvidence(values, snapshot, context) {
+    const facts = {};
+    for (const item of values) {
+      const semanticType = item.subtype || item.value?.semanticType;
+      const value = semanticCanonicalValue(item.value);
+      if (semanticType === "document.craft") facts.craft = value;
+      else if (semanticType === "garment.type") facts.product = value;
+      else if (semanticType === "source.sizes.available") facts.availableSizes = copy(value);
+      else if (semanticType === "source.sizing.finished_chest") { facts.selectedSize = value?.sizeLabel || null; facts.finishedMeasurement = copy(value); }
+      else if (semanticType === "source.gauge") (facts.gauge ||= []).push(copy(value));
+      else if (semanticType === "source.tools.needles") facts.needles = copy(value);
+      else if (semanticType === "source.yarn.weight") facts.yarnWeight = copy(value);
+      else if (semanticType === "source.yarn.samples") facts.yarnSamples = copy(value);
+      else if (semanticType === "source.construction") facts.construction = copy(value);
+    }
+    const projection = {
+      schemaVersion: 1, evidenceDomain: "SOURCE_PATTERN_EVIDENCE", values: copy(values), facts,
+      provenance: projectionProvenance(snapshot, context, "SOURCE_PATTERN_EVIDENCE"),
+    };
+    projection.fingerprint = fingerprint(projection);
+    return projection;
+  }
+
+  function buildUserAdaptationProfile(values, semanticProfile, snapshot, context) {
+    const structured = object(semanticProfile) ? semanticProfile : null;
+    const profile = {
+      schemaVersion: 1, evidenceDomain: "USER_ADAPTATION_PROFILE",
+      selectedSize: null, measurements: [], gauge: [], needles: [],
+      yarn: { names: [], fibre: [], weight: [], lengthOrWeight: [] },
+      provenance: projectionProvenance(snapshot, context, "USER_ADAPTATION_PROFILE"),
+    };
+    if (structured) {
+      profile.selectedSize = copy(structured.selectedSize);
+      profile.measurements = copy(array(structured.measurements));
+      profile.gauge = copy(array(structured.gauge?.entries));
+      profile.needles = copy(array(structured.tools?.needleSizes));
+      profile.yarn.names = copy(array(structured.yarn?.names));
+      profile.yarn.fibre = normalizeStructuredFibre(structured.yarn?.fiberContent);
+      profile.yarn.weight = copy(array(structured.yarn?.weights));
+      profile.yarn.lengthOrWeight = normalizeStructuredLengthOrWeight(structured.yarn?.amounts);
+    } else if (values.length) {
+      for (const item of values) {
+        if (item.subtype === "adaptation.selected_size") profile.selectedSize = copy(item.value);
+        else if (item.subtype === "adaptation.measurement") profile.measurements.push(copy(item.value));
+        else if (item.subtype === "adaptation.gauge") profile.gauge.push(copy(item.value));
+        else if (item.subtype === "adaptation.needles") profile.needles.push(copy(item.value));
+        else if (item.subtype === "adaptation.yarn_name") profile.yarn.names.push(copy(item.value));
+        else if (item.subtype === "adaptation.fibre") profile.yarn.fibre.push(copy(item.value));
+        else if (item.subtype === "adaptation.yarn_weight") profile.yarn.weight.push(copy(item.value));
+        else if (item.subtype === "adaptation.length_or_weight") profile.yarn.lengthOrWeight.push(copy(item.value));
+      }
+    }
+    profile.needles.sort((left, right) => Number(left?.canonicalValue ?? left?.value) - Number(right?.canonicalValue ?? right?.value));
+    profile.yarn.lengthOrWeight.sort((left, right) => amountUnitOrder(left?.unit) - amountUnitOrder(right?.unit) || Number(right?.value) - Number(left?.value));
+    const rawProfileDeclared = array(structured?.rawSources).length > 0 || array(context.semanticResult?.evidenceDomains?.userAdaptationProfileFileIds).length > 0;
+    const requiredFields = [];
+    if (profile.selectedSize) requiredFields.push("selectedSize");
+    if (profile.gauge.length) requiredFields.push("gauge");
+    if (profile.needles.length) requiredFields.push("needles");
+    if (profile.yarn.names.length || profile.yarn.fibre.length || profile.yarn.weight.length || profile.yarn.lengthOrWeight.length) requiredFields.push("yarn");
+    if (profile.measurements.length) requiredFields.push("measurements");
+    profile.required = rawProfileDeclared || requiredFields.length > 0;
+    profile.requiredFields = requiredFields;
+    profile.complete = !profile.required || requiredFields.length > 0;
+    profile.fingerprint = fingerprint(profile);
+    return profile;
+  }
+
+  function projectionProvenance(snapshot, context, evidenceDomain) {
+    return {
+      evidenceDomain, authority: "CONFIRMED_STAGE_19",
+      projectId: snapshot.projectId,
+      reviewId: context.reviewId || null, reviewRevision: context.reviewRevision || null,
+      semanticAnalysisId: snapshot.sourceSemanticAnalysisId,
+      semanticAnalysisRevision: snapshot.sourceSemanticAnalysisRevision,
+      semanticFingerprint: snapshot.sourceSemanticFingerprint,
+      importRevision: snapshot.sourceImportRevision,
+    };
+  }
+
+  function confirmedItemDomain(item) { return item?.provenance?.evidenceDomain || evidenceDomainOf(item?.provenance?.evidence) || (String(item?.subtype || "").startsWith("adaptation.") ? "USER_ADAPTATION_PROFILE" : "SOURCE_PATTERN_EVIDENCE"); }
+  function evidenceDomainOf(evidence) { return array(evidence).find((entry) => text(entry?.evidenceDomain))?.evidenceDomain || null; }
+  function semanticCanonicalValue(value) { return object(value) && Object.prototype.hasOwnProperty.call(value, "canonicalValue") ? value.canonicalValue : value; }
+  function amountUnitOrder(unit) { const normalized = String(unit || "").toLowerCase(); return ["m", "meter", "meters", "yd", "yard", "yards"].includes(normalized) ? 0 : ["g", "kg"].includes(normalized) ? 1 : 2; }
+  function normalizeStructuredFibre(values) {
+    const fibres = ["шерсть", "меринос", "wool", "merino", "cotton", "хлопок", "alpaca", "альпака", "linen", "лён", "silk", "шёлк", "acrylic", "акрил"];
+    return array(values).map((entry) => {
+      const source = object(entry) ? entry : { value: entry };
+      const value = text(source.value);
+      const lower = value.toLowerCase();
+      const fibre = fibres.find((candidate) => lower.includes(candidate));
+      const percentAt = value.indexOf("%");
+      let start = percentAt - 1;
+      while (start >= 0 && (value[start] >= "0" && value[start] <= "9" || value[start] === " ")) start -= 1;
+      const percent = percentAt > 0 ? value.slice(start + 1, percentAt).trim() : "";
+      if (!fibre || !percent || [...percent].some((character) => character < "0" || character > "9")) return null;
+      return { ...copy(source), value: `${percent}% ${fibre}` };
+    }).filter(Boolean);
+  }
+  function normalizeStructuredLengthOrWeight(values) {
+    const units = { "м": "m", m: "m", meter: "m", meters: "m", metres: "m", "г": "g", "гр": "g", g: "g", kg: "kg" };
+    return array(values).map((entry) => {
+      const source = object(entry) ? entry : { value: entry };
+      const rawUnit = text(source.unit).toLowerCase();
+      const unit = units[rawUnit];
+      return unit ? { ...copy(source), unit, rawUnit: source.rawUnit || source.unit } : null;
+    }).filter(Boolean);
   }
 
   function rebaseState(state, semantic, now = timestampNow()) {
@@ -552,13 +739,13 @@
   function addIssue(target, code, itemId = null, conflictId = null) { target.push({ code, itemId, conflictId }); }
   function stableIssues(issues) { const unique = new Map(); for (const issue of issues) { const normalized = { code: issue.code, itemId: issue.itemId ?? null, conflictId: issue.conflictId ?? null }; if (issue.severity !== undefined) normalized.severity = issue.severity; unique.set(canonicalize(normalized), normalized); } return [...unique.values()].sort((a, b) => lexical(a.code, b.code) || lexical(String(a.itemId), String(b.itemId)) || lexical(String(a.conflictId), String(b.conflictId))); }
   function stableId(prefix, value) { return `${prefix}:${fingerprint(value).slice(8)}`; }
-  function normalizeEvidence(value) { const input = Array.isArray(value) ? value : value ? [value] : []; return input.slice(0, 8).map((entry) => ({ sourceFileId: entry?.sourceFileId ?? null, sourceFileName: entry?.sourceFileName ?? null, start: nonNegativeInteger(entry?.start), end: nonNegativeInteger(entry?.end), text: String(entry?.text ?? "").slice(0, 500), ruleId: entry?.ruleId ?? null })); }
+  function normalizeEvidence(value) { const input = Array.isArray(value) ? value : value ? [value] : []; return input.slice(0, 8).map((entry) => ({ sourceFileId: entry?.sourceFileId ?? null, sourceFileName: entry?.sourceFileName ?? null, pageNumber: positiveInteger(entry?.pageNumber) ? entry.pageNumber : null, evidenceDomain: entry?.evidenceDomain ?? null, start: nonNegativeInteger(entry?.start), end: nonNegativeInteger(entry?.end), text: String(entry?.text ?? "").slice(0, 500), ruleId: entry?.ruleId ?? null })); }
   function evidenceForCategory(result, category) { const key = category === "product" ? "garment" : category === "sizes" ? "sizing" : category; return result?.[key]?.evidence || []; }
   function offsetsFromEvidence(evidence, source) { if (evidence.length) return evidence.map((entry) => ({ sourceFileId: entry.sourceFileId, start: entry.start, end: entry.end })); if (nonNegativeInteger(source?.start) !== null && nonNegativeInteger(source?.end) !== null) return [{ sourceFileId: source?.sourceFileId ?? null, start: source.start, end: source.end }]; return []; }
   function evidenceIdentity(entry) { return { sourceFileId: entry.sourceFileId, start: entry.start, end: entry.end, text: entry.text, ruleId: entry.ruleId }; }
   function conflictReason(category) { return category === "gauge" ? "CONFLICTING_GAUGE" : category === "sizes" ? "CONFLICTING_SIZE" : category === "tools" ? "CONFLICTING_TOOL_SIZE" : category === "abbreviations" ? "CONFLICTING_ABBREVIATION" : category === "counts" ? "CONFLICTING_ROW_COUNT" : "INCOMPATIBLE_CANDIDATES"; }
-  function supportedCraft(value) { const candidate = object(value)?.value ?? value; return candidate === "knitting"; }
-  function unknownValue(value) { const candidate = object(value)?.value ?? object(value)?.type ?? value; return candidate === "unknown" || candidate === "ambiguous" || candidate === null || candidate === ""; }
+  function supportedCraft(value) { const candidate = object(value)?.canonicalValue ?? object(value)?.value ?? value; return candidate === "knitting"; }
+  function unknownValue(value) { const candidate = object(value)?.canonicalValue ?? object(value)?.value ?? object(value)?.type ?? value; return candidate === "unknown" || candidate === "ambiguous" || candidate === null || candidate === ""; }
   function unitConflictInValue(value) { return object(value) && Array.isArray(value.units) && new Set(value.units).size > 1; }
   function structureBroken(value) { if (!object(value)) return false; if (value.start !== undefined && value.end !== undefined && Number(value.end) < Number(value.start)) return true; if (value.repeatCount !== undefined && Number(value.repeatCount) <= 0) return true; return false; }
   function numericCandidates(value, target = []) { if (typeof value === "number") target.push(value); else if (Array.isArray(value)) for (const entry of value) numericCandidates(entry, target); else if (object(value)) for (const [key, entry] of Object.entries(value)) if (["value", "length", "per", "repeatCount", "count", "width", "height", "size"].includes(key)) numericCandidates(entry, target); return target; }
@@ -583,7 +770,7 @@
   function deepFreeze(value) { if (value && typeof value === "object" && !Object.isFrozen(value)) { Object.freeze(value); for (const child of Object.values(value)) deepFreeze(child); } return value; }
   function reviewError(code, message, details = {}) { return new PatternAnalysisReviewError(code, message, details); }
 
-  const api = { VERSION, PROGRESS_KIND, STATUSES, DECISIONS, SEVERITIES, UNITS, PatternAnalysisReviewError, canonicalize, fingerprint, semanticFingerprint, createInitialState, beginOperation, recoverInterruptedState, buildOriginalSnapshot, buildReviewedData, buildReviewState, classifyReviewItem, buildConflictGroups, updateItem, resolveConflict, validateReviewedData, revalidateState, confirmState, rebaseState, inspectAggregate, ensureForProject, saveForProject, confirmForProject, rebaseForProject, requireValidState, sourceDescriptor };
+  const api = { VERSION, CONFIRMED_SNAPSHOT_CONTRACT_VERSION, PROGRESS_KIND, STATUSES, DECISIONS, SEVERITIES, UNITS, PatternAnalysisReviewError, canonicalize, fingerprint, semanticFingerprint, createInitialState, beginOperation, recoverInterruptedState, buildOriginalSnapshot, buildReviewedData, buildReviewState, classifyReviewItem, buildConflictGroups, updateItem, resolveConflict, validateReviewedData, revalidateState, confirmState, authoritativeConfirmedSnapshot, rebaseState, inspectAggregate, ensureForProject, saveForProject, confirmForProject, rebaseForProject, requireValidState, sourceDescriptor };
   globalObject.YarnAIPatternAnalysisReview = Object.freeze(api);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

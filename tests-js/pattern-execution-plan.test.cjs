@@ -5,8 +5,10 @@ const { afterEach, test } = require("node:test");
 require("fake-indexeddb/auto");
 
 global.window = globalThis;
+require("../src/yarnai/static/pattern-execution-ui-formatters.js");
 require("../src/yarnai/static/project-system.js");
 const api = require("../src/yarnai/static/pattern-execution-plan.js");
+const uiFormatters = global.YarnAIPatternExecutionUiFormatters;
 const analysisReviewApi = require("../src/yarnai/static/pattern-analysis-review.js");
 const draftApi = require("../src/yarnai/static/pattern-technology-draft.js");
 const technologyReviewApi = require("../src/yarnai/static/pattern-technology-review.js");
@@ -178,6 +180,29 @@ test("34. planning algorithm version participates in input", () => { const revie
 test("35. stale preserves old plan and disables first action", () => { const state = built(); const stale = api.markStale(state); assert.equal(stale.status, "stale"); assert.ok(stale.plan); assert.equal(stale.plan.firstAction.ready, false); });
 test("36. audit is capped at 24 entries", () => { let state = built(); state = structuredClone(state); for (let index = 0; index < 30; index += 1) { state.audit.push({ auditId: `extra-${index}`, type: "X", at: stamp(index), revision: state.revision }); state.audit = state.audit.slice(-api.AUDIT_LIMIT); } assert.equal(state.audit.length, 24); });
 
+test("36a. damaged persisted ready plan reopens fail-closed as stale", () => {
+  const review = confirmedReview();
+  const context = contextFor(review);
+  const damaged = structuredClone(built(review, context));
+  damaged.plan.phases[0].dependsOnPhaseIds = ["missing-phase"];
+  damaged.planFingerprint = api.calculatePlanFingerprint(damaged);
+  damaged.plan.planFingerprint = damaged.planFingerprint;
+  const progress = (kind, state) => ({ kind, state, calculation_id: "calculation", epoch: 1 });
+  const inspected = api.inspectAggregate({
+    project: { project_id: "project", active_calculation_id: "calculation" },
+    calculations: [{ calculation_id: "calculation" }],
+    progress: [
+      progress("PATTERN_TECHNOLOGY_DRAFT", context.technologyDraft),
+      progress("PATTERN_ANALYSIS_REVIEW", context.analysisReview),
+      progress("PATTERN_SEMANTIC_ANALYSIS", context.semanticAnalysis),
+      progress("PATTERN_TECHNOLOGY_REVIEW", review),
+      progress("PATTERN_EXECUTION_PLAN", damaged),
+    ],
+  });
+  assert.equal(inspected.state, "stale");
+  assert.ok(inspected.planValidation.diagnostics.some((entry) => entry.code === "DEPENDENCY_REFERENCE_INVALID"));
+});
+
 test("19, 37. repository ensure is idempotent and reload-persistent", async () => {
   const repository = new global.YarnAIProjectSystem.ProjectRepository(); repositories.push(repository); await repository.initialize();
   const project = await repository.createProject({ title: "Execution plan" });
@@ -203,6 +228,24 @@ test("19, 37. repository ensure is idempotent and reload-persistent", async () =
   const result = await api.buildForProject(repository, project.project_id);
   assert.ok(["ready", "blocked"].includes(result.executionPlan.status));
   assert.equal((await api.ensureForProject(repository, project.project_id)).executionPlan.planFingerprint, result.executionPlan.planFingerprint);
+  const directReplacement = structuredClone(result.executionPlan);
+  directReplacement.revision += 1;
+  await assert.rejects(repository.updatePatternExecutionPlan(project.project_id, calculationId, directReplacement), { code: "PATTERN_EXECUTION_PLAN_READY_IMMUTABLE" });
+});
+
+test("37a. opening an existing stale Stage 22 is read-only and creates no revision", async () => {
+  const ctx = await fullRepositoryPlan();
+  const stale = api.markStale(ctx.execution.executionPlan, "SOURCE_REVIEW_STALE", stamp(50));
+  await ctx.repository.updatePatternExecutionPlan(ctx.project.project_id, ctx.calculationId, stale, { operationKind: "PATTERN_EXECUTION_PLAN_STALE", projectStage: "pattern_execution_plan_stale" });
+  const before = (await ctx.repository.getProject(ctx.project.project_id)).progress.find((entry) => entry.kind === api.PROGRESS_KIND).state;
+
+  const opened = await api.ensureForProject(ctx.repository, ctx.project.project_id);
+  const after = (await ctx.repository.getProject(ctx.project.project_id)).progress.find((entry) => entry.kind === api.PROGRESS_KIND).state;
+
+  assert.equal(opened.state, "stale");
+  assert.equal(after.revision, before.revision);
+  assert.equal(after.status, "stale");
+  assert.deepEqual(after, before);
 });
 
 test("38. export/import retains the old plan but downgrades it to stale", async () => {
@@ -239,4 +282,40 @@ test("40. a corrupted nested reference import is rejected atomically", async () 
   const before = (await ctx.repository.listProjects()).length;
   await assert.rejects(ctx.repository.importProject(envelope), { code: "INVALID_IMPORT_EXECUTION_PLAN_REFERENCE" });
   assert.equal((await ctx.repository.listProjects()).length, before);
+});
+
+test("presentation formats gauge, millimetres, inches and stitch units in Russian", () => {
+  assert.equal(uiFormatters.formatGauge([{ stitches: 20, rows: 26, per: 10, unit: "cm" }]), "20 петель × 26 рядов в 10 см");
+  assert.equal(uiFormatters.formatNeedles(["3.5 mm", "4.5 mm"]), "3,5 мм и 4,5 мм");
+  assert.equal(uiFormatters.formatKnittingText("Спицы 3.5 mm; длина 1.25 in; 140 stitches."), "Спицы 3,5 мм; длина 1,25 дюйма; 140 петель.");
+});
+
+test("presentation renders supported branch choices and fails visibly for unknown values", () => {
+  assert.deepEqual(uiFormatters.formatBranches({ body_length: "regular", neckline_method: "ribbing_last", short_rows: "include", sleeve_length: "long" }), [
+    { label: "Длина изделия", value: "стандартная", known: true },
+    { label: "Горловина", value: "резинка выполняется в конце", known: true },
+    { label: "Укороченные ряды", value: "включены", known: true },
+    { label: "Рукава", value: "длинные", known: true },
+  ]);
+  const unknown = uiFormatters.formatBranches({ body_length: "mystery", new_branch: "raw-value" });
+  assert.equal(unknown.every((entry) => entry.value.includes("Технические данные")), true);
+  assert.equal(unknown.some((entry) => entry.value.includes("mystery") || entry.value.includes("raw-value")), false);
+  assert.equal(uiFormatters.technicalValue({ body_length: "mystery", new_branch: "raw-value" }), "body_length: mystery; new_branch: raw-value");
+});
+
+test("presentation renders yarn and statuses without exposing storage keys", () => {
+  assert.equal(uiFormatters.formatYarn({ composition: "100% шерсть", putUp: "200 m / 100 g", quantity: 6, weight: "worsted/aran" }), "100% шерсть, 200 м/100 г, worsted/aran — сохранённая категория толщины пряжи, 6 мотков");
+  assert.equal(uiFormatters.formatYarn({ composition: "100% шерсть", putUp: "200 m / 100 g", quantity: 6, weight: ["worsted/aran"] }), "100% шерсть, 200 м/100 г, worsted/aran — сохранённая категория толщины пряжи, 6 мотков");
+  assert.equal(uiFormatters.statusLabel("component", "planned"), "Запланировано");
+  assert.equal(uiFormatters.statusLabel("phase", "ready"), "Готово");
+  assert.equal(uiFormatters.statusLabel("component", "machine_only"), "Статус не распознан — см. «Технические данные»");
+});
+
+test("presentation renders repeat metadata and checkpoint stitches in Russian", () => {
+  assert.equal(uiFormatters.formatRepeat({ group: "raglan", ordinal: 1, total: 20, unit: "repeat" }), "Повтор реглана: 1 из 20");
+  assert.equal(uiFormatters.formatRepeat({ group: "left_sleeve_decreases", ordinal: 2, total: 12, cycleRounds: 6 }), "Убавки левого рукава: 2 из 12; цикл — 6 кругов");
+  assert.equal(uiFormatters.formatRepeat({ group: "left_sleeve_decreases", ordinal: 12, total: 12, cycleRounds: null }), "Убавки левого рукава: 12 из 12");
+  assert.equal(uiFormatters.formatCheckpointValue(140, "stitches"), "140 петель");
+  assert.equal(uiFormatters.formatCheckpointValue(0, "stitches"), "0 петель — активных петель этого компонента не осталось");
+  assert.equal(uiFormatters.formatRepeat({ group: "unknown_repeat", ordinal: 1 }), "Дополнительный повтор — см. «Технические данные»");
 });

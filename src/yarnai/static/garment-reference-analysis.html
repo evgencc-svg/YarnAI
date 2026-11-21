@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Честный разбор фотографии изделия и выбор собственной технологии вязания похожего результата.">
+    <title>Технология по фотографии — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/garment-reference-analysis.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/garment-reference-analysis.js" defer></script>
+    <script src="/static/garment-measurement-requirements.js" defer></script>
+    <script src="/static/garment-yarn-requirements.js" defer></script>
+    <script src="/static/manual-calculation-intake.js" defer></script>
+    <script src="/static/garment-reference-analysis-assistant.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/saved-projects">YarnAI</a>
+      <span id="project-title">Проект по фотографии</span>
+      <a href="/saved-projects">Мои проекты</a>
+    </header>
+    <main id="garment-reference-root" class="shell" aria-busy="true">
+      <section id="loading" class="panel" aria-live="polite"><p>Открываем фотографии и сохранённое решение…</p></section>
+      <section id="blocked" class="panel blocked" role="alert" hidden>
+        <h1>Этот проект нельзя открыть безопасно</h1>
+        <p id="blocked-message"></p>
+        <a class="button secondary" href="/saved-projects">Вернуться к проектам</a>
+      </section>
+      <div id="content" hidden>
+        <section class="hero panel">
+          <p class="eyebrow">Похожая вещь по фотографии</p>
+          <h1>Сначала разберём внешний вид, потом выберем способ вязания</h1>
+          <p>Это будет авторская технология с похожим внешним результатом, а не восстановленная оригинальная схема.</p>
+          <div id="provider-state" class="provider-state" role="status"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="photos-title">
+          <div class="section-heading">
+            <div><p class="eyebrow">Исходные материалы</p><h2 id="photos-title">Фотографии изделия</h2></div>
+            <label class="button secondary" for="add-reference-photo">Добавить фото</label>
+            <input id="add-reference-photo" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+          </div>
+          <div id="photo-grid" class="photo-grid"></div>
+          <p id="photo-status" class="muted"></p>
+        </section>
+
+        <section class="panel pilot-panel" aria-labelledby="pilot-title">
+          <p class="eyebrow">Будущий контролируемый запуск</p>
+          <h2 id="pilot-title">Реальный анализ ещё не запускался</h2>
+          <p id="pilot-readiness">Подключение OpenAI выключено. Загрузка, сохранение и повторное открытие проекта не отправляют фотографию наружу.</p>
+          <label for="pilot-photo">Какая фотография будет очищена и отправлена после отдельного разрешения?</label>
+          <select id="pilot-photo" disabled><option value="">Сначала добавь фотографию</option></select>
+          <label class="pilot-confirmation" for="pilot-confirm">
+            <input id="pilot-confirm" type="checkbox" disabled>
+            <span>Я отдельно подтверждаю отправку очищенной копии именно этой фотографии. OpenAI может хранить стандартные журналы контроля злоупотреблений до 30 дней; <code>store:false</code> не означает полное отсутствие хранения.</span>
+          </label>
+          <button id="run-real-analysis" class="button" type="button" disabled>Запустить один разрешённый анализ</button>
+          <p class="muted">Лимит YarnAI для этого запроса — не больше $0.05. Это локальная защитная оценка, а не банковский лимит OpenAI. Автоматических повторов нет.</p>
+          <output id="pilot-preparation" class="muted" hidden></output>
+        </section>
+
+        <section id="stale-panel" class="panel warning" hidden>
+          <h2>Анализ устарел</h2>
+          <p>Фотографии или ответы изменились. Старые варианты сохранены только как история и не подходят для нового решения.</p>
+        </section>
+
+        <section class="brief-grid" aria-label="Разбор фотографии">
+          <article class="panel brief-card observed">
+            <p class="eyebrow">Подтверждается фотографией</p>
+            <h2>Вижу</h2>
+            <div id="observations" class="brief-list"></div>
+          </article>
+          <article class="panel brief-card inferred">
+            <p class="eyebrow">Возможная интерпретация</p>
+            <h2>Предполагаю</h2>
+            <div id="inferences" class="brief-list"></div>
+          </article>
+          <article class="panel brief-card unknown">
+            <p class="eyebrow">Честная граница</p>
+            <h2>Не могу определить</h2>
+            <div id="unknowns" class="brief-list"></div>
+          </article>
+        </section>
+
+        <section id="questions-panel" class="panel" aria-labelledby="questions-title">
+          <p class="eyebrow">Чтобы уточнить</p>
+          <h2 id="questions-title">Вопросы и твои поправки</h2>
+          <div id="questions" class="questions"></div>
+          <form id="clarification-form" class="clarification-form">
+            <label for="clarification-type">Что ты хочешь добавить?</label>
+            <select id="clarification-type">
+              <option value="free_text">Ответ своими словами</option>
+              <option value="desired_change">Желаемое отличие от фотографии</option>
+              <option value="unseen_detail">Деталь невидимой стороны</option>
+              <option value="priority">Что важнее: проще или ближе к фото</option>
+            </select>
+            <label for="clarification-text">Твой ответ</label>
+            <textarea id="clarification-text" maxlength="4000" rows="4" placeholder="Например: сзади платье закрытое, рукава хочу немного расклешённые"></textarea>
+            <button class="button" type="submit">Сохранить ответ</button>
+          </form>
+          <div id="saved-clarifications" class="saved-clarifications"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="options-title">
+          <p class="eyebrow">Собственные способы YarnAI</p>
+          <h2 id="options-title">Варианты технологии</h2>
+          <p id="options-intro">Я предлагаю связать похожую вещь следующим способом.</p>
+          <div id="technology-options" class="technology-options"></div>
+          <div id="decision-confirmation" class="decision-confirmation">
+            <p id="decision-confirmation-summary">Сначала выбери один вариант. До этого подтверждение недоступно.</p>
+            <label id="construction-choice-panel" for="construction-choice" hidden>Как использовать этот вариант?
+              <select id="construction-choice">
+                <option value="">Выбери, прежде чем подтвердить</option>
+                <option value="seamed_set_in_sleeve">Адаптировать в прямое поло: отдельные детали снизу вверх, втачные рукава, швы</option>
+                <option value="reference_only">Сохранить только как идею, без рабочего плана</option>
+              </select>
+              <span>Первая рабочая модель — прямое поло лицевой гладью с резинкой 1×1. Это твой выбор конструкции; он может отличаться от предложенного варианта и скрытых деталей фотографии.</span>
+            </label>
+            <button id="confirm-technology" class="button" type="button" disabled>Подтвердить выбранную технологию</button>
+          </div>
+          <div id="change-panel" class="change-panel" hidden>
+            <label for="change-comment">Что изменить в варианте?</label>
+            <textarea id="change-comment" maxlength="4000" rows="4"></textarea>
+            <button id="save-change-request" class="button" type="button">Сохранить просьбу об изменении</button>
+          </div>
+          <button id="reject-options" class="button danger" type="button" hidden>Отклонить предложенные варианты</button>
+        </section>
+
+        <section class="panel decision" aria-labelledby="decision-title">
+          <p class="eyebrow">Твоё решение</p>
+          <h2 id="decision-title">Решение ещё не принято</h2>
+          <p id="decision-summary">Можно выбрать вариант, попросить изменения или вернуться к вопросам.</p>
+          <button id="change-technology-choice" class="button secondary" type="button" hidden>Изменить выбор</button>
+        </section>
+
+        <section class="panel boundary" aria-labelledby="boundary-title">
+          <p class="eyebrow">Следующий отдельный этап</p>
+          <h2 id="boundary-title">Данные и расчёт изделия</h2>
+          <p>После выбора технологии отдельно понадобятся мерки, пряжа, спицы и образец плотности. Только затем можно рассчитывать петли, ряды и строить исполнимый план.</p>
+          <p id="manual-intake-message"></p>
+          <a id="open-manual-intake" class="button" href="#" hidden>Открыть данные и расчёт</a>
+        </section>
+        <p id="form-error" class="form-error" role="alert"></p>
+      </div>
+    </main>
+  </body>
+</html>

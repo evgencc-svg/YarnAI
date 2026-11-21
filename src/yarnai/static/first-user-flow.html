@@ -10,10 +10,55 @@
     <title>Что ты хочешь связать? — YarnAI</title>
     <link rel="icon" type="image/png" href="/static/favicon.png">
     <link rel="stylesheet" href="/static/first-user-flow.css">
+    <link rel="stylesheet" href="/static/user-workspace-entry.css">
+    <link rel="stylesheet" href="/static/project-details-experience.css">
+    <link rel="stylesheet" href="/static/project-details-collaboration.css">
+    <link rel="stylesheet" href="/static/project-details-closure.css">
+    <link rel="stylesheet" href="/static/project-initialization.css">
     <script src="/static/intent-engine.js" defer></script>
     <script src="/static/project-readiness-engine.js" defer></script>
     <script src="/static/swatch-assistant.js" defer></script>
     <script src="/static/project-system.js" defer></script>
+    <script src="/static/project-backup.js" defer></script>
+    <script src="/static/project-details-experience.js" defer></script>
+    <script src="/static/project-details-collaboration.js" defer></script>
+    <script src="/static/project-details-closure.js" defer></script>
+    <script src="/static/project-initialization.js" defer></script>
+    <script src="/static/swatch-gauge.js" defer></script>
+    <script src="/static/project-calculation-entry.js" defer></script>
+    <script src="/static/project-execution-plan.js" defer></script>
+    <script src="/static/project-execution-plan-workspace.js" defer></script>
+    <script src="/static/project-execution-start.js" defer></script>
+    <script src="/static/project-execution-start-workspace.js" defer></script>
+    <script src="/static/project-execution-first-step.js" defer></script>
+    <script src="/static/project-execution-first-step-workspace.js" defer></script>
+    <script src="/static/project-execution-next-step.js" defer></script>
+    <script src="/static/project-execution-next-step-workspace.js" defer></script>
+    <script src="/static/project-execution-next-step-clarification.js" defer></script>
+    <script src="/static/project-execution-next-step-clarification-workspace.js" defer></script>
+    <script src="/static/foundation-section-execution-preparation.js" defer></script>
+    <script src="/static/foundation-section-execution.js" defer></script>
+    <script src="/static/foundation-section-measurement.js" defer></script>
+    <script src="/static/primary-fabric-preparation.js" defer></script>
+    <script src="/static/primary-fabric-execution.js" defer></script>
+    <script src="/static/primary-fabric-measurement.js" defer></script>
+    <script src="/static/project-next-section-planning.js" defer></script>
+    <script src="/static/project-construction-strategy-planning.js" defer></script>
+    <script src="/static/project-shaping-policy-planning.js" defer></script>
+    <script src="/static/project-sleeve-target-geometry-planning.js" defer></script>
+    <script src="/static/project-sleeve-physical-execution.js" defer></script>
+    <script src="/static/project-underarm-allocation-execution.js" defer></script>
+    <script src="/static/project-raglan-interface-planning.js" defer></script>
+    <script src="/static/project-body-sleeves-join-execution.js" defer></script>
+    <script src="/static/project-yoke-target-geometry-planning.js" defer></script>
+    <script src="/static/project-raglan-shaping-schedule-planning.js" defer></script>
+<script src="/static/project-raglan-shaping-execution.js" defer></script>
+<script src="/static/project-neckline-opening-planning-v1.js" defer></script>
+<script src="/static/project-neckline-opening-planning-v2.js" defer></script>
+<script src="/static/project-neckline-opening-planning.js" defer></script>
+<script src="/static/project-neckline-opening-execution.js" defer></script>
+<script src="/static/project-realized-finishable-edge-evidence.js" defer></script>
+    <script src="/static/user-workspace-entry.js?v=20260830-stage22-stale-route-v6" defer></script>
     <script src="/static/calculated-project.js" defer></script>
     <script src="/static/first-knitting-step.js" defer></script>
     <script src="/static/first-fabric-section.js" defer></script>
@@ -26,6 +71,12 @@
     <script src="/static/first-tail-securing.js" defer></script>
     <script src="/static/first-blocking.js" defer></script>
     <script src="/static/first-user-flow.js" defer></script>
+    <script src="/static/user-workspace-entry-assistant.js" defer></script>
+    <script src="/static/project-backup-assistant.js" defer></script>
+    <script src="/static/project-details-experience-assistant.js" defer></script>
+    <script src="/static/project-details-collaboration-assistant.js" defer></script>
+    <script src="/static/project-details-closure-assistant.js" defer></script>
+    <script src="/static/project-initialization-assistant.js" defer></script>
   </head>
   <body class="first-flow-page">
     <noscript>
@@ -36,91 +87,580 @@
     </noscript>
 
     <header class="flow-header">
-      <a class="flow-brand" href="/" aria-label="YarnAI, главная">
-        <img src="/static/favicon.png" alt="" width="38" height="38">
-        <span>YarnAI</span>
+      <a class="flow-brand" href="/" aria-label="YarnAI, твоя мастерская">
+        <span class="flow-brand-mark" aria-hidden="true"></span>
+        <span class="flow-brand-copy">
+          <strong>YarnAI</strong>
+          <small>Твоя мастерская</small>
+        </span>
       </a>
-      <span class="prototype-badge">UX-прототип</span>
+      <nav class="workspace-nav" aria-label="Основная навигация">
+        <a href="#workspace-start">Начать</a>
+        <a href="#saved-projects">Мои проекты</a>
+      </nav>
     </header>
 
     <main class="flow-shell">
-      <section
-        id="saved-projects"
-        class="saved-projects"
-        aria-labelledby="saved-projects-title"
-      >
+      <section id="project-workspace" class="project-workspace" aria-labelledby="project-workspace-title" hidden>
+        <div id="project-workspace-loading" class="project-workspace-state" role="status">
+          <span class="project-workspace-spinner" aria-hidden="true"></span>
+          <p>Открываем рабочее пространство…</p>
+        </div>
+
+        <section id="project-workspace-missing" class="project-workspace-state-card" aria-labelledby="project-workspace-missing-title" hidden>
+          <p class="flow-eyebrow">Мастерская</p>
+          <h2 id="project-workspace-missing-title" role="heading" aria-level="1">Проект не найден</h2>
+          <p>Вернитесь в мастерскую и выберите проект заново.</p>
+          <a class="project-workspace-secondary-link" href="/#saved-projects">Открыть мои проекты</a>
+        </section>
+
+        <section id="project-workspace-blocked" class="project-workspace-state-card" aria-labelledby="project-workspace-blocked-title" hidden>
+          <p class="flow-eyebrow">Нужна проверка</p>
+          <h2 id="project-workspace-blocked-title" role="heading" aria-level="1">Сначала подтвердите сведения о проекте</h2>
+          <p id="project-workspace-blocked-copy">Работа начнётся после проверки размера и параметров изделия.</p>
+          <a id="project-workspace-review-link" class="project-workspace-primary-link" href="/">Проверить сведения</a>
+        </section>
+
+        <div id="project-workspace-ready" hidden>
+          <header class="project-workspace-header">
+            <div>
+              <p class="flow-eyebrow">Ваш проект готов к работе</p>
+              <h2 id="project-workspace-title" role="heading" aria-level="1">Проект</h2>
+              <div class="project-workspace-chips" aria-label="Краткие сведения о проекте">
+                <span id="project-workspace-garment">Изделие</span>
+                <span id="project-workspace-recipient">Получатель</span>
+                <span id="project-workspace-size">Размер</span>
+                <span id="project-workspace-readiness">Готово к работе</span>
+              </div>
+            </div>
+            <a id="project-workspace-details-link" class="project-workspace-secondary-link" href="/">Подтверждённые сведения</a>
+          </header>
+
+          <div class="project-workspace-grid">
+            <section id="workspace-next-step" class="project-workspace-card project-workspace-next" aria-labelledby="workspace-next-title">
+              <p class="flow-eyebrow">Что будем делать дальше</p>
+              <h2 id="workspace-next-title">Следующий шаг</h2>
+              <h3 id="workspace-next-action-title">Начать с образца</h3>
+              <p id="workspace-next-action-copy">Свяжите небольшой образец, чтобы YarnAI рассчитал изделие по вашей плотности.</p>
+              <button id="workspace-primary-action" class="project-workspace-primary-action" type="button" disabled>Открыть следующий шаг</button>
+              <p id="workspace-action-status" class="project-workspace-action-status" role="status" aria-live="polite" tabindex="-1"></p>
+            </section>
+
+            <section class="project-workspace-card project-workspace-product" aria-labelledby="workspace-product-title">
+              <div class="project-workspace-product-media">
+                <img id="workspace-product-image" alt="" hidden>
+                <div id="workspace-product-placeholder" class="project-workspace-product-placeholder" role="img" aria-label="Изображение изделия пока не добавлено">
+                  <span aria-hidden="true">⌁</span>
+                  <p>Добавьте фотографию, чтобы видеть изделие перед глазами</p>
+                </div>
+              </div>
+              <div class="project-workspace-product-copy">
+                <p class="flow-eyebrow">Что вяжем</p>
+                <h2 id="workspace-product-title">Изделие</h2>
+                <p id="workspace-product-description">Подтверждённая основа проекта готова.</p>
+                <dl class="project-workspace-facts">
+                  <div><dt>Размер</dt><dd id="workspace-product-size">—</dd></div>
+                  <div><dt>Посадка</dt><dd id="workspace-product-fit">—</dd></div>
+                  <div><dt>Источник</dt><dd id="workspace-product-source">Материалы пока не добавлены</dd></div>
+                </dl>
+              </div>
+            </section>
+
+            <section id="workspace-materials" class="project-workspace-card project-workspace-materials" aria-labelledby="workspace-materials-title">
+              <div class="project-workspace-card-heading">
+                <div><p class="flow-eyebrow">Исходные данные</p><h2 id="workspace-materials-title">Материалы проекта</h2></div>
+                <span id="workspace-materials-count" class="project-workspace-count">0</span>
+              </div>
+              <p id="workspace-materials-empty" class="project-workspace-empty">Материалов пока нет. Это не ошибка — их можно добавить сейчас.</p>
+              <ul id="workspace-materials-list" class="project-workspace-material-list"></ul>
+              <div class="project-workspace-add-material">
+                <label class="project-workspace-file-label" for="workspace-material-input">Добавить фото, схему, PDF или текстовый файл</label>
+                <input id="workspace-material-input" type="file" accept="image/*,application/pdf,text/plain,text/markdown,.pdf,.txt,.md,.markdown" aria-describedby="workspace-material-help">
+                <p id="workspace-material-help">Изображения до 20 МБ; PDF и текстовые материалы до 50 МБ. Файлы сохраняются только в этом проекте.</p>
+                <label for="workspace-material-purpose">Как использовать изображение</label>
+                <select id="workspace-material-purpose">
+                  <option value="PROJECT_REFERENCE">Фотография изделия</option>
+                  <option value="PATTERN_REFERENCE">Схема</option>
+                </select>
+                <form id="workspace-description-form" class="project-workspace-description-form">
+                  <label for="workspace-description">Добавить текстовое описание</label>
+                  <textarea id="workspace-description" rows="3" maxlength="4000" placeholder="Например: свободный кардиган до середины бедра"></textarea>
+                  <button id="workspace-description-submit" type="submit">Сохранить описание</button>
+                </form>
+              </div>
+              <p id="workspace-material-status" class="project-workspace-material-status" role="status" aria-live="polite" tabindex="-1"></p>
+            </section>
+
+            <section class="project-workspace-card project-workspace-confirmed" aria-labelledby="workspace-confirmed-title">
+              <div class="project-workspace-card-heading">
+                <div><p class="flow-eyebrow">YarnAI уже знает</p><h2 id="workspace-confirmed-title">Подтверждённые сведения</h2></div>
+                <a id="workspace-confirmed-details-link" href="/">Подробнее</a>
+              </div>
+              <dl id="workspace-confirmed-facts" class="project-workspace-confirmed-facts"></dl>
+              <section class="project-workspace-assumptions" aria-labelledby="workspace-assumptions-title">
+                <h3 id="workspace-assumptions-title">Подтверждённые допущения</h3>
+                <p id="workspace-assumptions-empty">Допущений нет.</p>
+                <ul id="workspace-assumptions"></ul>
+              </section>
+              <section class="project-workspace-warnings" aria-labelledby="workspace-warnings-title">
+                <h3 id="workspace-warnings-title">На что обратить внимание</h3>
+                <p id="workspace-warnings-empty">Предупреждений нет.</p>
+                <ul id="workspace-warnings"></ul>
+              </section>
+            </section>
+          </div>
+        </div>
+      </section>
+      <section id="workspace-start" class="workspace-hero" aria-labelledby="workspace-title">
+        <div class="workspace-welcome">
+          <p class="flow-eyebrow">От идеи до готовой вещи</p>
+          <h1 id="workspace-title">Что ты хочешь связать?</h1>
+          <p class="workspace-lead">
+            Загрузи фото, схему, PDF или описание — YarnAI поможет пройти путь до готовой вещи.
+          </p>
+          <p class="workspace-support">Без сложных расчётов и бесконечных поисков по видео.</p>
+        </div>
+
+        <div class="workspace-primary-grid">
+          <article id="new-project" class="primary-action-panel" aria-labelledby="new-project-title-heading">
+            <div class="primary-action-decoration" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <p class="flow-eyebrow">Новая вещь</p>
+            <h2 id="new-project-title-heading">С чего начнём?</h2>
+            <p>Выбери, есть ли у тебя готовая инструкция или только фотографии вещи.</p>
+            <div class="primary-intent-actions" aria-label="Способ начать новый проект">
+              <button class="primary-action-button" type="button" data-create-destination="/import-pattern?intent=pattern_source">
+                У меня есть готовая схема или PDF
+              </button>
+              <button class="primary-action-button primary-action-button-photo" type="button" data-create-destination="/import-pattern?intent=garment_reference">
+                Связать похожую вещь по фото
+              </button>
+            </div>
+          </article>
+
+          <aside class="latest-project-section" aria-labelledby="latest-project-title">
+            <p class="flow-eyebrow">Вернуться к работе</p>
+            <h2 id="latest-project-title">Продолжить работу</h2>
+            <div id="latest-project" class="latest-project" hidden></div>
+            <div id="latest-project-empty" class="workspace-empty-state workspace-empty-state-compact">
+              <p>Здесь появится проект, к которому можно быстро вернуться.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="workspace-secondary" aria-labelledby="other-starts-title">
+        <div class="workspace-section-heading">
+          <p class="flow-eyebrow">Ещё два пути</p>
+          <h2 id="other-starts-title">Другие способы начать</h2>
+        </div>
+        <div class="secondary-action-grid">
+          <button class="secondary-action-card" type="button" data-open-design="#start-screen">
+            <span class="secondary-action-mark" aria-hidden="true">01</span>
+            <span>
+              <strong>Создать собственный дизайн</strong>
+              <small>Придумать модель и рассчитать её под свои размеры.</small>
+            </span>
+            <span class="secondary-action-arrow" aria-hidden="true">→</span>
+          </button>
+          <a class="secondary-action-card" href="#saved-projects">
+            <span class="secondary-action-mark" aria-hidden="true">02</span>
+            <span>
+              <strong>Мои проекты</strong>
+              <small>Открыть сохранённую работу или вернуться к предыдущей вещи.</small>
+            </span>
+            <span class="secondary-action-arrow" aria-hidden="true">↓</span>
+          </a>
+        </div>
+      </section>
+
+      <section id="saved-projects" class="saved-projects" aria-labelledby="saved-projects-title">
         <div class="saved-projects-heading">
           <div>
-            <p class="flow-eyebrow">Продолжить работу</p>
-            <h2 id="saved-projects-title">Сохранённые проекты</h2>
+            <p class="flow-eyebrow">Моя работа</p>
+            <h2 id="saved-projects-title">Мои проекты</h2>
           </div>
-          <p>Проекты хранятся локально на этом устройстве.</p>
+          <div class="saved-projects-backup-heading">
+            <p>Все вещи, которые ты начала или уже закончила.</p>
+            <button id="backup-verify-action" class="backup-verify-action" type="button">Проверить резервную копию</button>
+            <input id="backup-file-input" type="file" accept=".json,.yarnai-backup.json,application/vnd.yarnai.full-project-backup+json" hidden>
+          </div>
         </div>
-        <p id="saved-projects-loading" class="saved-projects-state" role="status">
-          Загружаем проекты…
-        </p>
-        <p id="saved-projects-empty" class="saved-projects-state" hidden>
-          Сохранённых проектов пока нет. Начните с идеи ниже.
-        </p>
-        <p
-          id="saved-projects-error"
-          class="saved-projects-state saved-projects-error"
-          role="alert"
-          hidden
-        ></p>
+        <aside id="backup-isolated-banner" class="backup-isolated-banner" hidden>
+          <strong>Изолированная проверка</strong>
+          <span>Проекты на этом локальном адресе отделены от основного Chrome.</span>
+        </aside>
+        <section id="backup-verification-panel" class="backup-verification-panel" aria-labelledby="backup-verification-title" hidden>
+          <div class="backup-verification-heading">
+            <div>
+              <p class="flow-eyebrow">Полная резервная копия</p>
+              <h3 id="backup-verification-title">Выберите файл резервной копии</h3>
+            </div>
+            <button id="backup-verification-close" class="backup-panel-close" type="button" aria-label="Закрыть проверку">Закрыть</button>
+          </div>
+          <p id="backup-verification-status" class="backup-verification-status" role="status" aria-live="polite">Файл будет сначала проверен без записи в хранилище.</p>
+          <div id="backup-verification-report" class="backup-verification-report" hidden>
+            <dl id="backup-verification-facts" class="backup-verification-facts"></dl>
+            <div>
+              <h4>Прикреплённые файлы</h4>
+              <ul id="backup-verification-files" class="backup-verification-files"></ul>
+            </div>
+            <p class="backup-isolation-copy"><strong>Безопасная граница:</strong> копия будет восстановлена только на отдельном локальном адресе. Основной Chrome и его проекты не будут затронуты.</p>
+            <details class="backup-technical-details">
+              <summary>Технические данные</summary>
+              <pre id="backup-verification-technical"></pre>
+            </details>
+            <div class="backup-verification-actions">
+              <button id="backup-isolated-restore" type="button">Восстановить и проверить в изолированной среде</button>
+              <a id="backup-reload-open" href="/saved-projects" hidden>Перезагрузить и открыть восстановленный проект</a>
+            </div>
+          </div>
+        </section>
+        <p id="saved-projects-loading" class="saved-projects-state" role="status">Открываем мастерскую…</p>
+        <div id="saved-projects-empty" class="workspace-empty-state" hidden>
+          <h3>Здесь появятся твои проекты</h3>
+          <p>Начни с готовой схемы/PDF или с фотографий похожей вещи.</p>
+          <div class="empty-intent-actions">
+            <button type="button" data-create-destination="/import-pattern?intent=pattern_source">Есть схема или PDF</button>
+            <button type="button" data-create-destination="/import-pattern?intent=garment_reference">Связать по фото</button>
+          </div>
+        </div>
+        <p id="saved-projects-error" class="saved-projects-state saved-projects-error" role="alert" aria-live="assertive" hidden></p>
         <div id="saved-projects-list" class="saved-projects-list" hidden></div>
       </section>
+
+      <section id="project-details" class="project-details-experience" aria-labelledby="project-details-static-title" hidden>
+        <div id="project-details-loading" class="project-details-state" role="status">Открываем параметры проекта…</div>
+        <div id="project-details-missing" class="project-details-state-card" hidden>
+          <p class="flow-eyebrow">Мастерская</p><h2>Проект не найден</h2>
+          <p>Вернись в мастерскую и выбери проект заново.</p>
+          <div class="project-details-actions"><a href="/">Вернуться в мастерскую</a><a class="quiet-link" href="/#saved-projects">Открыть мои проекты</a></div>
+        </div>
+        <div id="project-details-error" class="project-details-state-card" hidden>
+          <p class="flow-eyebrow">Параметры проекта</p><h2>Не удалось открыть параметры проекта</h2>
+          <p id="project-details-error-copy">Попробуй обновить страницу.</p><a class="project-details-primary-link" href="/">Вернуться в мастерскую</a>
+        </div>
+        <div id="project-details-workflow" hidden>
+          <nav class="project-details-topbar" aria-label="Навигация по проекту">
+            <a class="project-details-brand" href="/">YarnAI</a><span class="project-details-step">Размер и посадка</span>
+            <a id="project-details-technology-link" href="/pattern-technology-draft">Вернуться к способу вязания</a><a href="/">В мастерскую</a>
+          </nav>
+          <header class="project-details-intro">
+            <div><p class="flow-eyebrow">Размер и посадка · <span id="project-details-project-name">Проект</span></p><div id="project-details-title-slot"></div>
+              <h2 id="project-details-static-title">Для кого и какого размера вяжем?</h2>
+              <p id="project-details-lead">Выбери стандартный размер или укажи свои мерки. YarnAI попросит только то, что нужно для этой вещи.</p>
+              <p class="project-details-support">Все значения можно изменить позже до окончательного расчёта.</p>
+            </div><div class="project-details-project-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+          </header>
+          <div class="project-details-layout">
+            <form id="project-details-form" class="project-details-form" novalidate>
+              <section class="project-details-card" aria-labelledby="project-details-mode-title"><fieldset class="project-details-fieldset">
+                <legend id="project-details-mode-title">Будем вязать по стандартному размеру или по твоим меркам?</legend>
+                <div class="project-details-mode-control">
+                  <label><input type="radio" name="sizeMode" value="standard"><span><strong>Стандартный размер</strong><small>Подойдёт, если точные мерки снять невозможно.</small></span></label>
+                  <label><input type="radio" name="sizeMode" value="custom"><span><strong>Свои мерки</strong><small>Лучший вариант для индивидуальной посадки.</small></span></label>
+                </div><p class="project-details-field-error" data-error-for="sizeMode" aria-live="polite"></p>
+              </fieldset></section>
+              <section class="project-details-card" aria-labelledby="project-details-context-title">
+                <div class="project-details-section-heading"><div><p class="flow-eyebrow">Контекст вещи</p><h2 id="project-details-context-title">Для кого вяжем?</h2></div><span id="project-details-garment-type" class="project-details-garment-chip">Изделие</span></div>
+                <label class="project-details-field" data-field-row="recipient" for="project-details-recipient"><span>Для кого вяжем? <em data-required-mark="recipient">обязательно</em></span>
+                  <select id="project-details-recipient" name="recipient" aria-describedby="project-details-recipient-error"><option value="">Выбери вариант</option><option value="woman">Для женщины</option><option value="man">Для мужчины</option><option value="child">Для ребёнка</option><option value="neutral">Без привязки к полу</option><option value="other">Другое</option></select>
+                  <small>Этот выбор нужен только для описания посадки и размерной системы.</small><span id="project-details-recipient-error" class="project-details-field-error" data-error-for="recipient" aria-live="polite"></span>
+                </label>
+              </section>
+              <section id="project-details-standard-card" class="project-details-card" aria-labelledby="project-details-standard-title" hidden>
+                <div class="project-details-section-heading"><div><p class="flow-eyebrow">Стандартный размер</p><h2 id="project-details-standard-title">Выбери размер</h2></div><span class="project-details-unit-chip">Система проекта</span></div>
+                <label class="project-details-field" data-field-row="standardSize" for="project-details-standard-size"><span>Размер <em data-required-mark="standardSize">обязательно</em></span>
+                  <select id="project-details-standard-size" name="standardSize" aria-describedby="project-details-standard-size-hint project-details-standard-size-error"><option value="">Выбери размер</option><optgroup label="Буквенные размеры"><option>XXXS</option><option>XXS</option><option>XS</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option></optgroup><optgroup label="Числовые размеры EU"><option>32</option><option>34</option><option>36</option><option>38</option><option>40</option><option>42</option><option>44</option><option>46</option><option>48</option><option>50</option><option>52</option><option>54</option><option>56</option><option>58</option><option>60</option></optgroup></select>
+                  <small id="project-details-standard-size-hint">Точные размеры YarnAI уточнит перед расчётом — стандартный размер не заменяет индивидуальные мерки.</small><span id="project-details-standard-size-error" class="project-details-field-error" data-error-for="standardSize" aria-live="polite"></span>
+                </label>
+              </section>
+              <section id="project-details-custom-card" class="project-details-card" aria-labelledby="project-details-custom-title" hidden>
+                <div class="project-details-section-heading"><div><p class="flow-eyebrow">Твои мерки</p><h2 id="project-details-custom-title">Только нужные мерки</h2></div><span class="project-details-unit-chip">Сантиметры</span></div>
+                <p class="project-details-section-copy">Мерки тела используются для посадки. Размеры готовой вещи задаются отдельно ниже.</p>
+                <div id="project-details-body-fields" class="project-details-measurement-grid">
+                  <label class="project-details-field" data-field-row="bust" for="project-details-bust"><span>Обхват груди <em data-required-mark="bust">обязательно</em></span><span class="project-details-number"><input id="project-details-bust" name="bust" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь по самой широкой части груди. Лента лежит ровно и не стягивает тело.</small><span class="project-details-field-error" data-error-for="bust" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="waist" for="project-details-waist"><span>Обхват талии <em data-required-mark="waist">обязательно</em></span><span class="project-details-number"><input id="project-details-waist" name="waist" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь естественную линию талии без натяжения ленты.</small><span class="project-details-field-error" data-error-for="waist" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="hips" for="project-details-hips"><span>Обхват бёдер <em data-required-mark="hips">обязательно</em></span><span class="project-details-number"><input id="project-details-hips" name="hips" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь по самой широкой части бёдер.</small><span class="project-details-field-error" data-error-for="hips" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="shoulderWidth" for="project-details-shoulder-width"><span>Ширина плеч <em data-required-mark="shoulderWidth">обязательно</em></span><span class="project-details-number"><input id="project-details-shoulder-width" name="shoulderWidth" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь расстояние между крайними точками плеч по спине.</small><span class="project-details-field-error" data-error-for="shoulderWidth" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="upperArm" for="project-details-upper-arm"><span>Обхват плеча <em data-required-mark="upperArm">обязательно</em></span><span class="project-details-number"><input id="project-details-upper-arm" name="upperArm" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь самую широкую часть верхней части руки.</small><span class="project-details-field-error" data-error-for="upperArm" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="armholeDepth" for="project-details-armhole-depth"><span>Глубина проймы <em data-required-mark="armholeDepth">обязательно</em></span><span class="project-details-number"><input id="project-details-armhole-depth" name="armholeDepth" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь вертикально от плеча до уровня подмышки.</small><span class="project-details-field-error" data-error-for="armholeDepth" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="neck" for="project-details-neck"><span>Обхват шеи <em data-required-mark="neck">обязательно</em></span><span class="project-details-number"><input id="project-details-neck" name="neck" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Лента проходит у основания шеи и не стягивает её.</small><span class="project-details-field-error" data-error-for="neck" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="head" for="project-details-head"><span>Обхват головы <em data-required-mark="head">обязательно</em></span><span class="project-details-number"><input id="project-details-head" name="head" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь по линии над бровями и самой широкой части затылка.</small><span class="project-details-field-error" data-error-for="head" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="footLength" for="project-details-foot-length"><span>Длина стопы <em data-required-mark="footLength">обязательно</em></span><span class="project-details-number"><input id="project-details-foot-length" name="footLength" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь от пятки до конца самого длинного пальца.</small><span class="project-details-field-error" data-error-for="footLength" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="hand" for="project-details-hand"><span>Обхват кисти <em data-required-mark="hand">обязательно</em></span><span class="project-details-number"><input id="project-details-hand" name="hand" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь кисть по самой широкой части без большого пальца.</small><span class="project-details-field-error" data-error-for="hand" aria-live="polite"></span></label>
+                </div>
+              </section>
+              <section id="project-details-fit-card" class="project-details-card" aria-labelledby="project-details-fit-title" hidden><fieldset class="project-details-fieldset">
+                <legend id="project-details-fit-title">Как должна сидеть вещь?</legend><div class="project-details-fit-control"><label><input type="radio" name="fit" value="fitted"><span>По фигуре</span></label><label><input type="radio" name="fit" value="regular"><span>Обычная посадка</span></label><label><input type="radio" name="fit" value="relaxed"><span>Свободная</span></label><label><input type="radio" name="fit" value="oversized"><span>Очень свободная</span></label></div>
+                <p class="project-details-section-copy">Посадка сохраняется как пожелание. YarnAI не подставляет числовую прибавку без проверенного контракта.</p><p class="project-details-field-error" data-error-for="fit" aria-live="polite"></p>
+              </fieldset></section>
+              <section class="project-details-card" aria-labelledby="project-details-garment-title">
+                <div class="project-details-section-heading"><div><p class="flow-eyebrow">Размеры готовой вещи</p><h2 id="project-details-garment-title">Какой должна быть готовая вещь?</h2></div><span class="project-details-unit-chip">Сантиметры</span></div>
+                <p class="project-details-section-copy">Эти значения не смешиваются с мерками тела. Даже при стандартном размере можно задать свою длину.</p>
+                <div class="project-details-measurement-grid">
+                  <label class="project-details-field" data-field-row="garmentWidth" for="project-details-garment-width"><span>Ширина готовой детали <em data-required-mark="garmentWidth">обязательно</em></span><span class="project-details-number"><input id="project-details-garment-width" name="garmentWidth" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Укажи ширину готовой детали в разложенном виде, если она уже определена.</small><span class="project-details-field-error" data-error-for="garmentWidth" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="garmentLength" for="project-details-garment-length"><span>Длина готовой вещи <em data-required-mark="garmentLength">обязательно</em></span><span class="project-details-number"><input id="project-details-garment-length" name="garmentLength" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь от высшей точки плеча до желаемого нижнего края.</small><span class="project-details-field-error" data-error-for="garmentLength" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="sleeveLength" for="project-details-sleeve-length"><span>Длина рукава <em data-required-mark="sleeveLength">обязательно</em></span><span class="project-details-number"><input id="project-details-sleeve-length" name="sleeveLength" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Измерь от плечевой точки до желаемого края рукава.</small><span class="project-details-field-error" data-error-for="sleeveLength" aria-live="polite"></span></label>
+                  <label class="project-details-field" data-field-row="necklineDepth" for="project-details-neckline-depth"><span>Глубина горловины <em data-required-mark="necklineDepth">обязательно</em></span><span class="project-details-number"><input id="project-details-neckline-depth" name="necklineDepth" type="number" inputmode="decimal" min="0.1" max="500" step="0.1"><span aria-label="сантиметры">см</span></span><small>Укажи желаемую глубину, только если она важна.</small><span class="project-details-field-error" data-error-for="necklineDepth" aria-live="polite"></span></label>
+                </div>
+              </section>
+              <aside id="project-details-conflict" class="project-details-conflict" hidden><strong>Какой вариант использовать?</strong><p id="project-details-conflict-copy"></p></aside>
+              <div class="project-details-form-actions"><button id="project-details-save" type="submit">Сохранить параметры</button><p id="project-details-save-status" role="status" aria-live="polite"></p></div>
+            </form>
+            <aside class="project-details-summary-column" aria-label="Сводка параметров">
+              <section class="project-details-summary-card" aria-labelledby="project-details-next-title"><p class="flow-eyebrow">Один шаг за раз</p><h2 id="project-details-next-title">Сейчас нужно уточнить</h2><p id="project-details-next-field" class="project-details-next-field">Выбери способ задания размера</p></section>
+              <section class="project-details-summary-card" aria-labelledby="project-details-known-title"><h2 id="project-details-known-title">Что уже известно</h2><dl id="project-details-known" aria-live="polite"></dl><p id="project-details-known-empty">Параметры появятся здесь после выбора.</p></section>
+              <section class="project-details-summary-card" aria-labelledby="project-details-missing-title"><h2 id="project-details-missing-title">Чего ещё не хватает</h2><ul id="project-details-missing-list" aria-live="polite"></ul><p id="project-details-complete" hidden>Основные параметры заполнены</p></section>
+              <section class="project-details-summary-card project-details-next-card" aria-labelledby="project-details-route-title"><p class="flow-eyebrow">Дальше</p><h2 id="project-details-route-title">Следующий шаг</h2><p id="project-details-route-copy">После сохранения YarnAI проверит, чего не хватает для образца или расчёта.</p><button id="project-details-continue" type="button" disabled>Продолжить</button><p id="project-details-continue-reason" class="project-details-continue-reason">Сначала заполни обязательные параметры.</p></section>
+            </aside>
+          </div>
+          <details id="project-details-collaboration-owner" class="project-details-collaboration-card">
+            <summary>Проверить данные с помощником</summary>
+            <div class="project-details-collaboration-content">
+              <p>Создай ограниченный JSON-пакет. Помощник увидит только явно выбранные группы и не получит доступ к исходному проекту.</p>
+              <div class="project-details-collaboration-grid">
+                <form id="project-details-collaboration-request-form" class="project-details-collaboration-panel" novalidate>
+                  <fieldset class="project-details-collaboration-fieldset">
+                    <legend>Какие данные передать</legend>
+                    <div class="project-details-collaboration-options">
+                      <label><input type="checkbox" name="collaboration-group" value="recipient_information"> Общая информация о получателе</label>
+                      <label><input type="checkbox" name="collaboration-group" value="standard_size"> Стандартный размер</label>
+                      <label><input type="checkbox" name="collaboration-group" value="fit"> Посадка</label>
+                      <label><input type="checkbox" name="collaboration-group" value="body_measurements"> Мерки тела</label>
+                      <label><input type="checkbox" name="collaboration-group" value="garment_measurements"> Мерки готового изделия</label>
+                      <label><input type="checkbox" name="collaboration-group" value="garment_type"> Тип изделия <span class="project-details-collaboration-readonly">только для чтения</span></label>
+                      <label><input type="checkbox" name="collaboration-group" value="summary"> Сводка «известно / не хватает» <span class="project-details-collaboration-readonly">только для чтения</span></label>
+                    </div>
+                  </fieldset>
+                  <label class="project-details-collaboration-field" for="project-details-collaboration-helper-label">
+                    <span>Имя или обозначение помощника</span>
+                    <input id="project-details-collaboration-helper-label" maxlength="120" placeholder="Например, Наталья" required>
+                  </label>
+                  <label class="project-details-collaboration-field" for="project-details-collaboration-owner-label">
+                    <span>Имя владельца — только если хочешь передать его</span>
+                    <input id="project-details-collaboration-owner-label" maxlength="120" autocomplete="name">
+                  </label>
+                  <label class="project-details-collaboration-field" for="project-details-collaboration-instruction">
+                    <span>Короткая инструкция (необязательно)</span>
+                    <textarea id="project-details-collaboration-instruction" rows="3" maxlength="1000" placeholder="Что проверить или измерить"></textarea>
+                  </label>
+                  <div class="project-details-collaboration-actions">
+                    <button id="project-details-collaboration-generate" type="submit">Сформировать request</button>
+                    <button id="project-details-collaboration-download-request" type="button" disabled>Скачать request JSON</button>
+                  </div>
+                  <p id="project-details-collaboration-request-status" class="project-details-collaboration-status" role="status" aria-live="polite"></p>
+                </form>
+                <section class="project-details-collaboration-panel" aria-labelledby="project-details-collaboration-import-title">
+                  <h3 id="project-details-collaboration-import-title">Получен ответ помощника</h3>
+                  <p>Импорт только проверит пакет и покажет сравнение. Проект не изменится автоматически.</p>
+                  <label class="project-details-collaboration-field" for="project-details-collaboration-response-file">
+                    <span>Выбрать response JSON</span>
+                    <input id="project-details-collaboration-response-file" type="file" accept="application/json,.json">
+                  </label>
+                  <p id="project-details-collaboration-import-status" class="project-details-collaboration-status" role="status" aria-live="assertive"></p>
+                </section>
+              </div>
+              <section id="project-details-collaboration-review" class="project-details-review-panel project-details-collaboration-panel" aria-labelledby="project-details-collaboration-review-title" hidden>
+                <h3 id="project-details-collaboration-review-title">Проверка предложенных изменений</h3>
+                <p id="project-details-collaboration-review-summary" aria-live="polite"></p>
+                <div id="project-details-collaboration-review-list" class="project-details-review-list"></div>
+                <div class="project-details-collaboration-actions">
+                  <button id="project-details-collaboration-apply" type="button">Принять выбранные</button>
+                  <button id="project-details-collaboration-reject-all" type="button">Отклонить все</button>
+                  <button id="project-details-collaboration-close-review" type="button">Закрыть без изменений</button>
+                </div>
+              </section>
+            </div>
+          </details>
+          <section id="project-details-closure" class="project-details-closure" aria-labelledby="project-details-closure-title">
+            <header class="project-details-closure-heading">
+              <div><p class="flow-eyebrow">Итоговая проверка</p><h2 id="project-details-closure-title">Проверка данных перед расчётом</h2></div>
+              <p>Здесь фиксируется неизменяемый снимок сведений о размере и посадке. Подтверждение не меняет введённые значения.</p>
+            </header>
+            <p id="project-details-closure-readiness" class="project-details-closure-readiness" role="status" aria-live="polite">Проверка ещё не выполнена.</p>
+            <div id="project-details-closure-review" class="project-details-closure-review" hidden>
+              <section aria-labelledby="project-details-closure-known-title"><h3 id="project-details-closure-known-title">Итоговые сведения</h3><dl id="project-details-closure-known"></dl></section>
+              <section aria-labelledby="project-details-closure-missing-title">
+                <h3 id="project-details-closure-missing-title">Пробелы в данных</h3>
+                <h4>Обязательные</h4><ul id="project-details-closure-missing-required"></ul><p id="project-details-closure-required-complete">Обязательные сведения заполнены.</p>
+                <h4>Рекомендуемые</h4><ul id="project-details-closure-missing-recommended"></ul><p id="project-details-closure-recommended-complete">Рекомендуемых пробелов нет.</p>
+              </section>
+              <section aria-labelledby="project-details-closure-validation-title">
+                <h3 id="project-details-closure-validation-title">Проверка согласованности</h3>
+                <h4>Блокирующие ошибки</h4><ul id="project-details-closure-errors"></ul><p id="project-details-closure-errors-empty">Блокирующих ошибок нет.</p>
+                <h4>Предупреждения</h4><ul id="project-details-closure-warnings"></ul><p id="project-details-closure-warnings-empty">Предупреждений нет.</p>
+              </section>
+              <section aria-labelledby="project-details-closure-provenance-title"><h3 id="project-details-closure-provenance-title">Происхождение значений</h3><dl id="project-details-closure-provenance"></dl></section>
+              <section aria-labelledby="project-details-closure-collaboration-title"><h3 id="project-details-closure-collaboration-title">Совместная проверка</h3><p id="project-details-closure-collaboration-summary">Принятых изменений помощника нет.</p><ul id="project-details-closure-collaboration-list"></ul></section>
+              <section aria-labelledby="project-details-closure-assumptions-title"><h3 id="project-details-closure-assumptions-title">Допущения</h3><ul id="project-details-closure-assumptions"></ul><p id="project-details-closure-assumptions-empty">Допущений нет.</p></section>
+            </div>
+            <section class="project-details-closure-previous" aria-labelledby="project-details-closure-previous-title">
+              <h3 id="project-details-closure-previous-title">Предыдущее подтверждение</h3>
+              <p id="project-details-closure-previous-status" aria-live="polite">Подтверждений пока нет.</p>
+              <ul id="project-details-closure-stale-changes" class="project-details-closure-stale-changes"></ul>
+            </section>
+            <fieldset id="project-details-closure-acknowledgement" class="project-details-closure-acknowledgement" hidden>
+              <legend>Подтверждение допущений</legend>
+              <label for="project-details-closure-acknowledge"><input id="project-details-closure-acknowledge" type="checkbox"> Я прочитала перечисленные допущения и понимаю, с какими данными продолжится проект.</label>
+            </fieldset>
+            <div class="project-details-closure-actions">
+              <button id="project-details-closure-review-button" type="button">Проверить ещё раз</button>
+              <button id="project-details-closure-confirm" type="button" disabled>Подтвердить данные</button>
+              <button id="project-details-closure-back" type="button">Вернуться к редактированию</button>
+              <button id="project-details-closure-continue" type="button" disabled>Продолжить</button>
+            </div>
+            <p id="project-details-closure-confirm-reason" class="project-details-closure-reason">Сначала выполни итоговую проверку.</p>
+            <p id="project-details-closure-continue-reason" class="project-details-closure-reason">Продолжение станет доступно после актуального подтверждения.</p>
+            <p id="project-details-closure-save-status" role="status" aria-live="polite"></p>
+            <p id="project-details-closure-error" class="project-details-closure-error" role="alert" aria-live="assertive" hidden></p>
+            <div id="project-details-closure-live" class="project-details-sr-only" role="status" aria-live="polite"></div>
+          </section>
+          <section id="project-initialization" class="project-initialization" aria-labelledby="project-initialization-title" aria-describedby="project-initialization-status project-initialization-reason">
+            <header class="project-initialization-heading">
+              <div><p class="flow-eyebrow">&#1056;&#1072;&#1073;&#1086;&#1095;&#1072;&#1103; &#1086;&#1089;&#1085;&#1086;&#1074;&#1072; &#1087;&#1088;&#1086;&#1077;&#1082;&#1090;&#1072;</p><h2 id="project-initialization-title">&#1055;&#1086;&#1076;&#1075;&#1086;&#1090;&#1086;&#1074;&#1080;&#1090;&#1100; &#1087;&#1088;&#1086;&#1077;&#1082;&#1090; &#1082; &#1076;&#1072;&#1083;&#1100;&#1085;&#1077;&#1081;&#1096;&#1077;&#1081; &#1088;&#1072;&#1073;&#1086;&#1090;&#1077;</h2></div>
+              <p>&#1057;&#1086;&#1079;&#1076;&#1072;&#1081;&#1090;&#1077; &#1086;&#1090;&#1076;&#1077;&#1083;&#1100;&#1085;&#1091;&#1102; &#1085;&#1077;&#1080;&#1079;&#1084;&#1077;&#1085;&#1103;&#1077;&#1084;&#1091;&#1102; &#1086;&#1089;&#1085;&#1086;&#1074;&#1091; &#1090;&#1086;&#1083;&#1100;&#1082;&#1086; &#1080;&#1079; &#1072;&#1082;&#1090;&#1091;&#1072;&#1083;&#1100;&#1085;&#1099;&#1093; &#1087;&#1086;&#1076;&#1090;&#1074;&#1077;&#1088;&#1078;&#1076;&#1105;&#1085;&#1085;&#1099;&#1093; &#1089;&#1074;&#1077;&#1076;&#1077;&#1085;&#1080;&#1081;. &#1056;&#1072;&#1079;&#1084;&#1077;&#1088;&#1099; &#1080; &#1076;&#1088;&#1091;&#1075;&#1080;&#1077; &#1076;&#1072;&#1085;&#1085;&#1099;&#1077; &#1087;&#1088;&#1086;&#1077;&#1082;&#1090;&#1072; &#1087;&#1088;&#1080; &#1101;&#1090;&#1086;&#1084; &#1085;&#1077; &#1080;&#1079;&#1084;&#1077;&#1085;&#1103;&#1090;&#1089;&#1103;.</p>
+            </header>
+            <p id="project-initialization-status" class="project-initialization-status" role="status" aria-live="polite" tabindex="-1">&#1057;&#1085;&#1072;&#1095;&#1072;&#1083;&#1072; &#1079;&#1072;&#1074;&#1077;&#1088;&#1096;&#1080;&#1090;&#1077; &#1080;&#1090;&#1086;&#1075;&#1086;&#1074;&#1091;&#1102; &#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1082;&#1091; &#1089;&#1074;&#1077;&#1076;&#1077;&#1085;&#1080;&#1081; &#1086; &#1087;&#1088;&#1086;&#1077;&#1082;&#1090;&#1077;.</p>
+            <div id="project-initialization-summary" class="project-initialization-summary" hidden>
+              <section class="project-initialization-card" aria-labelledby="project-initialization-summary-title">
+                <h3 id="project-initialization-summary-title">&#1063;&#1090;&#1086; &#1074;&#1086;&#1081;&#1076;&#1105;&#1090; &#1074; &#1086;&#1089;&#1085;&#1086;&#1074;&#1091;</h3>
+                <dl class="project-initialization-facts">
+                  <dt>&#1048;&#1079;&#1076;&#1077;&#1083;&#1080;&#1077; &#1080; &#1088;&#1072;&#1079;&#1084;&#1077;&#1088;</dt><dd id="project-initialization-garment"></dd>
+                  <dt>&#1048;&#1089;&#1090;&#1086;&#1095;&#1085;&#1080;&#1082;</dt><dd id="project-initialization-source"></dd>
+                  <dt>&#1043;&#1086;&#1090;&#1086;&#1074;&#1085;&#1086;&#1089;&#1090;&#1100;</dt><dd id="project-initialization-readiness"></dd>
+                  <dt>&#1044;&#1086;&#1087;&#1091;&#1097;&#1077;&#1085;&#1080;&#1103;</dt><dd id="project-initialization-assumptions-count">0</dd>
+                  <dt>&#1055;&#1088;&#1077;&#1076;&#1091;&#1087;&#1088;&#1077;&#1078;&#1076;&#1077;&#1085;&#1080;&#1103;</dt><dd id="project-initialization-warnings-count">0</dd>
+                </dl>
+              </section>
+              <section class="project-initialization-card" aria-labelledby="project-initialization-limits-title">
+                <h3 id="project-initialization-limits-title">&#1055;&#1088;&#1080;&#1085;&#1103;&#1090;&#1099;&#1077; &#1086;&#1075;&#1088;&#1072;&#1085;&#1080;&#1095;&#1077;&#1085;&#1080;&#1103;</h3>
+                <h4>&#1044;&#1086;&#1087;&#1091;&#1097;&#1077;&#1085;&#1080;&#1103;</h4><ul id="project-initialization-assumptions"></ul>
+                <h4>&#1055;&#1088;&#1077;&#1076;&#1091;&#1087;&#1088;&#1077;&#1078;&#1076;&#1077;&#1085;&#1080;&#1103;</h4><ul id="project-initialization-warnings"></ul>
+              </section>
+            </div>
+            <section id="project-initialization-changes-panel" class="project-initialization-changes" aria-labelledby="project-initialization-changes-title" hidden>
+              <h3 id="project-initialization-changes-title">&#1063;&#1090;&#1086; &#1080;&#1079;&#1084;&#1077;&#1085;&#1080;&#1083;&#1086;&#1089;&#1100; &#1087;&#1086;&#1089;&#1083;&#1077; &#1087;&#1088;&#1077;&#1076;&#1099;&#1076;&#1091;&#1097;&#1077;&#1081; &#1086;&#1089;&#1085;&#1086;&#1074;&#1099;</h3>
+              <ul id="project-initialization-changes"></ul>
+            </section>
+            <div class="project-initialization-actions">
+              <button id="project-initialization-review" type="button" disabled>&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1080;&#1090;&#1100; &#1086;&#1089;&#1085;&#1086;&#1074;&#1091;</button>
+              <button id="project-initialization-back" type="button">&#1042;&#1077;&#1088;&#1085;&#1091;&#1090;&#1100;&#1089;&#1103; &#1082; &#1089;&#1074;&#1077;&#1076;&#1077;&#1085;&#1080;&#1103;&#1084;</button>
+              <button id="project-initialization-confirm" type="button" disabled>&#1048;&#1085;&#1080;&#1094;&#1080;&#1072;&#1083;&#1080;&#1079;&#1080;&#1088;&#1086;&#1074;&#1072;&#1090;&#1100; &#1087;&#1088;&#1086;&#1077;&#1082;&#1090;</button>
+              <button id="project-initialization-continue" type="button" disabled>&#1055;&#1088;&#1086;&#1076;&#1086;&#1083;&#1078;&#1080;&#1090;&#1100;</button>
+            </div>
+            <p id="project-initialization-reason" class="project-initialization-reason">&#1048;&#1085;&#1080;&#1094;&#1080;&#1072;&#1083;&#1080;&#1079;&#1072;&#1094;&#1080;&#1103; &#1089;&#1090;&#1072;&#1085;&#1077;&#1090; &#1076;&#1086;&#1089;&#1090;&#1091;&#1087;&#1085;&#1072; &#1087;&#1086;&#1089;&#1083;&#1077; &#1072;&#1082;&#1090;&#1091;&#1072;&#1083;&#1100;&#1085;&#1086;&#1075;&#1086; &#1079;&#1072;&#1074;&#1077;&#1088;&#1096;&#1077;&#1085;&#1080;&#1103; &#1080;&#1090;&#1086;&#1075;&#1086;&#1074;&#1086;&#1081; &#1087;&#1088;&#1086;&#1074;&#1077;&#1088;&#1082;&#1080;.</p>
+            <p id="project-initialization-save-status" role="status" aria-live="polite"></p>
+            <p id="project-initialization-error" class="project-initialization-error" role="alert" aria-live="assertive" hidden></p>
+            <div id="project-initialization-live" class="project-details-sr-only" role="status" aria-live="polite"></div>
+          </section>
+          <div id="project-details-live" class="project-details-sr-only" role="status" aria-live="polite"></div>
+          <div id="project-details-collaboration-live" class="project-details-sr-only" role="status" aria-live="assertive"></div>
+        </div>
+      </section>
+
+      <section id="project-details-collaboration-helper" class="project-details-collaboration-helper" aria-labelledby="project-details-collaboration-helper-title" hidden>
+        <div class="project-details-collaboration-helper-shell">
+          <p class="flow-eyebrow">Локальная совместная проверка</p>
+          <h2 id="project-details-collaboration-helper-title">Проверить данные проекта</h2>
+          <p id="project-details-collaboration-helper-loading" role="status">Открываем локальный черновик…</p>
+          <section id="project-details-collaboration-helper-import-panel" class="project-details-collaboration-panel" aria-labelledby="project-details-collaboration-open-title" hidden>
+            <h3 id="project-details-collaboration-open-title">Открыть request-файл</h3>
+            <label class="project-details-collaboration-field" for="project-details-collaboration-request-file"><span>Выбрать collaboration request JSON</span><input id="project-details-collaboration-request-file" type="file" accept="application/json,.json"></label>
+            <p>Файл проверяется локально. Он не загружается на сервер.</p>
+          </section>
+          <p id="project-details-collaboration-helper-error" class="project-details-collaboration-error" role="alert" aria-live="assertive" hidden></p>
+          <div id="project-details-collaboration-helper-workspace" hidden>
+            <section class="project-details-collaboration-panel" aria-labelledby="project-details-collaboration-transferred-title">
+              <h3 id="project-details-collaboration-transferred-title">Переданные сведения</h3>
+              <p><strong>Проект:</strong> <span id="project-details-collaboration-helper-project"></span></p>
+              <p><strong>Помощник:</strong> <span id="project-details-collaboration-helper-name"></span></p>
+              <p><strong>Инструкция:</strong> <span id="project-details-collaboration-helper-instruction"></span></p>
+              <ul id="project-details-collaboration-helper-values" class="project-details-collaboration-values"></ul>
+            </section>
+            <form id="project-details-collaboration-helper-form" novalidate>
+              <h3>Разрешённые предложения</h3>
+              <div id="project-details-collaboration-helper-editor" class="project-details-collaboration-editor"></div>
+              <div class="project-details-collaboration-actions">
+                <button id="project-details-collaboration-save-draft" type="submit">Сохранить локальный черновик</button>
+                <button id="project-details-collaboration-download-response" type="button">Скачать response JSON</button>
+              </div>
+              <p id="project-details-collaboration-helper-status" class="project-details-collaboration-status" role="status" aria-live="polite"></p>
+            </form>
+          </div>
+          <div id="project-details-collaboration-helper-live" class="project-details-sr-only" role="status" aria-live="assertive"></div>
+          <p><a href="/">Безопасно вернуться в мастерскую</a></p>
+        </div>
+      </section>
+
+      <dialog
+        id="new-project-form-panel"
+        class="new-project-dialog"
+        aria-labelledby="create-project-title"
+      >
+        <div class="new-project-dialog-card">
+          <p class="flow-eyebrow">Новая вещь</p>
+          <h2 id="create-project-title">Как назовём проект?</h2>
+          <p class="new-project-dialog-copy">Название поможет быстро найти эту вещь в мастерской.</p>
+          <form id="new-project-form" class="new-project-form">
+            <label for="new-project-title">Название проекта</label>
+            <input
+              id="new-project-title"
+              name="title"
+              type="text"
+              maxlength="120"
+              placeholder="Например, серый свитер"
+              autocomplete="off"
+              required
+            >
+            <p id="workspace-status" class="workspace-status" role="alert" aria-live="assertive"></p>
+            <div class="new-project-form-actions">
+              <button id="new-project-submit" type="submit">Создать и загрузить материалы</button>
+              <button id="new-project-cancel" class="quiet-button" type="button">Отмена</button>
+            </div>
+          </form>
+        </div>
+      </dialog>
 
       <section
         id="start-screen"
         class="start-screen"
         aria-labelledby="start-title"
+        hidden
       >
-        <p class="flow-eyebrow">Начнём с твоей идеи</p>
-        <h1 id="start-title">Что ты хочешь связать?</h1>
+        <div class="design-workspace-heading">
+          <div>
+            <p class="flow-eyebrow">Собственный дизайн</p>
+            <h2 id="start-title">Расскажи о своей идее</h2>
+          </div>
+          <button id="close-design-workspace" class="quiet-button" type="button">Закрыть</button>
+        </div>
         <p class="start-copy">
           Покажи пример или расскажи своими словами. Не нужно знать названия
           конструкций и заранее собирать все параметры.
         </p>
 
         <div class="intent-actions" aria-label="Как начать">
-          <button
-            id="choose-photo"
-            class="intent-card"
-            type="button"
-            data-source-choice="photo"
-          >
-            <span class="intent-icon" aria-hidden="true">📷</span>
+          <button id="choose-photo" class="intent-card" type="button" data-source-choice="photo">
+            <span class="intent-icon" aria-hidden="true">Фото</span>
             <span class="intent-label">Показать фотографию изделия.</span>
             <span class="intent-hint">Фото вещи или идеи, которая понравилась</span>
           </button>
-
-          <button
-            id="choose-pattern"
-            class="intent-card"
-            type="button"
-            data-source-choice="pattern"
-          >
-            <span class="intent-icon" aria-hidden="true">📄</span>
+          <button id="choose-pattern" class="intent-card" type="button" data-source-choice="pattern">
+            <span class="intent-icon" aria-hidden="true">PDF</span>
             <span class="intent-label">Загрузить схему или описание.</span>
             <span class="intent-hint">PDF, фотография или скриншот</span>
           </button>
-
-          <button
-            id="choose-text"
-            class="intent-card"
-            type="button"
-            data-source-choice="text"
-          >
-            <span class="intent-icon" aria-hidden="true">💬</span>
+          <button id="choose-text" class="intent-card" type="button" data-source-choice="text">
+            <span class="intent-icon" aria-hidden="true">Аа</span>
             <span class="intent-label">Просто рассказать словами.</span>
             <span class="intent-hint">Например: «Хочу свободный кардиган»</span>
           </button>
         </div>
 
         <p class="local-note">
-          На этом этапе файлы остаются в браузере и не распознаются
-          автоматически.
+          На этом этапе файлы остаются в браузере и не распознаются автоматически.
         </p>
       </section>
 
@@ -133,7 +673,7 @@
         <div class="dialog-heading">
           <div>
             <p class="flow-eyebrow">Твоя идея</p>
-            <h1 id="dialog-title">Давай разберёмся вместе</h1>
+            <h2 id="dialog-title">Давай разберёмся вместе</h2>
           </div>
           <button id="new-dialog-button" class="quiet-button" type="button">
             Начать заново
@@ -203,7 +743,7 @@
           <div class="result-heading">
             <div>
               <p class="flow-eyebrow">Описание проекта</p>
-              <h1 id="result-title">Понял.</h1>
+              <h2 id="result-title">Понял.</h2>
             </div>
             <button id="summary-new-dialog-button" class="quiet-button" type="button">
               Начать заново

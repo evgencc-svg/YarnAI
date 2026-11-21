@@ -2,8 +2,9 @@
 
 (function exposePatternTechnologyDraft(globalObject) {
   const VERSION = 1;
-  const RESULT_SCHEMA_VERSION = 1;
-  const ALGORITHM_VERSION = 1;
+  const INPUT_CONTRACT_VERSION = 2;
+  const RESULT_SCHEMA_VERSION = 2;
+  const ALGORITHM_VERSION = 2;
   const PROGRESS_KIND = "PATTERN_TECHNOLOGY_DRAFT";
   const STATUSES = Object.freeze(["waiting", "building", "needs_attention", "ready", "failed"]);
   const OPERATION_TYPES = Object.freeze([
@@ -50,11 +51,13 @@
   function createInitialState(projectId, review, now = timestampNow()) {
     assertConfirmedReview(review, projectId);
     if (!isTimestamp(now)) throw draftError("INVALID_DRAFT_SCHEMA", "Дата создания черновика повреждена.");
-    const immutableSourceSnapshot = deepFreeze(copy(review.confirmedSnapshot));
-    const sourceConfirmedFingerprint = fingerprint(immutableSourceSnapshot);
+    const immutableSourceSnapshot = deepFreeze(stage20InputFromConfirmedReview(review));
+    const sourceConfirmedFingerprint = fingerprint(review.confirmedSnapshot);
+    const immutableSourceFingerprint = fingerprint(immutableSourceSnapshot);
     return {
       id: makeId(), projectId, kind: PROGRESS_KIND, version: VERSION,
       algorithmVersion: ALGORITHM_VERSION, revision: 1, status: "waiting",
+      inputContractVersion: INPUT_CONTRACT_VERSION,
       sourceReviewId: review.id,
       sourceReviewRevision: review.revision,
       sourceConfirmedRevision: review.revision,
@@ -64,7 +67,8 @@
       sourceImportRevision: immutableSourceSnapshot.sourceImportRevision ?? null,
       sourceProjectId: immutableSourceSnapshot.projectId,
       immutableSourceSnapshot,
-      immutableSourceFingerprint: sourceConfirmedFingerprint,
+      immutableSourceFingerprint,
+      sourceProjectionFingerprint: immutableSourceFingerprint,
       draftResult: null,
       draftFingerprint: null,
       criticalIssuesFingerprint: fingerprint([]),
@@ -76,12 +80,14 @@
 
   function buildDraftFromConfirmedSnapshot(confirmedSnapshot) {
     assertConfirmedSnapshot(confirmedSnapshot);
-    const sourceValues = stableSourceValues(confirmedSnapshot.values);
+    const sourceValues = stableSourceValues(confirmedSnapshot.sourcePatternEvidence?.values || confirmedSnapshot.values);
     const provenance = sourceValues.map((item) => createProvenance(item, confirmedSnapshot));
     const provenanceByItem = new Map(provenance.map((entry) => [entry.sourceReviewedItemId, entry]));
     const result = {
       schemaVersion: RESULT_SCHEMA_VERSION,
       algorithmVersion: ALGORITHM_VERSION,
+      inputContractVersion: confirmedSnapshot.contractVersion || 1,
+      resultIdentity: stableId("technology-result", { algorithmVersion: ALGORITHM_VERSION, input: fingerprint(confirmedSnapshot) }),
       projectSummary: {
         id: stableId("summary", { projectId: confirmedSnapshot.projectId }),
         projectId: confirmedSnapshot.projectId,
@@ -91,6 +97,8 @@
       components: [], sections: [], operations: [], rowInstructions: [], repeats: [], stitchCountChanges: [],
       finishing: [], abbreviations: [], assumptions: [], missingInformation: [], conflicts: [], warnings: [],
       provenance,
+      sourcePatternEvidence: copy(confirmedSnapshot.sourcePatternEvidence || { schemaVersion: 0, evidenceDomain: "SOURCE_PATTERN_EVIDENCE", values: sourceValues }),
+      userAdaptationProfile: copy(confirmedSnapshot.userAdaptationProfile || { schemaVersion: 0, evidenceDomain: "USER_ADAPTATION_PROFILE", required: false, requiredFields: [], complete: true, selectedSize: null, measurements: [], gauge: [], needles: [], yarn: { names: [], fibre: [], weight: [], lengthOrWeight: [] } }),
       generationSummary: {
         sourceValueCount: sourceValues.length,
         includedValueCount: 0,
@@ -105,7 +113,8 @@
     const sectionItems = sourceValues.filter((item) => item.category === "sections");
     for (const item of sourceValues) {
       const provenanceRefs = [provenanceByItem.get(item.itemId).id];
-      const base = { id: entityId(item.category, item), value: copy(item.value), unit: item.unit ?? unitOf(item.value), provenanceRefs };
+      const confirmedValue = semanticCanonicalValue(item.value);
+      const base = { id: entityId(item.category, item), value: copy(confirmedValue), sourceValue: copy(item.value), unit: item.unit ?? unitOf(confirmedValue), provenanceRefs };
       if (item.category === "craft") result.craft = { ...base, type: scalar(item.value) };
       else if (item.category === "product") result.product = { ...base, type: scalar(item.value) };
       else if (item.category === "construction") result.construction.push({ ...base, property: item.subtype });
@@ -189,11 +198,14 @@
     requireValidIdentity(state);
     assertConfirmedReview(review, state.projectId);
     const sourceFingerprint = fingerprint(review.confirmedSnapshot);
+    const projectionFingerprint = fingerprint(stage20InputFromConfirmedReview(review));
     if (
       state.draftResult && state.algorithmVersion === ALGORITHM_VERSION &&
+      state.inputContractVersion === INPUT_CONTRACT_VERSION &&
       state.sourceReviewRevision === review.revision &&
       state.sourceConfirmedFingerprint === sourceFingerprint &&
-      state.immutableSourceFingerprint === sourceFingerprint &&
+      state.sourceProjectionFingerprint === projectionFingerprint &&
+      state.immutableSourceFingerprint === projectionFingerprint &&
       state.draftFingerprint === fingerprint(state.draftResult) &&
       state.validation?.isValid
     ) return copy(state);
@@ -234,12 +246,13 @@
     const warnings = [];
     const criticalIssueCodes = [];
     const add = (target, code, entityId = null, level = "critical") => target.push({ code, entityId, level });
-    if (!state || state.kind !== PROGRESS_KIND || state.version !== VERSION || !STATUSES.includes(state.status) || state.algorithmVersion !== ALGORITHM_VERSION) add(errors, "INVALID_DRAFT_SCHEMA");
+    if (!state || state.kind !== PROGRESS_KIND || state.version !== VERSION || !STATUSES.includes(state.status) || state.algorithmVersion !== ALGORITHM_VERSION || state.inputContractVersion !== INPUT_CONTRACT_VERSION) add(errors, "INVALID_DRAFT_SCHEMA");
     if (!text(state?.id) || !text(state?.projectId) || !positiveInteger(state?.revision) || !isTimestamp(state?.createdAt) || !isTimestamp(state?.updatedAt)) add(errors, "INVALID_DRAFT_SCHEMA");
     if (state?.sourceProjectId !== state?.projectId || state?.immutableSourceSnapshot?.projectId !== state?.projectId) add(errors, "PROJECT_OWNERSHIP_MISMATCH");
     if (!text(state?.sourceReviewId) || !positiveInteger(state?.sourceReviewRevision) || !positiveInteger(state?.sourceConfirmedRevision) || !validFingerprint(state?.sourceConfirmedFingerprint)) add(errors, "INVALID_SOURCE_IDENTITY");
     if (!state?.immutableSourceSnapshot || fingerprintSafe(state.immutableSourceSnapshot) !== state?.immutableSourceFingerprint) add(errors, "IMMUTABLE_SOURCE_CHANGED");
-    if (state?.immutableSourceFingerprint !== state?.sourceConfirmedFingerprint) add(errors, "SOURCE_FINGERPRINT_MISMATCH");
+    if (state?.immutableSourceFingerprint !== state?.sourceProjectionFingerprint) add(errors, "SOURCE_PROJECTION_FINGERPRINT_MISMATCH");
+    try { if (state?.immutableSourceSnapshot) assertStage20Input(state.immutableSourceSnapshot); } catch (error) { add(errors, error?.code || "INVALID_STAGE20_INPUT_CONTRACT"); }
     if (state?.draftResult) validateResult(state, errors, warnings);
     else if (!["waiting", "building", "failed"].includes(state?.status)) add(errors, "INVALID_DRAFT_SCHEMA");
     if (state?.draftResult && fingerprintSafe(state.draftResult) !== state?.draftFingerprint) add(errors, "DRAFT_FINGERPRINT_MISMATCH");
@@ -252,7 +265,9 @@
       else {
         if (sourceReview.id !== state.sourceReviewId || sourceReview.revision !== state.sourceReviewRevision || sourceReview.revision !== state.sourceConfirmedRevision) add(errors, "SOURCE_REVIEW_STALE");
         if (fingerprintSafe(sourceReview.confirmedSnapshot) !== state.sourceConfirmedFingerprint) add(errors, "SOURCE_FINGERPRINT_MISMATCH");
-        if (canonicalizeSafe(sourceReview.confirmedSnapshot) !== canonicalizeSafe(state.immutableSourceSnapshot)) add(errors, "IMMUTABLE_SOURCE_CHANGED");
+        let projection = null; try { projection = stage20InputFromConfirmedReview(sourceReview); } catch (error) { add(errors, error?.code || "INVALID_STAGE20_INPUT_CONTRACT"); }
+        if (projection && fingerprintSafe(projection) !== state.sourceProjectionFingerprint) add(errors, "SOURCE_PROJECTION_FINGERPRINT_MISMATCH");
+        if (projection && canonicalizeSafe(projection) !== canonicalizeSafe(state.immutableSourceSnapshot)) add(errors, "IMMUTABLE_SOURCE_CHANGED");
       }
     }
     for (const issue of extraErrors) add(errors, issue.code, issue.entityId, issue.level);
@@ -278,6 +293,7 @@
     if (result.schemaVersion !== RESULT_SCHEMA_VERSION || result.algorithmVersion !== ALGORITHM_VERSION || result.projectSummary?.projectId !== state.projectId) add(errors, "INVALID_DRAFT_SCHEMA");
     const arrays = ["construction", "sizes", "materials", "yarn", "tools", "gauge", "components", "sections", "operations", "rowInstructions", "repeats", "stitchCountChanges", "finishing", "abbreviations", "assumptions", "missingInformation", "conflicts", "warnings", "provenance"];
     for (const key of arrays) if (!Array.isArray(result[key])) add(errors, "INVALID_DRAFT_SCHEMA", key);
+    if (result.inputContractVersion !== INPUT_CONTRACT_VERSION || result.sourcePatternEvidence?.evidenceDomain !== "SOURCE_PATTERN_EVIDENCE" || result.userAdaptationProfile?.evidenceDomain !== "USER_ADAPTATION_PROFILE" || !text(result.resultIdentity)) add(errors, "INVALID_STAGE20_INPUT_CONTRACT");
     const entityArrays = arrays.filter((key) => !["missingInformation", "warnings"].includes(key));
     const ids = new Set();
     for (const key of entityArrays) for (const entity of array(result[key])) {
@@ -287,7 +303,7 @@
     if (result.craft?.id) { if (ids.has(result.craft.id)) add(errors, "DUPLICATE_ENTITY_ID", result.craft.id); ids.add(result.craft.id); }
     if (result.product?.id) { if (ids.has(result.product.id)) add(errors, "DUPLICATE_ENTITY_ID", result.product.id); ids.add(result.product.id); }
     const provenanceIds = new Set(array(result.provenance).map((entry) => entry.id));
-    const sourceItemIds = new Set(array(state.immutableSourceSnapshot?.values).map((entry) => entry.itemId));
+    const sourceItemIds = new Set(array(state.immutableSourceSnapshot?.sourcePatternEvidence?.values || state.immutableSourceSnapshot?.values).map((entry) => entry.itemId));
     for (const entry of array(result.provenance)) {
       if (!sourceItemIds.has(entry.sourceReviewedItemId) || !["accepted", "corrected"].includes(entry.decisionType) || entry.sourceProjectId !== state.projectId || !validFingerprint(entry.evidenceFingerprint)) add(errors, "INVALID_PROVENANCE", entry.id);
     }
@@ -314,7 +330,7 @@
   }
 
   function normalizeGauge(value, fallbackUnit) {
-    const objectValue = object(value);
+    const objectValue = object(semanticCanonicalValue(value));
     return { value: numeric(objectValue?.value ?? value), per: numeric(objectValue?.per), unit: objectValue?.unit ?? fallbackUnit ?? null };
   }
 
@@ -446,6 +462,7 @@
 
   function collectMissingInformation(result, sourceValues) {
     const add = (code, level, message, entityIds = []) => result.missingInformation.push({ id: stableId("missing", { code, entityIds }), code, level, message, entityIds, resolved: false });
+    if (result.userAdaptationProfile?.required && !result.userAdaptationProfile?.complete) add("MISSING_CONFIRMED_ADAPTATION_PROFILE", "critical", "Подтверждённый профиль адаптации передан не полностью.");
     if (!result.craft || unknownScalar(result.craft.type)) add("MISSING_CRAFT", "critical", "Не подтверждён вид рукоделия.");
     if (!result.product || unknownScalar(result.product.type)) add("MISSING_PRODUCT", "critical", "Не подтверждён тип изделия.");
     if (!result.operations.length) add("MISSING_OPERATIONS", "critical", "Нет подтверждённых операций вязания.");
@@ -507,7 +524,11 @@
     else if (draft) {
       try { requireValidIdentity(draft); state = draft.status; reasonCode = draft.lastError?.code || null; }
       catch { state = "corrupted"; reasonCode = "INVALID_DRAFT_SCHEMA"; }
-      if (state !== "corrupted" && review?.status === "confirmed" && !sourceIdentityMatches(draft, review)) { state = "stale"; reasonCode = draft.sourceConfirmedFingerprint !== fingerprintSafe(review.confirmedSnapshot) ? "SOURCE_FINGERPRINT_MISMATCH" : "SOURCE_REVIEW_STALE"; }
+      if (state !== "corrupted" && review?.status === "confirmed" && !sourceIdentityMatches(draft, review)) {
+        state = "stale";
+        const projectionFingerprint = fingerprintSafe(stage20InputFromConfirmedReview(review));
+        reasonCode = draft.inputContractVersion !== INPUT_CONTRACT_VERSION || draft.algorithmVersion !== ALGORITHM_VERSION || draft.sourceProjectionFingerprint !== projectionFingerprint ? "SOURCE_PROJECTION_STALE" : draft.sourceConfirmedFingerprint !== fingerprintSafe(review.confirmedSnapshot) ? "SOURCE_FINGERPRINT_MISMATCH" : "SOURCE_REVIEW_STALE";
+      }
     }
     return { state, reasonCode, project, calculation, reviewProgress, review, draftProgress, draft };
   }
@@ -564,7 +585,9 @@
   }
 
   function assertConfirmedSnapshot(snapshot) {
-    if (!snapshot || snapshot.schemaVersion !== 1 || !text(snapshot.projectId) || !text(snapshot.sourceSemanticAnalysisId) || !positiveInteger(snapshot.sourceSemanticAnalysisRevision) || !Array.isArray(snapshot.values) || Number(snapshot.validation?.unresolvedCriticalCount || 0) > 0) throw draftError("INVALID_SOURCE_IDENTITY", "Подтверждённый snapshot повреждён или недействителен.");
+    if (!snapshot || ![1, INPUT_CONTRACT_VERSION].includes(snapshot.schemaVersion) || !text(snapshot.projectId) || !text(snapshot.sourceSemanticAnalysisId) || !positiveInteger(snapshot.sourceSemanticAnalysisRevision) || Number(snapshot.validation?.unresolvedCriticalCount || 0) > 0) throw draftError("INVALID_SOURCE_IDENTITY", "Подтверждённый snapshot повреждён или недействителен.");
+    if (snapshot.contractVersion === INPUT_CONTRACT_VERSION) return assertStage20Input(snapshot);
+    if (!Array.isArray(snapshot.values)) throw draftError("INVALID_SOURCE_IDENTITY", "Подтверждённый snapshot не содержит values.");
     const ids = new Set();
     for (const item of snapshot.values) {
       if (!text(item?.itemId) || ids.has(item.itemId) || !["accepted", "corrected"].includes(item.decision)) throw draftError("INVALID_SOURCE_IDENTITY", "Подтверждённый snapshot содержит недопустимые элементы.");
@@ -572,36 +595,94 @@
     }
   }
 
+  function assertStage20Input(snapshot) {
+    const source = snapshot?.sourcePatternEvidence;
+    const profile = snapshot?.userAdaptationProfile;
+    if (snapshot.contractVersion !== INPUT_CONTRACT_VERSION || snapshot.schemaVersion !== INPUT_CONTRACT_VERSION || source?.evidenceDomain !== "SOURCE_PATTERN_EVIDENCE" || profile?.evidenceDomain !== "USER_ADAPTATION_PROFILE" || !Array.isArray(source?.values) || !Array.isArray(profile?.requiredFields)) throw draftError("INVALID_STAGE20_INPUT_CONTRACT", "Stage 20 input не разделяет source evidence и adaptation profile.");
+    const missing = profile.required ? profile.requiredFields.filter((field) => field === "yarn" ? !profile.yarn || ![...array(profile.yarn.names), ...array(profile.yarn.fibre), ...array(profile.yarn.weight), ...array(profile.yarn.lengthOrWeight)].length : field === "selectedSize" ? !profile.selectedSize : !array(profile[field]).length) : [];
+    if (profile.required && (!profile.complete || !profile.requiredFields.length || missing.length)) throw draftError("MISSING_CONFIRMED_ADAPTATION_PROFILE", "Обязательный confirmed adaptation profile потерян.", { missing });
+    if (source.fingerprint && fingerprintSafe(withoutFingerprint(source)) !== source.fingerprint) throw draftError("SOURCE_PATTERN_EVIDENCE_FINGERPRINT_MISMATCH", "Fingerprint source evidence не совпадает.");
+    if (profile.fingerprint && fingerprintSafe(withoutFingerprint(profile)) !== profile.fingerprint) throw draftError("USER_ADAPTATION_PROFILE_FINGERPRINT_MISMATCH", "Fingerprint adaptation profile не совпадает.");
+    const ids = new Set();
+    for (const item of source.values) {
+      if (!text(item?.itemId) || ids.has(item.itemId) || !["accepted", "corrected"].includes(item.decision) || item?.provenance?.evidenceDomain === "USER_ADAPTATION_PROFILE") throw draftError("INVALID_SOURCE_IDENTITY", "SOURCE_PATTERN_EVIDENCE содержит недопустимый элемент.");
+      ids.add(item.itemId);
+    }
+    return true;
+  }
+
+  function stage20InputFromConfirmedReview(review) {
+    assertConfirmedReview(review, review?.projectId);
+    let authoritative = review.confirmedSnapshot;
+    if (authoritative.confirmedSnapshotContractVersion !== INPUT_CONTRACT_VERSION && review.originalSnapshot && globalObject.YarnAIPatternAnalysisReview?.authoritativeConfirmedSnapshot) authoritative = globalObject.YarnAIPatternAnalysisReview.authoritativeConfirmedSnapshot(review);
+    const sourcePatternEvidence = authoritative.sourcePatternEvidence || legacySourcePatternEvidence(authoritative);
+    const userAdaptationProfile = authoritative.userAdaptationProfile || emptyAdaptationProfile(authoritative, review);
+    const input = {
+      schemaVersion: INPUT_CONTRACT_VERSION, contractVersion: INPUT_CONTRACT_VERSION,
+      projectId: authoritative.projectId,
+      sourceReviewId: review.id, sourceReviewRevision: review.revision,
+      sourceSemanticAnalysisId: authoritative.sourceSemanticAnalysisId,
+      sourceSemanticAnalysisRevision: authoritative.sourceSemanticAnalysisRevision,
+      sourceSemanticFingerprint: authoritative.sourceSemanticFingerprint,
+      sourceContentExtractionRevision: authoritative.sourceContentExtractionRevision,
+      sourceImportRevision: authoritative.sourceImportRevision,
+      sourceConfirmedSnapshotFingerprint: fingerprint(review.confirmedSnapshot),
+      sourcePatternEvidence: copy(sourcePatternEvidence), userAdaptationProfile: copy(userAdaptationProfile),
+      values: copy(sourcePatternEvidence.values),
+      validation: copy(authoritative.validation), confirmedAt: authoritative.confirmedAt,
+    };
+    assertStage20Input(input);
+    return input;
+  }
+
+  function legacySourcePatternEvidence(snapshot) {
+    const projection = { schemaVersion: 1, evidenceDomain: "SOURCE_PATTERN_EVIDENCE", values: copy(array(snapshot.values)), facts: {}, provenance: { evidenceDomain: "SOURCE_PATTERN_EVIDENCE", authority: "CONFIRMED_STAGE_19", projectId: snapshot.projectId, semanticAnalysisId: snapshot.sourceSemanticAnalysisId, semanticAnalysisRevision: snapshot.sourceSemanticAnalysisRevision } };
+    projection.fingerprint = fingerprint(projection);
+    return projection;
+  }
+
+  function emptyAdaptationProfile(snapshot, review) {
+    const projection = { schemaVersion: 1, evidenceDomain: "USER_ADAPTATION_PROFILE", required: false, requiredFields: [], complete: true, selectedSize: null, measurements: [], gauge: [], needles: [], yarn: { names: [], fibre: [], weight: [], lengthOrWeight: [] }, provenance: { evidenceDomain: "USER_ADAPTATION_PROFILE", authority: "CONFIRMED_STAGE_19", projectId: snapshot.projectId, reviewId: review.id, reviewRevision: review.revision, semanticAnalysisId: snapshot.sourceSemanticAnalysisId, semanticAnalysisRevision: snapshot.sourceSemanticAnalysisRevision } };
+    projection.fingerprint = fingerprint(projection);
+    return projection;
+  }
+
+  function withoutFingerprint(value) { const next = copy(value); delete next.fingerprint; return next; }
+
   function applyReviewIdentity(state, review) {
-    const snapshot = deepFreeze(copy(review.confirmedSnapshot));
+    const snapshot = deepFreeze(stage20InputFromConfirmedReview(review));
     state.sourceReviewId = review.id;
     state.sourceReviewRevision = review.revision;
     state.sourceConfirmedRevision = review.revision;
-    state.sourceConfirmedFingerprint = fingerprint(snapshot);
+    state.sourceConfirmedFingerprint = fingerprint(review.confirmedSnapshot);
     state.sourceSemanticAnalysisId = snapshot.sourceSemanticAnalysisId;
     state.sourceSemanticAnalysisRevision = snapshot.sourceSemanticAnalysisRevision;
     state.sourceImportRevision = snapshot.sourceImportRevision ?? null;
     state.sourceProjectId = snapshot.projectId;
     state.immutableSourceSnapshot = snapshot;
-    state.immutableSourceFingerprint = state.sourceConfirmedFingerprint;
+    state.immutableSourceFingerprint = fingerprint(snapshot);
+    state.sourceProjectionFingerprint = state.immutableSourceFingerprint;
+    state.inputContractVersion = INPUT_CONTRACT_VERSION;
     state.algorithmVersion = ALGORITHM_VERSION;
   }
 
   function sourceIdentityMatches(state, review) {
     if (!state || !review?.confirmedSnapshot) return false;
-    return state.projectId === review.projectId && state.sourceProjectId === review.projectId && state.sourceReviewId === review.id && state.sourceReviewRevision === review.revision && state.sourceConfirmedRevision === review.revision && state.sourceConfirmedFingerprint === fingerprintSafe(review.confirmedSnapshot) && state.immutableSourceFingerprint === fingerprintSafe(state.immutableSourceSnapshot) && canonicalizeSafe(state.immutableSourceSnapshot) === canonicalizeSafe(review.confirmedSnapshot);
+    let projection;
+    try { projection = stage20InputFromConfirmedReview(review); } catch { return false; }
+    return state.inputContractVersion === INPUT_CONTRACT_VERSION && state.algorithmVersion === ALGORITHM_VERSION && state.projectId === review.projectId && state.sourceProjectId === review.projectId && state.sourceReviewId === review.id && state.sourceReviewRevision === review.revision && state.sourceConfirmedRevision === review.revision && state.sourceConfirmedFingerprint === fingerprintSafe(review.confirmedSnapshot) && state.sourceProjectionFingerprint === fingerprintSafe(projection) && state.immutableSourceFingerprint === fingerprintSafe(state.immutableSourceSnapshot) && canonicalizeSafe(state.immutableSourceSnapshot) === canonicalizeSafe(projection);
   }
 
   function createProvenance(item, snapshot) {
-    const evidence = array(item.provenance?.evidence).slice(0, 8).map((entry) => ({ sourceFileId: entry?.sourceFileId ?? null, start: integer(entry?.start), end: integer(entry?.end), excerpt: text(entry?.text).slice(0, 240), ruleId: entry?.ruleId ?? null }));
+    const evidence = array(item.provenance?.evidence).slice(0, 8).map((entry) => ({ sourceFileId: entry?.sourceFileId ?? null, evidenceDomain: entry?.evidenceDomain || item.provenance?.evidenceDomain || "SOURCE_PATTERN_EVIDENCE", start: integer(entry?.start), end: integer(entry?.end), excerpt: text(entry?.text).slice(0, 240), ruleId: entry?.ruleId ?? null }));
     return {
       id: provenanceId(item.itemId), sourceReviewedItemId: item.itemId,
-      sourceReviewId: null, sourceProjectId: snapshot.projectId,
+      sourceReviewId: snapshot.sourceReviewId || null, sourceReviewRevision: snapshot.sourceReviewRevision || null, sourceProjectId: snapshot.projectId,
       sourceSemanticAnalysisId: snapshot.sourceSemanticAnalysisId,
       decisionType: item.decision, originalValue: copy(item.provenance?.originalValue), confirmedValue: copy(item.value),
       correctionProvenance: item.decision === "corrected" ? { corrected: true, notes: text(item.notes).slice(0, 500) } : null,
       evidenceFingerprint: fingerprint(evidence), offsets: array(item.provenance?.sourceOffsets).slice(0, 8).map((entry) => ({ sourceFileId: entry?.sourceFileId ?? null, start: integer(entry?.start), end: integer(entry?.end) })),
-      sourceCategory: item.category, evidence,
+      sourceCategory: item.category, evidenceDomain: item.provenance?.evidenceDomain || "SOURCE_PATTERN_EVIDENCE", evidence,
     };
   }
 
@@ -677,7 +758,8 @@
   function entityId(prefix, item) { return stableId(prefix, { itemId: item.itemId }); }
   function provenanceId(itemId) { return stableId("provenance", { itemId }); }
   function stableId(prefix, value) { return `${prefix}:${fingerprint(value).slice(8)}`; }
-  function scalar(value) { const objectValue = object(value); return objectValue?.value ?? objectValue?.type ?? objectValue?.name ?? objectValue?.title ?? objectValue?.text ?? objectValue?.instructionText ?? value; }
+  function semanticCanonicalValue(value) { return object(value) && Object.prototype.hasOwnProperty.call(value, "canonicalValue") ? value.canonicalValue : value; }
+  function scalar(value) { const canonical = semanticCanonicalValue(value); const objectValue = object(canonical); return objectValue?.value ?? objectValue?.type ?? objectValue?.name ?? objectValue?.title ?? objectValue?.text ?? objectValue?.instructionText ?? canonical; }
   function unitOf(value) { return object(value)?.unit ?? null; }
   function issueCount(result, level) { return [...array(result.missingInformation), ...array(result.conflicts), ...array(result.warnings)].filter((entry) => entry.level === level && !entry.resolved).length; }
   function validateRange(start, end, id, errors, code) { if ((start === null) !== (end === null) || start !== null && (!positiveInteger(start) || !positiveInteger(end) || end < start)) errors.push({ code, entityId: id, level: "critical" }); }
@@ -705,7 +787,7 @@
   function makeId() { return globalObject.YarnAIProjectSystem?.uuidv7?.() || globalObject.crypto?.randomUUID?.() || `technology:${Date.now()}`; }
   function draftError(code, message, details = {}) { return new PatternTechnologyDraftError(code, message, details); }
 
-  const api = { VERSION, RESULT_SCHEMA_VERSION, ALGORITHM_VERSION, PROGRESS_KIND, STATUSES, OPERATION_TYPES, ISSUE_LEVELS, VALID_UNITS, AUDIT_LIMIT, PatternTechnologyDraftError, canonicalize, fingerprint, createInitialState, buildDraftFromConfirmedSnapshot, beginBuild, completeBuild, buildState, rebuildState, recoverInterruptedState, invalidateSourceState, validateDraftState, collectCriticalIssues, inspectAggregate, ensureForProject, buildForProject, rebuildForProject, retryForProject, sourceIdentityMatches };
+  const api = { VERSION, INPUT_CONTRACT_VERSION, RESULT_SCHEMA_VERSION, ALGORITHM_VERSION, PROGRESS_KIND, STATUSES, OPERATION_TYPES, ISSUE_LEVELS, VALID_UNITS, AUDIT_LIMIT, PatternTechnologyDraftError, canonicalize, fingerprint, createInitialState, stage20InputFromConfirmedReview, assertStage20Input, buildDraftFromConfirmedSnapshot, beginBuild, completeBuild, buildState, rebuildState, recoverInterruptedState, invalidateSourceState, validateDraftState, collectCriticalIssues, inspectAggregate, ensureForProject, buildForProject, rebuildForProject, retryForProject, sourceIdentityMatches };
   globalObject.YarnAIPatternTechnologyDraft = Object.freeze(api);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -9,22 +9,24 @@
     <link rel="stylesheet" href="/static/styles.css">
     <link rel="stylesheet" href="/static/pattern-execution-plan.css">
     <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-technology-review.js" defer></script>
     <script src="/static/pattern-execution-plan.js" defer></script>
+    <script src="/static/pattern-execution-ui-formatters.js" defer></script>
     <script src="/static/pattern-execution-plan-assistant.js" defer></script>
   </head>
   <body>
     <noscript><div class="noscript-message" role="alert">Для построения плана нужен JavaScript.</div></noscript>
     <header class="site-header">
       <a class="brand" href="/" aria-label="YarnAI, главная"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
-      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a id="execution-plan-nav-review" href="/pattern-technology-review">Stage 21</a></nav>
-      <span class="version-badge">Stage 22</span>
+      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a id="execution-plan-nav-review" href="/pattern-technology-review">Принятая адаптация</a></nav>
+      <span class="version-badge">План</span>
     </header>
 
     <main class="page-shell execution-shell">
       <section class="intro smart-intro" aria-labelledby="page-title">
-        <p class="eyebrow">Stage 22</p>
-        <h1 id="page-title">План выполнения изделия</h1>
-        <p class="intro-copy">Порядок этапов, зависимости и условия начала — только из подтверждённого snapshot Stage 21. Здесь нельзя редактировать технологию или начинать фактическое вязание.</p>
+        <p class="eyebrow">Готовый план</p>
+        <h1 id="page-title">План вязания</h1>
+        <p class="intro-copy">Порядок вязания из принятой адаптации: петли до и после, повторы, измерения и контрольные точки. План можно проверить без пряжи и спиц; физическое вязание начнётся только отдельным действием.</p>
       </section>
 
       <section id="execution-plan-fatal" class="card" hidden role="alert">
@@ -37,19 +39,15 @@
           <div><p class="eyebrow">Текущий проект</p><h2 id="execution-plan-project-title">План выполнения</h2></div>
           <span id="execution-plan-status" class="execution-status" role="status">Проверка Stage 21</span>
         </div>
-        <dl class="execution-source-grid">
-          <div><dt>Stage 21</dt><dd id="execution-plan-source">—</dd></div>
-          <div><dt>Revision</dt><dd id="execution-plan-source-revision">—</dd></div>
-          <div><dt>Snapshot fingerprint</dt><dd id="execution-plan-source-fingerprint">—</dd></div>
-          <div><dt>Plan fingerprint</dt><dd id="execution-plan-fingerprint">—</dd></div>
-        </dl>
         <p id="execution-plan-state-message" class="execution-state-message"></p>
         <div class="execution-actions">
           <button id="execution-plan-build" class="link-button link-button-primary" type="button">Построить план</button>
           <button id="execution-plan-retry" class="link-button" type="button" hidden>Повторить</button>
           <button id="execution-plan-rebuild" class="link-button link-button-primary" type="button" hidden>Перестроить явно</button>
-          <a id="execution-plan-session" class="link-button link-button-primary" href="/pattern-execution-session" hidden>Перейти к выполнению</a>
-          <a id="execution-plan-back" class="link-button" href="/pattern-technology-review">Вернуться к Stage 21</a>
+          <a id="execution-plan-virtual-session" class="link-button link-button-primary" href="/pattern-execution-session" hidden>Проверить план без вязания</a>
+          <a id="execution-plan-session" class="link-button link-button-primary" href="/pattern-execution-session" hidden>Открыть экран начала вязания</a>
+          <a id="execution-plan-export" class="link-button link-button-primary" href="/pattern-execution-print" hidden>Сохранить инструкцию в PDF</a>
+          <a id="execution-plan-back" class="link-button" href="/pattern-technology-review">Вернуться к принятой адаптации</a>
         </div>
         <p id="execution-plan-error" class="form-error" role="alert"></p>
       </section>
@@ -62,7 +60,7 @@
       </section>
 
       <section id="execution-plan-summary" class="card" hidden>
-        <h2>Кратко об изделии</h2>
+        <h2>Готовый план</h2>
         <dl id="execution-plan-summary-values" class="execution-summary-grid"></dl>
       </section>
 
@@ -101,10 +99,28 @@
         <ul id="execution-plan-warning-list" class="execution-list"></ul>
       </section>
 
-      <section id="execution-plan-validation" class="card" hidden>
-        <h2>Validation</h2>
-        <ul id="execution-plan-validation-list" class="execution-list"></ul>
-      </section>
+      <details id="execution-plan-technical" class="card execution-technical">
+        <summary>Технические данные</summary>
+        <p>Идентификаторы и исходные значения сохранены для проверки. Для обычного вязания этот раздел открывать не нужно.</p>
+        <h2>Привязка сохранённого плана</h2>
+        <dl class="execution-source-grid">
+          <div><dt>Запись принятой адаптации</dt><dd id="execution-plan-source">—</dd></div>
+          <div><dt>Версия принятой адаптации</dt><dd id="execution-plan-source-revision">—</dd></div>
+          <div><dt>Отпечаток принятой адаптации</dt><dd id="execution-plan-source-fingerprint">—</dd></div>
+          <div><dt>Отпечаток плана</dt><dd id="execution-plan-fingerprint">—</dd></div>
+          <div><dt>Запись и версия плана</dt><dd id="execution-plan-state-identity">—</dd></div>
+          <div><dt>Контракт и алгоритм</dt><dd id="execution-plan-contract">—</dd></div>
+          <div><dt>Результат</dt><dd id="execution-plan-result">—</dd></div>
+          <div><dt>Отпечаток результата</dt><dd id="execution-plan-result-fingerprint">—</dd></div>
+          <div><dt>Отпечаток последовательности</dt><dd id="execution-plan-graph-fingerprint">—</dd></div>
+        </dl>
+        <h2>Исходные значения краткого описания</h2>
+        <dl id="execution-plan-technical-values" class="execution-source-grid"></dl>
+        <section id="execution-plan-validation" hidden>
+          <h2>Диагностика проверки</h2>
+          <ul id="execution-plan-validation-list" class="execution-list"></ul>
+        </section>
+      </details>
     </main>
   </body>
 </html>

@@ -4,6 +4,9 @@
   const VERSION = 1;
   const SCHEMA_VERSION = 1;
   const PROGRESS_KIND = "PATTERN_EXECUTION_SESSION";
+  const VIRTUAL_DRY_RUN_CONTRACT_ID = "PATTERN_EXECUTION_VIRTUAL_DRY_RUN_V1";
+  const VIRTUAL_DRY_RUN_MODE = "virtual_dry_run";
+  const VIRTUAL_DRY_RUN_STATUSES = Object.freeze(["ready", "active", "completed"]);
   const STATUSES = Object.freeze([
     "waiting", "starting", "active", "paused", "blocked", "completed", "stale", "failed",
   ]);
@@ -15,6 +18,8 @@
     "session_paused", "session_resumed", "action_started", "action_completed", "action_skipped",
     "action_blocked", "checkpoint_reached", "checkpoint_confirmed", "session_completed", "session_became_stale",
     "interrupted_session_recovered", "session_rebuilt", "import_marked_stale",
+    "virtual_dry_run_created", "virtual_dry_run_started", "virtual_step_completed", "virtual_dry_run_completed",
+    "physical_session_lineage_created",
   ]);
   const AUDIT_LIMIT = 24;
   const TRANSITIONS = Object.freeze({
@@ -96,6 +101,7 @@
     if (plan && plan.status !== "ready") add(plan.status === "stale" ? "execution_plan_stale" : "execution_plan_not_ready", { status: plan.status });
     if (plan && (!positiveInteger(plan.revision) || !validFingerprint(plan.planFingerprint) || !object(plan.plan))) add("execution_plan_invalid");
     const planApi = getPlanApi();
+    if (plan?.plan?.contractId === "PATTERN_EXECUTION_PLAN_V2" && (!planApi || plan.planningAlgorithmVersion !== planApi.PLANNING_ALGORITHM_VERSION)) add("execution_plan_stale", { field: "planningAlgorithmVersion", expected: planApi?.PLANNING_ALGORITHM_VERSION ?? null, actual: plan.planningAlgorithmVersion ?? null });
     if (plan?.plan && planApi) {
       if (planApi.calculatePlanFingerprint(plan) !== plan.planFingerprint) add("execution_plan_invalid", { field: "planFingerprint" });
       if (array(planApi.validateStructural(plan)).length) add("execution_plan_invalid", { level: "structural" });
@@ -150,6 +156,7 @@
         technologyDraft: draft,
         analysisReview: analysis,
         semanticAnalysis: semantic,
+        instructionEvidence: context.instructionEvidence || null,
         requireCurrentIdentity: Boolean(context.requireCurrentIdentity),
       });
       if (array(sourceDiagnostics).length) add("source_identity_mismatch", { field: "stage22SourceValidation" });
@@ -186,6 +193,9 @@
       blockers: [],
       interruption: null,
       failure: null,
+      virtualDryRun: null,
+      historicalVirtualDryRuns: [],
+      supersededPhysicalLineages: [],
       audit: [],
     };
     appendAudit(state, "session_created", now);
@@ -198,6 +208,7 @@
     checkRevision(state, options.expectedRevision);
     if (["active", "paused", "blocked", "completed", "stale"].includes(state.status)) return copy(state);
     if (state.status === "starting") return recoverInterruptedExecutionSession(state, plan, options);
+    if (state.virtualDryRun?.status === "active") throw sessionError("virtual_dry_run_active", "Сначала завершите виртуальную проверку. Физическое выполнение остаётся не начатым.");
     if (!TRANSITIONS[state.status].includes("starting")) throwInvalidTransition(state.status, "starting");
     const source = validateSessionSource(state, plan, options.context || {});
     if (!source.isValid) return markSessionStale(state, source.reasonCode, options.now);
@@ -425,6 +436,72 @@
     return deepFreeze(next);
   }
 
+  function createPhysicalSessionLineage(state, plan, options = {}) {
+    requireSession(state);
+    checkRevision(state, options.expectedRevision);
+    const source = validateSourceExecutionPlan(plan, state.projectId, options.context || {});
+    if (!source.isValid) throwForDiagnostic(source.diagnostics[0]);
+    const alreadyCurrent = validateSessionSource(state, plan, options.context || {}).isValid;
+    if (alreadyCurrent && state.status === "waiting" && array(state.supersededPhysicalLineages).length) return copy(state);
+    if (options.confirmed !== true) throw sessionError("rebuild_confirmation_required", "Для новой physical lineage нужно явное подтверждение.");
+    if (state.status !== "stale") throw sessionError("physical_lineage_source_not_stale", "Новая physical lineage создаётся только из fail-closed stale-сессии.");
+    if (
+      state.planSnapshot !== null || array(state.execution?.actions).length || array(state.completedActionIds).length ||
+      array(state.skippedActionIds).length || integer(state.currentPosition?.completedRequiredCount) !== 0 ||
+      integer(state.currentPosition?.progressPercent) !== 0
+    ) throw sessionError("physical_progress_migration_forbidden", "Старая сессия содержит физический progress; автоматический перенос запрещён.");
+    const virtualHistory = [...array(state.historicalVirtualDryRuns).map(copy)];
+    if (state.virtualDryRun) {
+      const structural = validateVirtualDryRunStructural(state.virtualDryRun);
+      const semantic = structural.length ? [] : validateVirtualDryRunSemantic(state.virtualDryRun);
+      if (structural.length || semantic.length || state.virtualDryRun.status !== "completed") throw sessionError("virtual_history_invalid", "Завершённая virtual history не прошла проверку и не может быть перенесена.");
+      if (state.virtualDryRun.receipts.some((entry) => entry.physicalCompletion !== false || entry.fitConfirmed !== false)) throw sessionError("virtual_history_physical_boundary_invalid", "Virtual history содержит недопустимую физическую отметку.");
+      if (!virtualHistory.some((entry) => entry.id === state.virtualDryRun.id && entry.runFingerprint === state.virtualDryRun.runFingerprint)) virtualHistory.push(copy(state.virtualDryRun));
+    }
+    const now = options.now || timestampNow();
+    const next = mutable(createExecutionSession(plan, state.projectId, {
+      context: options.context || {}, expectedPlanRevision: plan.revision, now, id: options.id,
+    }));
+    next.historicalVirtualDryRuns = virtualHistory;
+    next.supersededPhysicalLineages = [
+      ...array(state.supersededPhysicalLineages).map(copy),
+      supersededLineageEvidence(state, now, options.reasonCode || "source_identity_mismatch"),
+    ];
+    appendAudit(next, "physical_session_lineage_created", now, {
+      previousSessionId: state.id,
+      previousSessionRevision: state.revision,
+      previousSessionFingerprint: state.sessionFingerprint,
+      historicalVirtualRunIds: virtualHistory.map((entry) => entry.id),
+    });
+    sealState(next);
+    return deepFreeze(next);
+  }
+
+  function supersededLineageEvidence(state, supersededAt, reasonCode) {
+    const evidence = {
+      sessionId: state.id,
+      sessionRevision: state.revision,
+      sessionFingerprint: state.sessionFingerprint,
+      status: state.status,
+      reasonCode,
+      sourceIdentity: Object.fromEntries(Object.keys(sourceIdentityFromPlan({})).map((key) => [key, state[key] ?? null])),
+      physicalProgress: {
+        planSnapshotPresent: state.planSnapshot !== null,
+        executionActionCount: array(state.execution?.actions).length,
+        completedActionCount: array(state.completedActionIds).length,
+        skippedActionCount: array(state.skippedActionIds).length,
+        progressPercent: integer(state.currentPosition?.progressPercent),
+      },
+      virtualRunIds: [state.virtualDryRun, ...array(state.historicalVirtualDryRuns)].filter(Boolean).map((entry) => entry.id),
+      supersededAt,
+      evidenceFingerprint: null,
+    };
+    const payload = copy(evidence);
+    delete payload.evidenceFingerprint;
+    evidence.evidenceFingerprint = fingerprint(payload);
+    return evidence;
+  }
+
   function detectExecutionSessionStaleness(state, plan, context = {}) {
     requireSession(state);
     const validation = validateSessionSource(state, plan, context);
@@ -452,6 +529,7 @@
     if (!isTimestamp(state?.createdAt) || !isTimestamp(state?.updatedAt)) add("session_snapshot_invalid", { field: "timestamps" });
     if (!validFingerprint(state?.sessionFingerprint)) add("session_snapshot_invalid", { field: "sessionFingerprint" });
     for (const key of ["completedActionIds", "skippedActionIds", "checkpoints", "blockers", "audit"]) if (!Array.isArray(state?.[key])) add("session_snapshot_invalid", { field: key });
+    for (const key of ["historicalVirtualDryRuns", "supersededPhysicalLineages"]) if (state?.[key] !== undefined && !Array.isArray(state[key])) add("session_snapshot_invalid", { field: key });
     if (!object(state?.execution) || state.execution.mode !== "sequential" || !Array.isArray(state.execution.actions)) add("session_snapshot_invalid", { field: "execution" });
     if (!object(state?.currentPosition)) add("session_snapshot_invalid", { field: "currentPosition" });
     if (array(state?.audit).length > AUDIT_LIMIT) add("session_snapshot_invalid", { field: "auditLimit" });
@@ -467,6 +545,7 @@
         if (fingerprint(payload) !== state.planSnapshot.snapshotFingerprint) add("session_snapshot_invalid", { field: "snapshotFingerprint" });
       }
     }
+    if (state?.virtualDryRun !== null && validateVirtualDryRunStructural(state.virtualDryRun).length) add("session_snapshot_invalid", { field: "virtualDryRun" });
     const actionIds = new Set();
     for (const action of array(state?.execution?.actions)) {
       if (!text(action?.actionId) || actionIds.has(action.actionId) || !text(action.phaseId) || !positiveInteger(action.order) ||
@@ -523,6 +602,19 @@
     }
     if (state.status === "blocked" && !array(state.blockers).length) add("no_available_action");
     if (state.status === "completed" && requiredDone !== requiredTotal) add("session_snapshot_invalid", { field: "completedStatus" });
+    if (state.virtualDryRun !== null) diagnostics.push(...validateVirtualDryRunSemantic(state.virtualDryRun).map((entry) => diagnostic(entry.code, { ...entry.details, field: "virtualDryRun" })));
+    for (const [index, run] of array(state.historicalVirtualDryRuns).entries()) {
+      diagnostics.push(...validateVirtualDryRunStructural(run).map((entry) => diagnostic(entry.code, { ...entry.details, field: `historicalVirtualDryRuns[${index}]` })));
+      diagnostics.push(...validateVirtualDryRunSemantic(run).map((entry) => diagnostic(entry.code, { ...entry.details, field: `historicalVirtualDryRuns[${index}]` })));
+    }
+    const historicalRunIds = array(state.historicalVirtualDryRuns).map((entry) => entry?.id);
+    if (new Set(historicalRunIds).size !== historicalRunIds.length || state.virtualDryRun && historicalRunIds.includes(state.virtualDryRun.id)) add("session_snapshot_invalid", { field: "virtualRunLineageUniqueness" });
+    for (const [index, evidence] of array(state.supersededPhysicalLineages).entries()) {
+      const payload = copy(evidence);
+      delete payload.evidenceFingerprint;
+      if (!text(evidence?.sessionId) || !positiveInteger(evidence?.sessionRevision) || !validFingerprint(evidence?.sessionFingerprint) || !isTimestamp(evidence?.supersededAt) || !validFingerprint(evidence?.evidenceFingerprint) || fingerprint(payload) !== evidence.evidenceFingerprint) add("session_snapshot_invalid", { field: `supersededPhysicalLineages[${index}]` });
+      if (evidence?.physicalProgress?.planSnapshotPresent !== false || integer(evidence?.physicalProgress?.executionActionCount) !== 0 || integer(evidence?.physicalProgress?.completedActionCount) !== 0 || integer(evidence?.physicalProgress?.skippedActionCount) !== 0 || integer(evidence?.physicalProgress?.progressPercent) !== 0) add("physical_progress_migration_forbidden", { field: `supersededPhysicalLineages[${index}]` });
+    }
     return stableDiagnostics(diagnostics);
   }
 
@@ -553,6 +645,8 @@
       for (const action of array(source?.actions).slice().sort(compareOrder)) {
         actions.push({
           actionId: action.id,
+          stepId: action.stepId ?? null,
+          sourceOperationIdentity: action.sourceOperationIdentity ?? null,
           phaseId: phase.phaseId,
           componentId: phase.componentIds[0] || null,
           sourceOrder: numericOrder(action.order),
@@ -607,6 +701,8 @@
       "progressType", "expectedResult", "quantity", "unit", "repeatCount", "rowRange", "stitchCount",
       "measurementTarget", "measurementRange", "allowExceedTarget", "allowDeviationConfirmation",
       "allowManualConfirmation", "timedDuration", "informational",
+      "stepId", "sourceOperationIdentity", "globalOrder", "needles", "repeat", "criterion",
+      "inputState", "outputState", "sourceLocator", "sourceEvidenceUnitIdentity",
     ]) if (action[key] !== undefined) result[key] = copy(action[key]);
     return result;
   }
@@ -632,6 +728,8 @@
       const blockerIds = snapshot.blockers.filter((entry) => !entry.relatedPhaseIds.length || entry.relatedPhaseIds.includes(source.phaseId)).map((entry) => entry.blockerId);
       result.push({
         actionId: source.actionId,
+        stepId: source.stepId,
+        sourceOperationIdentity: source.sourceOperationIdentity,
         phaseId: source.phaseId,
         componentId: source.componentId,
         order: result.length + 1,
@@ -711,6 +809,13 @@
       const expectedSnapshot = buildPlanSnapshot(plan);
       if (canonicalize(state.planSnapshot) !== canonicalize(expectedSnapshot)) diagnostics.push(diagnostic("source_identity_mismatch", { field: "planSnapshotContent" }));
     }
+    if (state.virtualDryRun) {
+      const expectedSnapshot = buildPlanSnapshot(plan);
+      if (state.virtualDryRun.sourceExecutionPlanId !== plan.id || state.virtualDryRun.sourceExecutionPlanRevision !== plan.revision || state.virtualDryRun.sourceExecutionPlanFingerprint !== plan.planFingerprint || state.virtualDryRun.planSnapshotFingerprint !== expectedSnapshot.snapshotFingerprint) diagnostics.push(diagnostic("source_identity_mismatch", { field: "virtualDryRun" }));
+      const expectedOrder = expectedSnapshot.actions.map((entry) => ({ stepId: entry.stepId, actionId: entry.actionId, sourceOperationIdentity: entry.sourceOperationIdentity }));
+      const actualOrder = state.virtualDryRun.execution.actions.map((entry) => ({ stepId: entry.stepId, actionId: entry.actionId, sourceOperationIdentity: entry.sourceOperationIdentity }));
+      if (canonicalize(actualOrder) !== canonicalize(expectedOrder)) diagnostics.push(diagnostic("source_identity_mismatch", { field: "virtualDryRunOrder" }));
+    }
     if (calculateSessionFingerprint(state) !== state.sessionFingerprint) diagnostics.push(diagnostic("session_snapshot_invalid", { field: "sessionFingerprint" }));
     const stable = stableDiagnostics(diagnostics);
     return { isValid: stable.length === 0, reasonCode: stable[0]?.code || null, diagnostics: stable };
@@ -761,6 +866,7 @@
       technologyDraft: find("PATTERN_TECHNOLOGY_DRAFT")?.state || null,
       analysisReview: find("PATTERN_ANALYSIS_REVIEW")?.state || null,
       semanticAnalysis: find("PATTERN_SEMANTIC_ANALYSIS")?.state || null,
+      instructionEvidence: find("SOURCE_PATTERN_INSTRUCTION_EVIDENCE")?.state || null,
       requireCurrentIdentity: true,
     };
     const executionPlan = executionPlanProgress?.state || null;
@@ -802,7 +908,7 @@
     if (canonicalize(next) === canonicalize(inspected.executionSession)) return inspected;
     await repository.updatePatternExecutionSession(projectId, inspected.calculation.calculation_id, next, {
       operationKind: options.operationKind || `PATTERN_EXECUTION_SESSION_${next.status.toUpperCase()}`,
-      projectStage: `pattern_execution_session_${next.status}`,
+      projectStage: options.projectStage || `pattern_execution_session_${next.status}`,
     });
     return inspectAggregate(await repository.getProject(projectId));
   }
@@ -811,6 +917,217 @@
     let inspected = await ensureForProject(repository, projectId);
     if (!inspected.executionSession) throwForDiagnostic(inspected.planValidation?.diagnostics?.[0] || diagnostic(inspected.reasonCode || "execution_plan_missing"));
     return applyForProject(repository, projectId, (state, plan, settings) => startExecutionSession(state, plan, settings), { ...options, operationKind: "PATTERN_EXECUTION_SESSION_STARTED" });
+  }
+
+  function createVirtualDryRun(state, plan, options = {}) {
+    requireSession(state);
+    checkRevision(state, options.expectedRevision);
+    if (state.status !== "waiting") throw sessionError("physical_session_already_started", "Физическое выполнение уже начато; виртуальную проверку нельзя смешивать с ним.");
+    const source = validateSessionSource(state, plan, options.context || {});
+    if (!source.isValid) throwForDiagnostic(source.diagnostics[0]);
+    if (state.virtualDryRun) return copy(state);
+    const now = options.now || timestampNow();
+    const snapshot = buildPlanSnapshot(plan);
+    const execution = buildExecution(snapshot);
+    const first = execution.actions[0] || null;
+    const virtual = {
+      id: options.id || makeId(),
+      contractId: VIRTUAL_DRY_RUN_CONTRACT_ID,
+      mode: VIRTUAL_DRY_RUN_MODE,
+      revision: 1,
+      status: "ready",
+      started: false,
+      createdAt: now,
+      updatedAt: now,
+      startedAt: null,
+      completedAt: null,
+      sourceExecutionPlanId: plan.id,
+      sourceExecutionPlanRevision: plan.revision,
+      sourceExecutionPlanFingerprint: plan.planFingerprint,
+      planSnapshotFingerprint: snapshot.snapshotFingerprint,
+      executionGraphFingerprint: plan.plan?.handoff?.executionGraphFingerprint ?? null,
+      execution,
+      currentPosition: virtualPosition(execution.actions, first),
+      completedStepIds: [],
+      receipts: [],
+      result: null,
+      runFingerprint: null,
+    };
+    sealVirtualDryRun(virtual);
+    const next = mutable(state);
+    next.revision += 1;
+    next.updatedAt = now;
+    next.virtualDryRun = virtual;
+    appendAudit(next, "virtual_dry_run_created", now, { virtualRunId: virtual.id });
+    sealState(next);
+    return deepFreeze(next);
+  }
+
+  function startVirtualDryRun(state, plan, options = {}) {
+    requireSession(state);
+    checkRevision(state, options.expectedRevision);
+    if (state.status !== "waiting") throw sessionError("physical_session_already_started", "Физическое выполнение уже начато; виртуальную проверку нельзя смешивать с ним.");
+    const source = validateSessionSource(state, plan, options.context || {});
+    if (!source.isValid) throwForDiagnostic(source.diagnostics[0]);
+    if (!state.virtualDryRun) throw sessionError("virtual_dry_run_missing", "Сначала подготовьте виртуальную проверку.");
+    if (["active", "completed"].includes(state.virtualDryRun.status)) return copy(state);
+    const now = options.now || timestampNow();
+    const next = mutable(state);
+    next.revision += 1;
+    next.updatedAt = now;
+    const run = next.virtualDryRun;
+    run.revision += 1;
+    run.status = run.execution.actions.length ? "active" : "completed";
+    run.started = true;
+    run.startedAt = run.startedAt || now;
+    run.updatedAt = now;
+    if (run.execution.actions[0]) run.execution.actions[0].status = "available";
+    run.currentPosition = virtualPosition(run.execution.actions, run.execution.actions[0] || null);
+    if (run.status === "completed") completeVirtualResult(run, now);
+    sealVirtualDryRun(run);
+    appendAudit(next, "virtual_dry_run_started", now, { virtualRunId: run.id });
+    sealState(next);
+    return deepFreeze(next);
+  }
+
+  function completeVirtualStep(state, plan, options = {}) {
+    requireSession(state);
+    checkRevision(state, options.expectedRevision);
+    if (state.status !== "waiting") throw sessionError("physical_session_already_started", "Физическое выполнение уже начато; виртуальную отметку сохранить нельзя.");
+    const source = validateSessionSource(state, plan, options.context || {});
+    if (!source.isValid) throwForDiagnostic(source.diagnostics[0]);
+    const run = state.virtualDryRun;
+    if (!run) throw sessionError("virtual_dry_run_not_active", "Виртуальная проверка не запущена.");
+    const operationId = text(options.operationId) || makeId();
+    const prior = run.receipts.find((entry) => entry.operationId === operationId);
+    if (prior) {
+      if (prior.stepId !== options.stepId) throw sessionError("operation_id_conflict", "Эта отметка уже использована для другого виртуального шага.");
+      return copy(state);
+    }
+    if (run.status !== "active") throw sessionError("virtual_dry_run_not_active", "Виртуальная проверка не запущена.");
+    const current = run.execution.actions[run.currentPosition.actionIndex] || null;
+    if (!current || current.stepId !== options.stepId || current.actionId !== options.actionId) throw sessionError("action_not_current", "Можно виртуально отметить только текущий шаг.");
+    const now = options.now || timestampNow();
+    const next = mutable(state);
+    next.revision += 1;
+    next.updatedAt = now;
+    const virtual = next.virtualDryRun;
+    const action = virtual.execution.actions[virtual.currentPosition.actionIndex];
+    action.status = "completed";
+    action.startedAt = action.startedAt || now;
+    action.completedAt = now;
+    const receipt = {
+      operationId,
+      receiptType: "virtual_interface_confirmation",
+      runMode: VIRTUAL_DRY_RUN_MODE,
+      virtualRunId: virtual.id,
+      stepId: action.stepId,
+      actionId: action.actionId,
+      sourceOperationIdentity: action.sourceOperationIdentity,
+      order: action.order,
+      confirmedAt: now,
+      physicalCompletion: false,
+      fitConfirmed: false,
+    };
+    action.result = { receiptType: receipt.receiptType, operationId, physicalCompletion: false, fitConfirmed: false };
+    virtual.completedStepIds.push(action.stepId);
+    virtual.receipts.push(receipt);
+    virtual.revision += 1;
+    virtual.updatedAt = now;
+    const nextAction = virtual.execution.actions[action.order] || null;
+    if (nextAction) {
+      nextAction.status = "available";
+      virtual.currentPosition = virtualPosition(virtual.execution.actions, nextAction);
+    } else {
+      virtual.status = "completed";
+      completeVirtualResult(virtual, now);
+    }
+    sealVirtualDryRun(virtual);
+    appendAudit(next, "virtual_step_completed", now, { virtualRunId: virtual.id, stepId: action.stepId, actionId: action.actionId, operationId });
+    if (virtual.status === "completed") appendAudit(next, "virtual_dry_run_completed", now, { virtualRunId: virtual.id, completedStepCount: virtual.completedStepIds.length });
+    sealState(next);
+    return deepFreeze(next);
+  }
+
+  function validateVirtualDryRunStructural(run) {
+    const diagnostics = [];
+    const add = (field) => diagnostics.push(diagnostic("virtual_dry_run_invalid", { field }));
+    if (!object(run) || run.contractId !== VIRTUAL_DRY_RUN_CONTRACT_ID || run.mode !== VIRTUAL_DRY_RUN_MODE || !positiveInteger(run.revision) || !VIRTUAL_DRY_RUN_STATUSES.includes(run.status)) add("header");
+    if (!text(run?.id) || !isTimestamp(run?.createdAt) || !isTimestamp(run?.updatedAt) || !nullableTimestamp(run?.startedAt) || !nullableTimestamp(run?.completedAt) || !validFingerprint(run?.runFingerprint)) add("identity");
+    if (!text(run?.sourceExecutionPlanId) || !positiveInteger(run?.sourceExecutionPlanRevision) || !validFingerprint(run?.sourceExecutionPlanFingerprint) || !validFingerprint(run?.planSnapshotFingerprint)) add("source");
+    if (!object(run?.execution) || run.execution.mode !== "sequential" || !Array.isArray(run.execution.actions) || !object(run?.currentPosition) || !Array.isArray(run?.completedStepIds) || !Array.isArray(run?.receipts)) add("progress");
+    if (object(run) && validFingerprint(run.runFingerprint) && virtualDryRunFingerprint(run) !== run.runFingerprint) add("runFingerprint");
+    return stableDiagnostics(diagnostics);
+  }
+
+  function validateVirtualDryRunSemantic(run) {
+    const diagnostics = [];
+    const add = (field, details = {}) => diagnostics.push(diagnostic("virtual_dry_run_invalid", { field, ...details }));
+    const actions = array(run?.execution?.actions);
+    const completed = actions.filter((entry) => entry.status === "completed");
+    actions.forEach((entry, index) => {
+      if (entry.order !== index + 1 || !text(entry.stepId) || !text(entry.actionId) || !text(entry.sourceOperationIdentity)) add("orderedOperationIdentity", { index });
+      if (index < completed.length && entry.status !== "completed") add("contiguousCompletion", { index });
+      if (index >= completed.length && !["pending", "available"].includes(entry.status)) add("actionStatus", { index });
+    });
+    if (canonicalize(run.completedStepIds) !== canonicalize(completed.map((entry) => entry.stepId))) add("completedStepIds");
+    if (run.receipts.length !== completed.length || run.receipts.some((entry, index) => entry.receiptType !== "virtual_interface_confirmation" || entry.runMode !== VIRTUAL_DRY_RUN_MODE || entry.order !== index + 1 || entry.stepId !== completed[index]?.stepId || entry.sourceOperationIdentity !== completed[index]?.sourceOperationIdentity || entry.physicalCompletion !== false || entry.fitConfirmed !== false)) add("receipts");
+    if (run.status === "ready" && (run.started !== false || completed.length || actions.some((entry) => entry.status !== "pending"))) add("ready");
+    if (run.status === "active") {
+      const current = actions[completed.length] || null;
+      if (!run.started || !current || current.status !== "available" || run.currentPosition.actionIndex !== completed.length || run.currentPosition.stepId !== current.stepId) add("currentPosition");
+    }
+    if (run.status === "completed" && (completed.length !== actions.length || run.result?.resultType !== "virtual_dry_run_completed" || run.result?.physicalProductCompleted !== false || run.result?.fitConfirmed !== false)) add("completed");
+    return stableDiagnostics(diagnostics);
+  }
+
+  function virtualPosition(actions, action) {
+    const complete = actions.filter((entry) => entry.status === "completed").length;
+    return { stepId: action?.stepId ?? null, actionId: action?.actionId ?? null, sourceOperationIdentity: action?.sourceOperationIdentity ?? null, actionIndex: action ? actions.indexOf(action) : -1, currentStepNumber: action ? action.order : actions.length, completedStepCount: complete, totalStepCount: actions.length };
+  }
+
+  function completeVirtualResult(run, now) {
+    run.status = "completed";
+    run.completedAt = now;
+    run.currentPosition = virtualPosition(run.execution.actions, null);
+    run.result = { resultType: "virtual_dry_run_completed", completedStepCount: run.execution.actions.length, physicalProductCompleted: false, fitConfirmed: false, completedAt: now };
+  }
+
+  function virtualDryRunFingerprint(run) { const payload = copy(run); delete payload.runFingerprint; return fingerprint(payload); }
+  function sealVirtualDryRun(run) { run.runFingerprint = null; run.runFingerprint = virtualDryRunFingerprint(run); }
+
+  function getVirtualDryRunSummary(state) {
+    requireSession(state);
+    const run = state.virtualDryRun;
+    if (!run) return null;
+    const action = run.execution.actions[run.currentPosition.actionIndex] || null;
+    return copy({ id: run.id, contractId: run.contractId, mode: run.mode, revision: run.revision, status: run.status, started: run.started, currentPosition: run.currentPosition, currentStep: action, completedStepIds: run.completedStepIds, result: run.result, runFingerprint: run.runFingerprint });
+  }
+
+  function getDisplayVirtualDryRun(state) {
+    requireSession(state);
+    if (state.virtualDryRun) return copy(state.virtualDryRun);
+    return copy(array(state.historicalVirtualDryRuns).at(-1) || null);
+  }
+
+  async function ensureVirtualDryRunForProject(repository, projectId, options = {}) {
+    let inspected = await ensureForProject(repository, projectId);
+    if (!inspected.executionSession) throwForDiagnostic(inspected.planValidation?.diagnostics?.[0] || diagnostic(inspected.reasonCode || "execution_plan_missing"));
+    if (!inspected.executionSession.virtualDryRun) {
+      const next = createVirtualDryRun(inspected.executionSession, inspected.executionPlan, { ...options, expectedRevision: inspected.executionSession.revision, context: inspected.context });
+      await repository.updatePatternExecutionSession(projectId, inspected.calculation.calculation_id, next, { operationKind: "PATTERN_EXECUTION_VIRTUAL_DRY_RUN_CREATED", projectStage: "pattern_execution_virtual_ready" });
+      inspected = inspectAggregate(await repository.getProject(projectId));
+    }
+    return inspected;
+  }
+
+  async function startVirtualDryRunForProject(repository, projectId, options = {}) {
+    const inspected = await ensureVirtualDryRunForProject(repository, projectId, options);
+    return applyForProject(repository, projectId, (state, plan, settings) => startVirtualDryRun(state, plan, settings), { ...options, operationKind: "PATTERN_EXECUTION_VIRTUAL_DRY_RUN_STARTED", projectStage: "pattern_execution_virtual_active" });
+  }
+
+  async function completeVirtualStepForProject(repository, projectId, stepId, actionId, options = {}) {
+    return applyForProject(repository, projectId, (state, plan, settings) => completeVirtualStep(state, plan, { ...settings, stepId, actionId }), { ...options, operationKind: "PATTERN_EXECUTION_VIRTUAL_STEP_COMPLETED", projectStage: "pattern_execution_virtual_active" });
   }
 
   async function pauseForProject(repository, projectId, options = {}) {
@@ -834,7 +1151,21 @@
   }
 
   async function rebuildForProject(repository, projectId, options = {}) {
-    return applyForProject(repository, projectId, (state, plan, settings) => rebuildExecutionSession(state, plan, { ...settings, confirmed: options.confirmed === true }), { ...options, operationKind: "PATTERN_EXECUTION_SESSION_REBUILT" });
+    const inspected = inspectAggregate(await repository.getProject(projectId));
+    if (!inspected.executionSession) throw sessionError("execution_session_missing", "Сессия выполнения не создана.");
+    const expectedRevision = options.expectedRevision === undefined ? inspected.executionSession.revision : options.expectedRevision;
+    const next = createPhysicalSessionLineage(inspected.executionSession, inspected.executionPlan, {
+      ...options, expectedRevision, context: inspected.context, confirmed: options.confirmed === true,
+    });
+    if (canonicalize(next) === canonicalize(inspected.executionSession)) return inspected;
+    await repository.replacePatternExecutionSessionLineage(projectId, inspected.calculation.calculation_id, next, {
+      operationKind: "PATTERN_EXECUTION_PHYSICAL_LINEAGE_CREATED",
+      projectStage: "pattern_execution_session_waiting",
+      expectedPreviousSessionId: inspected.executionSession.id,
+      expectedPreviousSessionRevision: inspected.executionSession.revision,
+      expectedPreviousSessionFingerprint: inspected.executionSession.sessionFingerprint,
+    });
+    return inspectAggregate(await repository.getProject(projectId));
   }
 
   function calculateSessionFingerprint(state) {
@@ -960,15 +1291,18 @@
 
   const api = {
     VERSION, SCHEMA_VERSION, PROGRESS_KIND, STATUSES, ACTION_STATUSES, AUDIT_EVENTS, AUDIT_LIMIT, TRANSITIONS,
+    VIRTUAL_DRY_RUN_CONTRACT_ID, VIRTUAL_DRY_RUN_MODE, VIRTUAL_DRY_RUN_STATUSES,
     PatternExecutionSessionError, canonicalize, fingerprint, sourceIdentityFromPlan,
     validateSourceExecutionPlan, createExecutionSession, createInitialState: createExecutionSession,
     startExecutionSession, resumeExecutionSession, pauseExecutionSession, startCurrentAction,
     completeCurrentAction, skipCurrentAction, validateExecutionSession, validateStructural,
     validateSemantic, detectExecutionSessionStaleness, recoverInterruptedExecutionSession,
-    rebuildExecutionSession, getExecutionSessionSummary, buildPlanSnapshot, buildExecution,
+    rebuildExecutionSession, createPhysicalSessionLineage, getExecutionSessionSummary, buildPlanSnapshot, buildExecution,
     calculateSessionFingerprint, markSessionStale, inspectAggregate, ensureForProject, startForProject,
     pauseForProject, resumeForProject, startActionForProject, completeActionForProject,
-    skipActionForProject, rebuildForProject,
+    skipActionForProject, rebuildForProject, createVirtualDryRun, startVirtualDryRun, completeVirtualStep,
+    validateVirtualDryRunStructural, validateVirtualDryRunSemantic, getVirtualDryRunSummary, getDisplayVirtualDryRun,
+    ensureVirtualDryRunForProject, startVirtualDryRunForProject, completeVirtualStepForProject,
   };
   globalObject.YarnAIPatternExecutionSession = Object.freeze(api);
   if (typeof module !== "undefined" && module.exports) module.exports = api;

@@ -1743,9 +1743,17 @@ function scheduleProjectFormAutosave() {
     return;
   }
   projectAutosave.update({
-    draft_input: captureProjectFormState(),
+    draft_input: mergeProjectDraft(captureProjectFormState()),
     has_unfinished_calculation: true,
   });
+}
+
+function mergeProjectDraft(formState) {
+  const existing = currentProjectAggregate?.project?.draft_input;
+  if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
+    return formState;
+  }
+  return { ...existing, ...formState };
 }
 
 function updateProjectSaveStatus({ state, error = null }) {

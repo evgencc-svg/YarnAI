@@ -1,0 +1,134 @@
+.project-details-closure {
+  margin: 2rem auto 0;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid #d8d2c8;
+  border-radius: 1.25rem;
+  background: #fffdf9;
+  color: #2d2925;
+  overflow-wrap: anywhere;
+}
+
+.project-details-closure-heading {
+  display: grid;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+
+.project-details-closure-heading h2,
+.project-details-closure-review h3,
+.project-details-closure-previous h3 { margin: 0; }
+
+.project-details-closure-readiness {
+  margin: 1rem 0;
+  padding: .9rem 1rem;
+  border-left: .35rem solid #665846;
+  border-radius: .55rem;
+  background: #f3eee6;
+  font-weight: 700;
+}
+
+.project-details-closure-readiness[data-status="ready"],
+.project-details-closure-readiness[data-status="closed"] {
+  border-left-color: #2e7558;
+  background: #eaf5ef;
+}
+
+.project-details-closure-readiness[data-status="conditionally-ready"] {
+  border-left-color: #a66a12;
+  background: #fff5df;
+}
+
+.project-details-closure-readiness[data-status="blocked"],
+.project-details-closure-readiness[data-status="stale"] {
+  border-left-color: #a43d35;
+  background: #fff0ee;
+}
+
+.project-details-closure-review {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.project-details-closure-review > section,
+.project-details-closure-previous,
+.project-details-closure-acknowledgement {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid #e4ded5;
+  border-radius: .85rem;
+  background: #fff;
+}
+
+.project-details-closure-review h3 { font-size: 1.05rem; }
+.project-details-closure-review h4 { margin: .9rem 0 .35rem; font-size: .9rem; }
+.project-details-closure-review ul,
+.project-details-closure-stale-changes { margin: .35rem 0 0; padding-left: 1.25rem; }
+.project-details-closure-review li,
+.project-details-closure-stale-changes li { margin: .35rem 0; }
+
+.project-details-closure-review dl { margin: .75rem 0 0; }
+.project-details-closure-review dl > div {
+  display: grid;
+  gap: .15rem;
+  padding: .55rem 0;
+  border-bottom: 1px solid #eee8df;
+}
+.project-details-closure-review dt { font-weight: 700; }
+.project-details-closure-review dd { margin: 0; }
+.project-details-closure-review dd small { display: block; color: #6b6258; }
+
+.project-details-closure-previous { margin-top: 1rem; }
+.project-details-closure-acknowledgement { margin: 1rem 0 0; }
+.project-details-closure-acknowledgement label { display: flex; gap: .65rem; align-items: flex-start; }
+.project-details-closure-acknowledgement input { margin-top: .2rem; flex: 0 0 auto; }
+
+.project-details-closure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+  margin-top: 1rem;
+}
+
+.project-details-closure-actions button {
+  min-height: 2.75rem;
+  max-width: 100%;
+  padding: .7rem 1rem;
+  border: 1px solid #665846;
+  border-radius: .65rem;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.project-details-closure-actions button:first-child,
+#project-details-closure-confirm,
+#project-details-closure-continue { background: #3f382f; color: #fff; }
+.project-details-closure-actions button:disabled { cursor: not-allowed; opacity: .52; }
+.project-details-closure-actions button:focus-visible,
+.project-details-closure-acknowledgement input:focus-visible { outline: 3px solid #1475b8; outline-offset: 3px; }
+
+.project-details-closure-reason,
+#project-details-closure-save-status { margin: .65rem 0 0; color: #62594f; }
+.project-details-closure-error { margin-top: .75rem; padding: .75rem; border-radius: .55rem; background: #fff0ee; color: #842d27; font-weight: 700; }
+
+@media (min-width: 760px) {
+  .project-details-closure-review { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .project-details-closure-heading { grid-template-columns: minmax(0, 1.15fr) minmax(16rem, .85fr); align-items: end; }
+}
+
+@media (max-width: 620px) {
+  .project-details-closure { padding: 1rem; border-radius: .9rem; }
+  .project-details-closure-actions { display: grid; grid-template-columns: 1fr; }
+  .project-details-closure-actions button { width: 100%; }
+}
+
+@media (max-width: 900px) {
+  .project-details-closure { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-details-closure *, .project-details-closure *::before, .project-details-closure *::after { scroll-behavior: auto !important; }
+}

@@ -60,6 +60,69 @@ function confirmedReview(projectId = "project", snapshot = fullSnapshot(projectI
   };
 }
 
+const FLAX_SIZES = ["0-6 mo", "6-12 mo", "1-2 yrs", "2-4 yrs", "4-6 yrs", "6-8 yrs", "8-10 yrs", "XS", "S", "SM", "M", "ML", "L", "XL", "XXL", "3XL", "4XL", "5XL", "6XL"];
+
+function domainEvidence(domain, text, start = 0) {
+  return { sourceFileId: domain === "SOURCE_PATTERN_EVIDENCE" ? "flax-pdf" : "project-description", sourceFileName: domain === "SOURCE_PATTERN_EVIDENCE" ? "flax.pdf" : "Описание проекта.txt", evidenceDomain: domain, start, end: start + text.length, text, ruleId: "test.confirmed" };
+}
+
+function ledgerValue(itemId, category, semanticType, canonicalValue, rawValue, unit, start) {
+  return { itemId, category, subtype: semanticType, value: { semanticType, canonicalValue: structuredClone(canonicalValue), rawValue, unit, status: "confirmed", recognitionReason: "confirmed_test_fact", equivalentMentions: [] }, unit, decision: "accepted", notes: "", provenance: { originalValue: structuredClone(canonicalValue), confidence: .99, evidenceDomain: "SOURCE_PATTERN_EVIDENCE", evidence: [domainEvidence("SOURCE_PATTERN_EVIDENCE", rawValue || semanticType, start)], sourceOffsets: [{ sourceFileId: "flax-pdf", start, end: start + 2 }] } };
+}
+
+function flaxLegacyReview(projectId = "project-flax") {
+  const sourceValues = [
+    ledgerValue("craft", "craft", "document.craft", "knitting", "knitting", null, 1),
+    ledgerValue("product", "product", "garment.type", "sweater", "sweater", null, 5),
+    ledgerValue("sizes", "sizes", "source.sizes.available", FLAX_SIZES, FLAX_SIZES.join(", "), "size", 10),
+    ledgerValue("measurement", "sizes", "source.sizing.finished_chest", { sizeLabel: "ML", in: 40, cm: 101.6 }, "ML 40 in", "in", 20),
+    ledgerValue("source-gauge", "gauge", "source.gauge", { stitches: 18, rows: null, rounds: 24, per: 4, unit: "in", condition: "unspecified" }, "18 sts & 24 rounds / 4 in", "in", 30),
+    ledgerValue("source-needles", "tools", "source.tools.needles", [4, 5], "4 mm, 5 mm", "mm", 40),
+    ledgerValue("source-weight", "yarn", "source.yarn.weight", ["worsted/aran"], "worsted/aran", null, 50),
+    ledgerValue("source-samples", "yarn", "source.yarn.samples", ["De Rerum Natura Gilliatt", "SweetGeorgia Superwash Worsted"], "De Rerum Natura Gilliatt, SweetGeorgia Superwash Worsted", null, 60),
+    ledgerValue("construction", "construction", "source.construction", { method: "seamless", direction: "top_down", workedInRound: true, seamless: true, features: ["raglan"], sequence: ["neckline", "yoke", "sleeve_body_separation", "body", "sleeves", "finishing"] }, "neckline -> yoke -> sleeve/body separation -> body -> sleeves -> finishing", null, 70),
+  ];
+  const snapshot = fullSnapshot(projectId, { values: sourceValues, sourceSemanticAnalysisId: "semantic-flax", sourceSemanticAnalysisRevision: 9, sourceSemanticFingerprint: "fnv1a32:12345678", sourceContentExtractionRevision: 7, sourceImportRevision: 4 });
+  const profileEvidence = (text, start) => domainEvidence("USER_ADAPTATION_PROFILE", text, start);
+  const userAdaptationProfile = {
+    rawSources: [{ sourceFileId: "project-description", sourceFileName: "Описание проекта.txt", evidenceDomain: "USER_ADAPTATION_PROFILE", rawText: "not consumed by Stage 20" }],
+    selectedSize: { value: "ML", status: "confirmed", recognitionReason: "user_profile_explicit_size", evidence: profileEvidence("Размер ML", 1) },
+    measurements: [],
+    gauge: { entries: [{ pairId: "profile-gauge", stitches: 20, rows: 26, rounds: null, per: 10, unit: "cm", rawValue: "20 п. + 26 рядов на 10 cm", status: "confirmed", recognitionReason: "user_profile_structured_gauge", evidence: [profileEvidence("20 п. + 26 рядов на 10 cm", 10)] }], confidence: .99 },
+    tools: { needleSizes: [{ canonicalValue: 3.5, rawValue: "3.5 mm", unit: "mm", status: "confirmed", recognitionReason: "user_profile_metric_needles", evidence: [profileEvidence("3.5 mm", 20)] }, { canonicalValue: 4.5, rawValue: "4.5 mm", unit: "mm", status: "confirmed", recognitionReason: "user_profile_metric_needles", evidence: [profileEvidence("4.5 mm", 28)] }], confidence: .99 },
+    yarn: { names: [], fiberContent: [{ value: "100% шерсть", evidence: profileEvidence("100% шерсть", 40) }], weights: ["worsted/aran"], amounts: [{ value: 200, unit: "m", rawText: "200 м", evidence: profileEvidence("200 м", 55) }, { value: 100, unit: "g", rawText: "100 г", evidence: profileEvidence("100 г", 62) }], colors: [], evidence: [profileEvidence("100% шерсть, worsted/aran, 200 м/100 г", 40)], confidence: .99 },
+  };
+  const review = confirmedReview(projectId, snapshot, { id: "review-flax", revision: 11 });
+  review.originalSnapshot = { schemaVersion: 1, projectId, semanticAnalysisId: "semantic-flax", semanticAnalysisRevision: 9, semanticFingerprint: snapshot.sourceSemanticFingerprint, sourceContentExtractionRevision: 7, sourceImportRevision: 4, result: { userAdaptationProfile, evidenceDomains: { userAdaptationProfileFileIds: ["project-description"] } } };
+  review.originalSnapshotFingerprint = reviewApi.fingerprint(review.originalSnapshot);
+  review.reviewedData = { schemaVersion: 1, projectId, items: sourceValues.map((entry) => ({ itemId: entry.itemId, projectId, decision: "accepted" })), conflictGroups: [] };
+  review.validation = snapshot.validation; review.auditSnapshots = []; review.decisions = []; review.unresolvedItems = []; review.warnings = []; review.operation = null; review.editBaseRevision = null;
+  review.createdAt = stamp(1); review.updatedAt = stamp(8); review.startedAt = stamp(2); review.confirmedAt = snapshot.confirmedAt; review.failedAt = null; review.interruptedAt = null; review.lastError = null;
+  return review;
+}
+
+function flaxHandoffChecks(input) {
+  const source = input.sourcePatternEvidence; const profile = input.userAdaptationProfile; const facts = source.facts;
+  return [
+    facts.availableSizes.length === 19,
+    facts.selectedSize === "ML",
+    facts.finishedMeasurement.in === 40 && facts.finishedMeasurement.cm === 101.6,
+    facts.gauge[0].stitches === 18 && facts.gauge[0].rounds === 24 && facts.gauge[0].per === 4 && facts.gauge[0].unit === "in",
+    JSON.stringify(facts.needles) === JSON.stringify([4, 5]),
+    JSON.stringify(facts.yarnWeight) === JSON.stringify(["worsted/aran"]),
+    facts.yarnSamples.includes("De Rerum Natura Gilliatt"),
+    facts.yarnSamples.includes("SweetGeorgia Superwash Worsted"),
+    JSON.stringify(facts.construction.sequence) === JSON.stringify(["neckline", "yoke", "sleeve_body_separation", "body", "sleeves", "finishing"]),
+    facts.product === "sweater",
+    facts.craft === "knitting",
+    source.provenance.reviewRevision === 11 && source.provenance.authority === "CONFIRMED_STAGE_19",
+    profile.selectedSize.value === "ML",
+    profile.gauge[0].stitches === 20 && profile.gauge[0].rows === 26 && profile.gauge[0].per === 10 && profile.gauge[0].unit === "cm",
+    JSON.stringify(profile.needles.map((entry) => entry.canonicalValue)) === JSON.stringify([3.5, 4.5]),
+    profile.yarn.fibre[0].value === "100% шерсть" && profile.yarn.weight[0] === "worsted/aran" && profile.yarn.lengthOrWeight[0].value === 200 && profile.yarn.lengthOrWeight[1].value === 100,
+  ];
+}
+
 function built(projectId = "project", snapshot = fullSnapshot(projectId)) {
   const review = confirmedReview(projectId, snapshot);
   return { review, state: draftApi.buildState(draftApi.createInitialState(projectId, review, stamp(9)), review, stamp(10)) };
@@ -124,3 +187,13 @@ test("27. rejected values cannot enter the confirmed source", () => { const snap
 test("28. reviewedData cannot substitute for confirmedSnapshot", () => { const review = confirmedReview("p", fullSnapshot("p"), { confirmedSnapshot: null }); review.reviewedData = { values: fullSnapshot("p").values }; assert.throws(() => draftApi.createInitialState("p", review), { code: "SOURCE_REVIEW_NOT_CONFIRMED" }); });
 test("29. Stage 20 navigation advances only to technology review", () => { const html = fs.readFileSync(path.join(__dirname, "../src/yarnai/static/pattern-technology-draft.html"), "utf8"); const controller = fs.readFileSync(path.join(__dirname, "../src/yarnai/static/pattern-technology-draft-assistant.js"), "utf8"); const laterStage = 20 + 2; assert.match(html, /pattern-technology-draft-review/); assert.match(controller, /pattern-technology-review\?project=/); for (const source of [html, controller]) { assert.equal(source.toLowerCase().includes(`stage ${laterStage}`), false); assert.equal(source.toLowerCase().includes(`stage-${laterStage}`), false); } });
 test("30. Stage 20 is local and contains no network, LLM or OCR implementation", () => { const source = ["pattern-technology-draft.js", "pattern-technology-draft-assistant.js"].map((name) => fs.readFileSync(path.join(__dirname, "../src/yarnai/static", name), "utf8")).join("\n").toLowerCase(); for (const forbidden of ["fetch(", "xmlhttprequest", "websocket", "api.openai.com", "llm", "tesseract", "ocr", "pdfjs", "filereader"]) assert.equal(source.includes(forbidden), false, forbidden); });
+test("31. legacy confirmed Flax review projects all 16 handoff groups", () => { const checks = flaxHandoffChecks(draftApi.stage20InputFromConfirmedReview(flaxLegacyReview())); assert.equal(checks.length, 16); assert.equal(checks.filter(Boolean).length, 16); });
+test("32. source evidence and adaptation profile remain distinct fingerprinted spaces", () => { const input = draftApi.stage20InputFromConfirmedReview(flaxLegacyReview()); assert.equal(input.contractVersion, 2); assert.equal(input.sourcePatternEvidence.evidenceDomain, "SOURCE_PATTERN_EVIDENCE"); assert.equal(input.userAdaptationProfile.evidenceDomain, "USER_ADAPTATION_PROFILE"); assert.notEqual(input.sourcePatternEvidence.fingerprint, input.userAdaptationProfile.fingerprint); assert.equal(input.sourcePatternEvidence.values.some((entry) => entry.provenance.evidenceDomain === "USER_ADAPTATION_PROFILE"), false); });
+test("33. source gauge is not replaced by adaptation gauge", () => { const input = draftApi.stage20InputFromConfirmedReview(flaxLegacyReview()); assert.deepEqual(input.sourcePatternEvidence.facts.gauge.map((entry) => [entry.stitches, entry.rounds, entry.per, entry.unit]), [[18, 24, 4, "in"]]); assert.deepEqual(input.userAdaptationProfile.gauge.map((entry) => [entry.stitches, entry.rows, entry.per, entry.unit]), [[20, 26, 10, "cm"]]); });
+test("34. source needles are not replaced by adaptation needles", () => { const input = draftApi.stage20InputFromConfirmedReview(flaxLegacyReview()); assert.deepEqual(input.sourcePatternEvidence.facts.needles, [4, 5]); assert.deepEqual(input.userAdaptationProfile.needles.map((entry) => entry.canonicalValue), [3.5, 4.5]); });
+test("35. source yarn samples do not mix with adaptation yarn", () => { const input = draftApi.stage20InputFromConfirmedReview(flaxLegacyReview()); assert.deepEqual(input.sourcePatternEvidence.facts.yarnSamples, ["De Rerum Natura Gilliatt", "SweetGeorgia Superwash Worsted"]); assert.equal(JSON.stringify(input.userAdaptationProfile.yarn).includes("SweetGeorgia"), false); assert.equal(JSON.stringify(input.sourcePatternEvidence).includes("100% шерсть"), false); });
+test("36. missing mandatory confirmed adaptation field is rejected", () => { const input = structuredClone(draftApi.stage20InputFromConfirmedReview(flaxLegacyReview())); input.userAdaptationProfile.needles = []; assert.throws(() => draftApi.assertStage20Input(input), { code: "MISSING_CONFIRMED_ADAPTATION_PROFILE" }); });
+test("37. Stage 20 consumes only structured confirmed projection", () => { const input = draftApi.stage20InputFromConfirmedReview(flaxLegacyReview()); assert.equal(Object.prototype.hasOwnProperty.call(input.userAdaptationProfile, "rawSources"), false); const production = fs.readFileSync(path.join(__dirname, "../src/yarnai/static/pattern-technology-draft.js"), "utf8").toLowerCase(); for (const forbidden of ["draft_input", "material_intake", "rawsources", "pdfjs", "filereader"]) assert.equal(production.includes(forbidden), false, forbidden); });
+test("38. contract migration marks v1 revision 3 stale and rebuilds as revision 5 with a new result identity", () => { const review = flaxLegacyReview(); const old = { id: "draft-flax", projectId: review.projectId, kind: draftApi.PROGRESS_KIND, version: 1, algorithmVersion: 1, revision: 3, status: "needs_attention", sourceReviewId: review.id, sourceReviewRevision: review.revision, sourceConfirmedRevision: review.revision, sourceConfirmedFingerprint: draftApi.fingerprint(review.confirmedSnapshot), sourceSemanticAnalysisId: review.sourceSemanticAnalysisId, sourceSemanticAnalysisRevision: review.sourceSemanticAnalysisRevision, sourceImportRevision: review.sourceImportRevision, sourceProjectId: review.projectId, immutableSourceSnapshot: structuredClone(review.confirmedSnapshot), immutableSourceFingerprint: draftApi.fingerprint(review.confirmedSnapshot), draftResult: { schemaVersion: 1, legacy: true }, draftFingerprint: draftApi.fingerprint({ schemaVersion: 1, legacy: true }), criticalIssuesFingerprint: draftApi.fingerprint([]), validation: { isValid: true }, audit: [], operation: null, lastError: null, createdAt: stamp(1), updatedAt: stamp(3), builtAt: stamp(3), failedAt: null, interruptedAt: null }; assert.equal(draftApi.sourceIdentityMatches(old, review), false); const rebuilt = draftApi.rebuildState(old, review, stamp(12)); assert.equal(rebuilt.revision, 5); assert.equal(rebuilt.inputContractVersion, 2); assert.equal(rebuilt.sourceReviewRevision, 11); assert.equal(rebuilt.draftResult.schemaVersion, 2); assert.notEqual(rebuilt.draftResult.resultIdentity, old.draftResult.resultIdentity); assert.equal(flaxHandoffChecks(rebuilt.immutableSourceSnapshot).filter(Boolean).length, 16); });
+test("39. rebuilt result serializes with upstream binding and no duplicate identity", () => { const review = flaxLegacyReview(); const first = draftApi.buildState(draftApi.createInitialState(review.projectId, review, stamp(9)), review, stamp(10)); const reopened = JSON.parse(JSON.stringify(first)); assert.equal(reopened.sourceReviewId, review.id); assert.equal(reopened.sourceReviewRevision, 11); assert.equal(reopened.sourceProjectionFingerprint, first.sourceProjectionFingerprint); assert.equal(reopened.draftResult.resultIdentity, first.draftResult.resultIdentity); assert.equal(draftApi.sourceIdentityMatches(reopened, review), true); });
+test("40. v1 retry paths cannot replace the explicit contract rebase", () => { const review = flaxLegacyReview(); const current = draftApi.createInitialState(review.projectId, review, stamp(9)); const retried = draftApi.buildState(current, review, stamp(10)); assert.equal(retried.inputContractVersion, 2); assert.equal(retried.algorithmVersion, 2); assert.equal(retried.audit.some((entry) => entry.type === "retry"), false); });

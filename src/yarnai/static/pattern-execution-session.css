@@ -12,7 +12,13 @@
 .session-actions { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; min-width: 0; }
 .session-actions > * { max-width: 100%; }
 .session-message, .session-list li, #execution-session-current-instruction { overflow-wrap: anywhere; }
-.session-attention { border-color: #dbad8f; }
+.session-primary-state { margin: .8rem 0 .55rem; font-size: 1.2rem; font-weight: 800; color: #175a3a; }
+.session-primary-progress { margin: .8rem 0 .35rem; font-size: 1.05rem; }
+.session-attention { border: 1px solid #dbad8f; border-radius: .75rem; padding: .85rem; background: #fff8f2; }
+.session-attention p { margin: .35rem 0 0; }
+.session-technical > summary, #execution-session-current-details > summary { cursor: pointer; font-weight: 700; }
+.session-technical > summary { font-size: 1.05rem; }
+#execution-session-actions-card { box-shadow: 0 .5rem 1.5rem rgba(56, 42, 28, .08); }
 .session-list { padding-left: 1.25rem; }
 #execution-session-progress-meter { display: block; width: 100%; max-width: 100%; }
 .session-shell :focus-visible { outline: 3px solid #6b4eff; outline-offset: 2px; }

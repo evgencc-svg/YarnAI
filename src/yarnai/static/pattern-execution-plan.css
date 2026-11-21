@@ -12,6 +12,11 @@
 .execution-actions { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
 .execution-actions > * { max-width: 100%; }
 .execution-state-message, .execution-list li, .execution-card-list p, .execution-phase-list p { overflow-wrap: anywhere; }
+.execution-state-message { font-size: 1.05rem; }
+.execution-technical > summary, .execution-component details > summary, .execution-phase-list details > summary, .execution-list details > summary, .execution-action-list details > summary { cursor: pointer; font-weight: 700; }
+.execution-technical > summary { font-size: 1.05rem; }
+.execution-technical h2 { margin-top: 1rem; font-size: 1rem; }
+.execution-component details, .execution-phase-list details, .execution-list details, .execution-action-list details { margin-top: .55rem; color: var(--color-text-muted, #666); }
 .execution-card-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr)); gap: .75rem; min-width: 0; }
 .execution-component, .execution-phase-list > li { min-width: 0; padding: .85rem; border: 1px solid var(--color-border, #d9d3ca); border-radius: .75rem; background: #fff; }
 .execution-component h3, .execution-phase-list h3 { margin: 0 0 .4rem; font-size: 1rem; }

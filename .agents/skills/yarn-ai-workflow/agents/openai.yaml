@@ -1,0 +1,6 @@
+interface:
+  display_name: "Yarn AI Workflow"
+  short_description: "Строгая разработка и приёмка Yarn AI"
+  default_prompt: "Используй $yarn-ai-workflow для планирования, реализации или проверки следующего утверждённого блока Yarn AI."
+policy:
+  allow_implicit_invocation: true

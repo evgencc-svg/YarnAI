@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Подготовка следующего подтверждённого шага проекта YarnAI.">
+    <title>Следующий шаг — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/project-execution-next-step.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/user-workspace-entry.js" defer></script>
+    <script src="/static/project-execution-plan.js" defer></script>
+    <script src="/static/project-execution-start.js" defer></script>
+    <script src="/static/project-execution-first-step.js" defer></script>
+    <script src="/static/project-execution-next-step.js" defer></script>
+    <script src="/static/project-execution-next-step-workspace.js" defer></script>
+    <script src="/static/project-execution-next-step-assistant.js" defer></script>
+  </head>
+  <body>
+    <main id="execution-next-step-root" class="shell" aria-busy="false">
+      <a class="brand" href="/saved-projects" aria-label="YarnAI — мои проекты">YarnAI</a>
+      <section id="execution-next-step-loading" class="panel" aria-live="polite">
+        <p>Проверяем сохранённый результат и план…</p>
+      </section>
+      <section id="execution-next-step-blocked" class="panel blocked" role="alert" tabindex="-1" hidden>
+        <p class="eyebrow">Следующий шаг</p>
+        <h1>Не удалось открыть следующий шаг</h1>
+        <p id="execution-next-step-blocked-message"></p>
+        <p class="diagnostic">Код: <code id="execution-next-step-diagnostic-code"></code></p>
+        <div class="actions"><a class="button" href="/saved-projects">Мои проекты</a><button id="execution-next-step-retry" type="button" hidden>Повторить</button></div>
+      </section>
+      <section id="execution-next-step-content" class="panel" aria-live="polite" hidden>
+        <p class="eyebrow">Проект: <span id="execution-next-step-project"></span></p>
+        <h1 id="execution-next-step-heading"></h1>
+        <article class="completed-card">
+          <h2>Набор петель завершён</h2>
+          <p id="execution-next-step-completed-count" class="result"></p>
+          <p class="muted">Подтверждено <span id="execution-next-step-completed-at"></span></p>
+        </article>
+        <section id="execution-next-step-prepared" hidden>
+          <h2 id="execution-next-step-title"></h2>
+          <p id="execution-next-step-instruction" class="instruction"></p>
+          <p><strong>Цель:</strong> <span id="execution-next-step-goal"></span></p>
+          <dl class="context">
+            <div><dt>Пряжа</dt><dd id="execution-next-step-yarn"></dd></div>
+            <div><dt>Инструмент</dt><dd id="execution-next-step-tools"></dd></div>
+            <div><dt>Плотность</dt><dd id="execution-next-step-gauge"></dd></div>
+            <div><dt>Техника</dt><dd id="execution-next-step-technique"></dd></div>
+          </dl>
+          <section id="execution-next-step-warnings-section" hidden><h3>Обратите внимание</h3><ul id="execution-next-step-warnings"></ul></section>
+          <section id="execution-next-step-assumptions-section" hidden><h3>Допущения</h3><ul id="execution-next-step-assumptions"></ul></section>
+          <p class="muted">Маршрут выполнения будет подключён отдельным шагом.</p>
+        </section>
+        <section id="execution-next-step-unavailable" class="notice" hidden>
+          <h2>Продолжение не создано автоматически</h2>
+          <p id="execution-next-step-unavailable-message"></p>
+          <a id="execution-next-step-clarify" class="button" href="/saved-projects" hidden>Уточнить следующий шаг</a>
+        </section>
+        <p class="muted">Подготовлено <span id="execution-next-step-prepared-at"></span></p>
+        <p id="execution-next-step-status" class="status"></p>
+        <div class="actions"><a class="button" href="/saved-projects" aria-label="Открыть мои проекты">Мои проекты</a></div>
+      </section>
+    </main>
+  </body>
+</html>

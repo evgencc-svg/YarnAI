@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
+import uuid
 
 import pytest
 
@@ -25,6 +27,23 @@ from yarnai_calculation import (
     Unit,
     WidthRequest,
 )
+
+
+_SAFE_REPO_TMP_ROOT = (
+    Path(__file__).resolve().parents[1]
+    / "tmp"
+    / "safe-pytest-runtime"
+    / str(uuid.uuid4())
+)
+
+
+@pytest.fixture
+def tmp_path() -> Path:
+    """Use normal repo-local rights when pytest's Windows temp root is inaccessible."""
+
+    path = _SAFE_REPO_TMP_ROOT / str(uuid.uuid4())
+    path.mkdir(parents=True, exist_ok=False)
+    return path
 
 
 @pytest.fixture
@@ -119,4 +138,3 @@ def request_factory(fabric):
         return replace(base, **changes)
 
     return make
-

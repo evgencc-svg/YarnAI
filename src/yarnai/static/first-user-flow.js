@@ -143,6 +143,7 @@
   );
   const swatchForm = document.querySelector("#swatch-form");
   const swatchFeedback = document.querySelector("#swatch-feedback");
+
   const savedProjectsLoading = document.querySelector(
     "#saved-projects-loading",
   );
@@ -251,7 +252,6 @@
   if (engine.snapshot().messages.length > 0) {
     render();
   }
-  initializeSavedProjects();
 
   function restoreEngine() {
     try {
@@ -882,7 +882,7 @@
                     : "Требуется восстановление";
           meta.textContent =
             `${garment} · ${stage} · изменён ` +
-            formatter.format(new Date(project.updated_at));
+            formatter.format(Date.parse(project.updated_at));
 
           const summary = document.createElement("p");
           summary.className = "saved-project-summary";
@@ -936,6 +936,11 @@
           } else if (assemblyJoinHome) {
             link.href = assemblyJoinHome.href;
           } else if (!assemblyHome) {
+            const draftIntent = project.draft_input?.project_intent ??
+              project.draft_input?.projectIntent ?? {};
+            const projectEntry = window.YarnAIUserWorkspaceEntry?.hasConfirmedGauge(draftIntent)
+              ? "/project-calculation-entry"
+              : "/user-workspace-entry";
             link.href =
               secondPieceHome?.href ??
               bindOffHome?.href ??
@@ -946,7 +951,7 @@
                 stepInspection,
                 project.project_id,
               ) ??
-              `/calculator?project=${encodeURIComponent(project.project_id)}`;
+              `${projectEntry}?project=${encodeURIComponent(project.project_id)}`;
           } else {
             link.type = "button";
             link.disabled = true;

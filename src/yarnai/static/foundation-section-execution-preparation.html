@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Подготовка резинки к вязанию в проекте YarnAI.">
+    <title>Подготовим резинку к вязанию — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/foundation-section-execution-preparation.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/swatch-gauge.js" defer></script>
+    <script src="/static/project-execution-plan.js" defer></script>
+    <script src="/static/project-execution-start.js" defer></script>
+    <script src="/static/project-execution-first-step.js" defer></script>
+    <script src="/static/project-execution-next-step.js" defer></script>
+    <script src="/static/project-execution-next-step-clarification.js" defer></script>
+    <script src="/static/foundation-section-execution-preparation.js" defer></script>
+    <script src="/static/foundation-section-execution-preparation-workspace.js" defer></script>
+    <script src="/static/foundation-section-execution-preparation-assistant.js" defer></script>
+  </head>
+  <body>
+    <main id="foundation-preparation-root" class="shell" aria-busy="false">
+      <a class="brand" href="/saved-projects" aria-label="YarnAI — мои проекты">YarnAI</a>
+      <section id="foundation-preparation-loading" class="panel" aria-live="polite"><p>Проверяем проект и сохранённую подготовку…</p></section>
+      <section id="foundation-preparation-blocked" class="panel blocked" role="alert" tabindex="-1" hidden>
+        <h1>Подготовка сейчас недоступна</h1>
+        <p id="foundation-preparation-blocked-message"></p>
+        <div class="actions"><button id="foundation-preparation-rebuild" type="button" hidden>Подготовить заново</button><a class="button" href="/saved-projects">Вернуться к проектам</a></div>
+      </section>
+      <section id="foundation-preparation-content" class="panel" hidden>
+        <header><p class="eyebrow">Следующий участок изделия</p><h1>Подготовим резинку к вязанию</h1></header>
+        <div class="known-context" aria-label="Подтверждённые данные">
+          <p><strong>Набрано и подтверждено:</strong> 100 петель</p>
+          <p><strong>Физическая цель:</strong> не меньше 5 см</p>
+        </div>
+        <form id="foundation-preparation-form" novalidate>
+          <div id="foundation-preparation-errors" class="error-summary" role="alert" tabindex="-1" hidden><h2>Проверьте данные</h2><ul id="foundation-preparation-error-list"></ul></div>
+          <fieldset id="foundation-pattern-field"><legend>Какую резинку вы будете вязать?</legend>
+            <label><input type="radio" name="ribPattern" value="rib_1x1" aria-describedby="foundation-pattern-help foundation-pattern-error"> Резинка 1×1</label>
+            <label><input type="radio" name="ribPattern" value="rib_2x2" aria-describedby="foundation-pattern-help foundation-pattern-error"> Резинка 2×2</label>
+            <p id="foundation-pattern-help" class="hint">Выберите вариант явно — предварительного выбора нет.</p><p id="foundation-pattern-error" class="field-error"></p>
+          </fieldset>
+          <fieldset id="foundation-method-field"><legend>Как будет вязаться резинка?</legend>
+            <div id="foundation-method-locked" class="locked-fact" hidden></div>
+            <div id="foundation-method-choices"><label><input type="radio" name="workingMethod" value="flat" aria-describedby="foundation-method-error"> Поворотными рядами</label><label><input type="radio" name="workingMethod" value="in_round" aria-describedby="foundation-method-error"> По кругу</label></div>
+            <p id="foundation-method-error" class="field-error"></p>
+          </fieldset>
+          <section class="derived" aria-labelledby="foundation-allocation-heading"><h2 id="foundation-allocation-heading">Распределение петель</h2><p id="foundation-allocation">Выберите резинку и способ вязания.</p><p id="foundation-compatibility" class="field-error" role="status"></p></section>
+          <fieldset><legend>Рабочий инструмент</legend><div id="foundation-tool-locked" class="locked-fact" hidden></div><div id="foundation-tool-field"><label for="foundation-tool">Спицы или другой инструмент</label><input id="foundation-tool" name="tool" maxlength="180" autocomplete="off" aria-describedby="foundation-tool-help foundation-tool-error"><p id="foundation-tool-help" class="hint">Укажите и подтвердите инструмент без автоматической рекомендации размера.</p></div><p id="foundation-tool-error" class="field-error"></p></fieldset>
+          <fieldset><legend>Ваша инструкция</legend><label for="foundation-instruction">Инструкция для выбранной резинки</label><textarea id="foundation-instruction" name="instruction" rows="8" maxlength="10000" aria-describedby="foundation-instruction-help foundation-instruction-error"></textarea><p id="foundation-instruction-help" class="hint">Текст хранится как обычные данные. YarnAI проверяет структуру и совместимость, но не техническую правильность инструкции.</p><label class="check"><input id="foundation-instruction-attestation" type="checkbox" aria-describedby="foundation-instruction-error"> Я подтверждаю, что инструкция предоставлена мной и не проверена YarnAI на техническую правильность.</label><p id="foundation-instruction-error" class="field-error"></p></fieldset>
+          <fieldset><legend>Как затем измерять высоту</legend><p>Измеряйте резинку на спицах, в естественном нерастянутом состоянии, от физического начала резинки сразу после набора до текущего верхнего края. Цель достигнута только после вашего будущего измерения и явного подтверждения, что высота уже не меньше 5 см.</p><label class="check"><input id="foundation-measurement-ack" type="checkbox" aria-describedby="foundation-measurement-error"> Я понял(а) правило измерения. Сейчас я подтверждаю только подготовку, а не достижение 5 см.</label><p id="foundation-measurement-error" class="field-error"></p></fieldset>
+          <p class="notice">Ориентир по количеству рядов не задан: результат определяется физическим измерением.</p>
+          <div class="actions"><button id="foundation-review" type="submit">Проверить подготовку</button><a class="secondary" href="/saved-projects">Вернуться к проектам</a></div>
+        </form>
+        <section id="foundation-preparation-review" tabindex="-1" hidden><h2>Проверьте подготовку</h2><dl id="foundation-review-summary" class="summary-list"></dl><p class="notice">Инструкция предоставлена пользователем и не проверена YarnAI на техническую правильность. Ориентир по рядам отсутствует.</p><div class="actions"><button id="foundation-confirm" type="button">Подтвердить подготовку</button><button id="foundation-edit" class="secondary" type="button">Изменить</button></div></section>
+        <section id="foundation-preparation-completed" tabindex="-1" hidden><h2>Подготовка следующего участка завершена</h2><dl id="foundation-completed-summary" class="summary-list"></dl><p class="notice">Это подтверждение подготовки. Вязание резинки и достижение 5 см здесь не отмечались.</p><a class="button" href="/saved-projects">Вернуться к проектам</a></section>
+      </section>
+    </main>
+  </body>
+</html>

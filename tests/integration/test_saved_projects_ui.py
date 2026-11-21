@@ -22,7 +22,8 @@ def test_success_screen_exposes_explicit_project_save_action() -> None:
 
 def test_home_screen_keeps_empty_state_and_renders_saved_projects() -> None:
     html = (STATIC / "first-user-flow.html").read_text(encoding="utf-8")
-    script = (STATIC / "first-user-flow.js").read_text(encoding="utf-8")
+    controller = (STATIC / "user-workspace-entry-assistant.js").read_text(encoding="utf-8")
+    presentation = (STATIC / "user-workspace-entry.js").read_text(encoding="utf-8")
 
     for element_id in (
         "saved-projects",
@@ -32,11 +33,12 @@ def test_home_screen_keeps_empty_state_and_renders_saved_projects() -> None:
         "saved-projects-list",
     ):
         assert f'id="{element_id}"' in html
-    assert "Сохранённых проектов пока нет" in html
-    assert "firstKnittingStep.progressSummary" in script
-    assert "firstKnittingStep?.continueDestination" in script
-    assert 'listProjects({ section: "active" })' in script
-    assert "resultSummary" in script
+    assert "Здесь появятся твои проекты" in html
+    assert 'listProjects({ section: "active" })' in controller
+    assert "workspace.buildWorkspaceViewModel" in controller
+    assert "buildLatestProjectPresentation" in presentation
+    assert "FIRST_KNITTING_STEP" in presentation
+    assert "Вернуться к шагу" in presentation
 
 
 def test_resume_path_restores_structured_result_without_frontend_math() -> None:

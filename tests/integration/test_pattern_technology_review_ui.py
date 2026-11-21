@@ -47,7 +47,7 @@ def test_review_route_content_type_cache_and_security_headers() -> None:
     csp = response.headers["content-security-policy"]
     assert "default-src 'self'" in csp
     assert "connect-src 'self'" in csp
-    assert "Проверка технологии вязания" in response.text
+    assert "Что Yarn AI изменил в вашей инструкции" in response.text
 
 
 def test_review_page_has_complete_sectioned_ui_and_local_assets() -> None:
@@ -80,6 +80,15 @@ def test_review_page_has_complete_sectioned_ui_and_local_assets() -> None:
         "pattern-technology-review-validation-critical",
         "pattern-technology-review-validation-noncritical",
         "pattern-technology-review-validation-informational",
+        "pattern-technology-review-confirm-guidance",
+        "pattern-technology-review-operation-status",
+        "pattern-technology-executable-input",
+        "pattern-technology-executable-input-readiness",
+        "pattern-technology-executable-input-identity",
+        "pattern-technology-executable-input-binding",
+        "pattern-technology-executable-input-coverage",
+        "pattern-technology-executable-input-blockers",
+        "pattern-technology-executable-input-provenance",
     }
     assert required <= parser.ids
     assert parser.assets
@@ -119,6 +128,37 @@ def test_review_actions_and_correction_form_are_accessible() -> None:
     assert 'aria-live="polite"' in html
     assert 'role="alert"' in html
     assert '<details class="card review-disclosure"' in html
+
+
+def test_blocked_confirmation_is_visibly_disabled_and_explains_next_user_decision() -> None:
+    html = (STATIC / "pattern-technology-review.html").read_text(encoding="utf-8")
+    css = (STATIC / "pattern-technology-review.css").read_text(encoding="utf-8")
+    domain = (STATIC / "pattern-technology-review.js").read_text(encoding="utf-8")
+    controller = (STATIC / "pattern-technology-review-assistant.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'aria-describedby="pattern-technology-review-confirm-guidance"' in html
+    assert ".review-actions .link-button:disabled" in css
+    assert "cursor: not-allowed" in css
+    assert "buildConfirmationGuidance(state, validation)" in controller
+    assert "REQUIRED_DECISION_PENDING" in domain
+    assert "В разделе «Операции» выберите «Принять», «Исправить» или «Отклонить»" in domain
+    assert "Yarn AI не примет решение за вас" in domain
+    assert 'ui.confirm.setAttribute("aria-disabled", String(ui.confirm.disabled))' in controller
+
+
+def test_decision_action_has_visible_busy_feedback_and_stable_dom_identity() -> None:
+    html = (STATIC / "pattern-technology-review.html").read_text(encoding="utf-8")
+    controller = (STATIC / "pattern-technology-review-assistant.js").read_text(encoding="utf-8")
+    decision_ui = (STATIC / "pattern-technology-review-decision-ui.js").read_text(encoding="utf-8")
+
+    assert 'id="pattern-technology-review-operation-status"' in html
+    assert 'ui.workflow.setAttribute("aria-busy", "true")' in controller
+    assert 'ui.items.querySelectorAll("button")' in controller
+    assert 'button.dataset.stage21Action = "set-decision"' in decision_ui
+    assert 'button.dataset.targetId' in decision_ui
+    assert 'button.dataset.decision' in decision_ui
 
 
 def test_safe_rendering_local_only_and_no_stage_23() -> None:
@@ -181,7 +221,7 @@ def test_stage_20_and_stage_21_navigation_is_bidirectional() -> None:
 
     assert "Проверить технологию" in draft_html
     assert "/pattern-technology-review?project=" in draft_controller
-    assert "Вернуться к Stage 20" in review_html
+    assert "Вернуться к черновику" in review_html
     assert "/pattern-technology-draft?project=" in review_controller
 
 
@@ -195,3 +235,94 @@ def test_stage_21_links_forward_to_stage_22() -> None:
 
     assert 'id="pattern-technology-review-nav-plan"' in review_html
     assert "/pattern-execution-plan?project=" in review_controller
+
+
+def test_executable_input_ui_separates_evidence_provenance_and_readiness() -> None:
+    html = (STATIC / "pattern-technology-review.html").read_text(encoding="utf-8")
+    controller = (STATIC / "pattern-technology-review-assistant.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "EXECUTABLE_TECHNOLOGY_PLAN_INPUT_V1" in html
+    assert "SOURCE_PATTERN_EVIDENCE" in controller
+    assert "USER_ADAPTATION_PROFILE" in controller
+    assert "ADAPTATION_CALCULATED" in controller
+    assert "DERIVED_BY_DECLARED_FORMULA" in controller
+    assert "UNRESOLVED" in controller
+    assert "Не готов к вязанию" in controller
+    assert "Технология готова" not in f"{html}\n{controller}"
+
+
+def test_executable_input_ui_renders_confirmed_instruction_coverage_and_binding() -> None:
+    controller = (STATIC / "pattern-technology-review-assistant.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "input.coverage?.items" in controller
+    assert "input.coverage?.sections" in controller
+    assert "entry.component" in controller
+    assert "entry.complete" in controller
+    assert "sourceInstructionEvidenceIdentity" in controller
+    assert "sourceInstructionEvidenceRevision" in controller
+    assert "sourceInstructionEvidenceFingerprint" in controller
+    assert "sourceInstructionResultIdentity" in controller
+    assert '["Stage 21 review", `${state.id} · revision ${state.revision} · status ${state.status}`]' in controller
+    assert '["Stage 21 immutable snapshot", state.immutableSourceSnapshotFingerprint]' in controller
+
+
+def test_primary_ui_renders_human_adaptation_explanation_and_separates_diagnostics() -> None:
+    html = (STATIC / "pattern-technology-review.html").read_text(encoding="utf-8")
+    controller = (STATIC / "pattern-technology-review-assistant.js").read_text(
+        encoding="utf-8"
+    )
+
+    assert "Было → Стало → Почему" in html
+    for label in ("Было", "Стало", "Почему", "Практический смысл"):
+        assert f'adaptationFact("{label}"' in controller
+    assert '<details id="pattern-technology-executable-input"' in html
+    assert "Техническая диагностика входа плана" in html
+    assert "buildAdaptationExplanation" in controller
+    assert "Объяснение построено по сохранённым данным без догадок" in controller
+
+
+def test_primary_ui_does_not_print_stage_ids_or_fingerprints() -> None:
+    controller = (STATIC / "pattern-technology-review-assistant.js").read_text(
+        encoding="utf-8"
+    )
+    render_start = controller.index("function renderAdaptationExplanation")
+    render_end = controller.index("function renderSummary", render_start)
+    primary_renderer = controller[render_start:render_end]
+
+    for forbidden in ("fingerprint", "revision", "state.id", "sourceDraftId", "JSON"):
+        assert forbidden not in primary_renderer
+
+
+def test_completed_stage_21_view_uses_read_only_inspection_and_hides_repeat_actions() -> None:
+    html = (STATIC / "pattern-technology-review.html").read_text(encoding="utf-8")
+    controller = (STATIC / "pattern-technology-review-assistant.js").read_text(
+        encoding="utf-8"
+    )
+    domain = (STATIC / "pattern-technology-review.js").read_text(encoding="utf-8")
+
+    assert 'id="pattern-technology-review-read-only"' in html
+    assert 'parameters.get("view") === "completed"' in controller
+    assert "await reviewApi.inspectForProject(repository, projectId)" in controller
+    assert "if (!readOnlyCompleted)" in controller
+    assert "if (readOnlyCompleted) return article;" in controller
+    assert controller.index("if (readOnlyCompleted) return article;") < controller.index(
+        'actions.append('
+    )
+    assert "Результат уже принят — повторное действие не требуется" in controller
+    assert "Адаптация подтверждена, но поддержана не полностью" in controller
+    assert "async function inspectForProject(repository, projectId)" in domain
+
+
+def test_saved_project_card_exposes_completed_stage_21_without_replacing_current_action() -> None:
+    controller = (STATIC / "user-workspace-entry-assistant.js").read_text(
+        encoding="utf-8"
+    )
+    presentation = (STATIC / "user-workspace-entry.js").read_text(encoding="utf-8")
+
+    assert "project.completedTechnologyReview" in controller
+    assert "Посмотреть принятую адаптацию" in presentation
+    assert "&view=completed" in presentation

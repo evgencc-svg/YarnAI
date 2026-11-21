@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Геометрия рукава · YarnAI</title>
+  <link rel="stylesheet" href="/static/project-sleeve-target-geometry-planning.css">
+  <script src="/static/project-system.js" defer></script>
+  <script src="/static/project-details-experience.js" defer></script>
+  <script src="/static/project-details-collaboration.js" defer></script>
+  <script src="/static/project-details-closure.js" defer></script>
+  <script src="/static/project-initialization.js" defer></script>
+  <script src="/static/swatch-gauge.js" defer></script>
+  <script src="/static/project-calculation-entry.js" defer></script>
+  <script src="/static/project-readiness-engine.js" defer></script>
+  <script src="/static/project-execution-plan.js" defer></script>
+  <script src="/static/project-execution-start.js" defer></script>
+  <script src="/static/project-execution-first-step.js" defer></script>
+  <script src="/static/project-execution-next-step.js" defer></script>
+  <script src="/static/project-execution-next-step-clarification.js" defer></script>
+  <script src="/static/foundation-section-execution-preparation.js" defer></script>
+  <script src="/static/foundation-section-execution.js" defer></script>
+  <script src="/static/foundation-section-measurement.js" defer></script>
+  <script src="/static/primary-fabric-preparation.js" defer></script>
+  <script src="/static/primary-fabric-execution.js" defer></script>
+  <script src="/static/primary-fabric-measurement.js" defer></script>
+  <script src="/static/project-next-section-planning.js" defer></script>
+  <script src="/static/project-construction-strategy-planning.js" defer></script>
+  <script src="/static/project-shaping-policy-planning.js" defer></script>
+  <script src="/static/project-sleeve-target-geometry-planning.js" defer></script>
+  <script src="/static/project-sleeve-target-geometry-planning-application.js" defer></script>
+  <script src="/static/project-sleeve-target-geometry-planning-workspace.js" defer></script>
+  <script src="/static/project-sleeve-target-geometry-planning-assistant.js" defer></script>
+</head>
+<body>
+<main id="sleeve-geometry-root" class="shell" aria-busy="true">
+  <section id="sleeve-geometry-loading" class="panel" aria-live="polite"><p>Восстанавливаем план геометрии рукава…</p></section>
+  <section id="sleeve-geometry-blocked" class="panel blocked" tabindex="-1" hidden>
+    <p class="eyebrow">Нужна проверка проекта</p><h1>Планирование рукава пока недоступно</h1>
+    <p id="sleeve-geometry-blocked-message"></p><a class="button secondary" href="/saved-projects">Вернуться к проектам</a>
+  </section>
+  <article id="sleeve-geometry-content" hidden>
+    <header class="panel hero"><p class="eyebrow">План рукава</p><h1>Подготовим точную форму рукава</h1><p>Вы задаёте готовые размеры в сантиметрах и подтверждаете подходящую плотность. Количество петель и распределение прибавок рассчитает программа.</p></header>
+
+    <form id="sleeve-geometry-input-form" class="panel" novalidate hidden>
+      <p class="step">Размер рукава</p><label id="sleeve-geometry-input-label" for="sleeve-geometry-input"></label>
+      <p id="sleeve-geometry-input-help" class="help"></p>
+      <div class="measure"><input id="sleeve-geometry-input" name="measurement" inputmode="decimal" autocomplete="off" required><span>см</span></div>
+      <p id="sleeve-geometry-input-error" class="error" role="alert" hidden></p>
+      <button id="sleeve-geometry-input-save" class="button primary" type="submit">Сохранить размер</button>
+    </form>
+
+    <section id="sleeve-geometry-gauge" class="panel" hidden>
+      <p class="step">Плотность и узор</p><h2 id="sleeve-geometry-gauge-title"></h2><p id="sleeve-geometry-gauge-message"></p>
+      <dl class="contexts"><div><dt>Манжета</dt><dd id="sleeve-geometry-cuff-pattern"></dd></div><div><dt>Основная часть</dt><dd id="sleeve-geometry-main-pattern"></dd></div></dl>
+      <button id="sleeve-geometry-bind-gauge" class="button primary" type="button">Подтвердить плотность</button>
+      <div id="sleeve-geometry-pattern-resolution" hidden><p class="help">Одна подтверждённая плотность не может представлять два разных узора. Выберите, какой узор использовать для обеих частей.</p><div class="actions"><button id="sleeve-geometry-align-cuff" class="button secondary" type="button">Манжета основным узором</button><button id="sleeve-geometry-align-main" class="button secondary" type="button">Рукав узором манжеты</button></div></div>
+      <button id="sleeve-geometry-open-review" class="button primary" type="button" hidden>Проверить расчёт</button>
+    </section>
+
+    <section id="sleeve-geometry-review" class="panel" hidden>
+      <p class="step">Проверка плана</p><h2>Проверьте рассчитанную геометрию</h2>
+      <dl class="facts"><div><dt>Окружность манжеты</dt><dd id="sleeve-review-cuff-cm"></dd></div><div><dt>Окружность сверху</dt><dd id="sleeve-review-upper-cm"></dd></div><div><dt>Длина до подреза</dt><dd id="sleeve-review-length-cm"></dd></div><div><dt>Петель у манжеты</dt><dd id="sleeve-review-cuff-stitches"></dd></div><div><dt>Петель сверху</dt><dd id="sleeve-review-upper-stitches"></dd></div><div><dt>Прибавок по +2 петли</dt><dd id="sleeve-review-increases"></dd></div></dl>
+      <h3>Как распределены прибавки</h3><p id="sleeve-review-schedule-summary"></p><ol id="sleeve-review-schedule" class="schedule"></ol>
+      <h3>Плотность и узоры</h3><dl class="contexts"><div><dt>Манжета</dt><dd id="sleeve-review-cuff-context"></dd></div><div><dt>Основная часть</dt><dd id="sleeve-review-main-context"></dd></div></dl>
+      <p id="sleeve-review-stop" class="note"></p>
+      <section id="sleeve-review-tie" class="decision" hidden><h3>Выберите точный вариант</h3><p>Оба варианта одинаково близки к выбранным размерам. Подтвердите один из них.</p><div id="sleeve-review-tie-options"></div></section>
+      <p id="sleeve-review-endpoint-message" class="error" role="alert" hidden></p>
+      <button id="sleeve-review-complete" class="button primary" type="button">Подтвердить план рукава</button>
+    </section>
+
+    <section id="sleeve-geometry-completed" class="panel completed" tabindex="-1" hidden><p class="eyebrow">План сохранён</p><h2>Геометрия рукава подтверждена</h2><p>Расчёт сохранён неизменяемым. Следующий этап начнёт физическое вязание двух рукавов; подрезы, соединение деталей и кокетка останутся заблокированы.</p><a id="sleeve-geometry-start-execution" class="button primary" href="/project-sleeve-physical-execution">Перейти к вязанию рукавов</a><a class="button secondary" href="/saved-projects">Вернуться к проектам</a></section>
+    <p id="sleeve-geometry-error" class="panel error" role="alert" hidden></p>
+  </article>
+</main>
+</body>
+</html>

@@ -74,6 +74,7 @@ def test_execution_session_page_has_lifecycle_progress_and_actions() -> None:
     controller = (STATIC / "pattern-execution-session-assistant.js").read_text(
         encoding="utf-8"
     )
+    formatters = (STATIC / "pattern-execution-ui-formatters.js").read_text(encoding="utf-8")
     parser = ExecutionSessionParser()
     parser.feed(html)
 
@@ -93,6 +94,11 @@ def test_execution_session_page_has_lifecycle_progress_and_actions() -> None:
         "execution-session-current-prerequisites",
         "execution-session-current-checkpoints",
         "execution-session-current-blockers",
+        "execution-session-physical-progress",
+        "execution-session-historical-virtual-id",
+        "execution-session-historical-virtual-identity",
+        "execution-session-virtual-notice-title",
+        "execution-session-virtual-notice-copy",
         "execution-session-start",
         "execution-session-start-action",
         "execution-session-complete-action",
@@ -103,17 +109,20 @@ def test_execution_session_page_has_lifecycle_progress_and_actions() -> None:
     } <= parser.ids
     assert all(button.get("type") == "button" for button in parser.buttons)
     assert all("hidden" in button for button in parser.buttons)
+    assert "Начать вязание" in html
+    assert "Первый физический шаг · 1 из ${total}" in controller
+    assert "0 из ${total}" in controller
     for label in (
-        "выполнение ещё не начато",
+        "вязание ещё не начато",
         "подготовка",
         "выполняется",
         "приостановлено",
         "заблокировано",
         "завершено",
-        "устарело",
+        "устарел",
         "ошибка",
     ):
-        assert label in f"{html}\n{controller}"
+        assert label in f"{html}\n{controller}\n{formatters}".lower()
 
 
 def test_execution_session_is_safe_and_local_only() -> None:
@@ -153,17 +162,42 @@ def test_execution_session_requires_project_context_and_hides_invalid_actions() 
         encoding="utf-8"
     )
 
-    assert 'new URLSearchParams(globalObject.location.search).get("project")' in controller
+    assert "const parameters = new URLSearchParams(globalObject.location.search)" in controller
+    assert 'projectId = parameters.get("project")' in controller
     assert "if (!projectId) return renderWithoutProject()" in controller
     assert "Проект не выбран" in controller
     assert "Выберите проект" in controller
     assert "hideButtons()" in controller
     assert "button.hidden = true" in controller
+    assert "Физическая сессия и версия" in html
+    assert "${session.id} · версия ${session.revision}" in controller
     assert "/pattern-execution-plan" in html
     assert "/pattern-execution-plan?project=" in controller
     parser = ExecutionSessionParser()
     parser.feed(html)
     assert "/pattern-execution-session" not in parser.links
+
+
+def test_virtual_dry_run_is_explicit_and_never_claims_physical_completion() -> None:
+    html = (STATIC / "pattern-execution-session.html").read_text(encoding="utf-8")
+    domain = (STATIC / "pattern-execution-session.js").read_text(encoding="utf-8")
+    controller = (STATIC / "pattern-execution-session-assistant.js").read_text(encoding="utf-8")
+
+    assert "PATTERN_EXECUTION_VIRTUAL_DRY_RUN_V1" in domain
+    assert 'receiptType: "virtual_interface_confirmation"' in domain
+    assert "physicalCompletion: false" in domain
+    assert "fitConfirmed: false" in domain
+    assert "Виртуальная проверка — физическое вязание не выполняется." in html
+    assert "Виртуальная проверка завершена: ${virtualCompletedCount} из ${virtualTotal}." in controller
+    assert "0 физических шагов из ${total}" in controller
+    assert "Отметить шаг виртуально" in html
+    assert "Шаг ${action.order} из ${total}" in controller
+    assert "версия плана: ${run.sourceExecutionPlanRevision}" in controller
+    assert "${run.runFingerprint}" in controller
+    assert "Отпечаток физической сессии" in html
+    assert "ui.sourceDetails.hidden = false" in controller
+    assert "ui.currentCheckpoints.textContent" in controller
+    assert "Это не означает, что изделие связано или его посадка подтверждена." in controller
 
 
 def test_execution_session_mobile_layout_and_http_registration() -> None:
@@ -191,6 +225,37 @@ def test_stage_22_links_to_stage_23_only_with_project_context() -> None:
 
     assert 'id="execution-plan-session"' in html
     assert 'href="/pattern-execution-session" hidden' in html
+    assert "Открыть экран начала вязания" in html
     assert "/pattern-execution-session?project=" in controller
     assert "ui.session.hidden = true" in controller
     assert "ui.session.hidden = false" in controller
+
+
+def test_physical_entry_prioritizes_human_state_and_collapses_machine_data() -> None:
+    html = (STATIC / "pattern-execution-session.html").read_text(encoding="utf-8")
+    controller = (STATIC / "pattern-execution-session-assistant.js").read_text(encoding="utf-8")
+
+    assert '<script src="/static/pattern-execution-ui-formatters.js" defer></script>' in html
+    assert '<details id="execution-session-source-details"' in html
+    assert '<details id="execution-session-source-details" class="card session-technical" open' not in html
+    assert html.index('id="execution-session-state"') < html.index('id="execution-session-physical-progress"')
+    assert html.index('id="execution-session-current"') < html.index('id="execution-session-start"')
+    assert html.index('id="execution-session-start"') < html.index('id="execution-session-source-details"')
+    assert "Вязание ещё не начато" in html
+    assert "Вернуться к плану" in html
+    assert "Текущая проверка для версии плана ${currentVirtual.sourceExecutionPlanRevision}" in controller
+    assert "Историческая проверка для версии плана ${historicalVirtual.sourceExecutionPlanRevision}" in controller
+    assert "run revision" not in controller
+    assert "historical virtual run" not in html.lower()
+
+
+def test_rendering_does_not_call_physical_mutations() -> None:
+    controller = (STATIC / "pattern-execution-session-assistant.js").read_text(encoding="utf-8")
+
+    assert controller.count("sessionApi.startForProject") == 1
+    assert 'ui.start.addEventListener("click", () => runOperation(() => sessionApi.startForProject' in controller
+    assert controller.count("sessionApi.completeActionForProject") == 1
+    assert 'ui.completeAction.addEventListener("click", () => runOperation(() => sessionApi.completeActionForProject' in controller
+    render_body = controller.split("function render()", maxsplit=1)[1].split("function renderVirtual", maxsplit=1)[0]
+    assert "startForProject" not in render_body
+    assert "completeActionForProject" not in render_body

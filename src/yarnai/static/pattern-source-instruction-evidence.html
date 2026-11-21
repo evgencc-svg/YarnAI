@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Проверка инструкций исходного PDF-паттерна YarnAI.">
+    <title>Инструкции исходного паттерна — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/pattern-source-instruction-evidence.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/pattern-analysis-review.js" defer></script>
+    <script src="/static/pattern-source-instruction-evidence.js" defer></script>
+    <script src="/static/pattern-source-instruction-evidence-assistant.js" defer></script>
+  </head>
+  <body>
+    <noscript><div class="noscript-message" role="alert">Для проверки инструкций нужен JavaScript.</div></noscript>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="YarnAI, главная"><img class="brand-mark" src="/static/favicon.png" alt=""><span>YarnAI</span></a>
+      <nav class="site-nav" aria-label="Основная навигация"><a href="/">Главная</a><a id="source-evidence-back" href="/pattern-analysis-review">Stage 19</a></nav>
+      <a id="source-evidence-stage21" class="link-button" href="/pattern-technology-review">Stage 21</a>
+      <span class="version-badge">Source evidence V1</span>
+    </header>
+
+    <main class="page-shell evidence-shell">
+      <section class="intro smart-intro" aria-labelledby="page-title">
+        <p class="eyebrow">SOURCE_PATTERN_INSTRUCTION_EVIDENCE_V1</p>
+        <h1 id="page-title">Инструкции исходного PDF</h1>
+        <p class="intro-copy">Проверяемая последовательность операций строится из текстового слоя PDF. Каждый фрагмент сохраняет страницу, раздел, позицию, excerpt и fingerprint.</p>
+      </section>
+
+      <section id="source-evidence-fatal" class="card" hidden role="alert"><h2>Проверка недоступна</h2><p id="source-evidence-fatal-message"></p></section>
+
+      <section id="source-evidence-workflow" class="card" aria-live="polite">
+        <div class="evidence-heading-row"><div><p class="eyebrow">Текущий проект</p><h2 id="source-evidence-project-title">Source instructions</h2></div><span id="source-evidence-status" class="version-badge" role="status">Проверка источника</span></div>
+        <dl class="evidence-grid">
+          <div><dt>PDF identity</dt><dd id="source-evidence-pdf">—</dd></div>
+          <div><dt>PDF fingerprint</dt><dd id="source-evidence-pdf-fingerprint">—</dd></div>
+          <div><dt>Stage 19</dt><dd id="source-evidence-stage19">—</dd></div>
+          <div><dt>Размер</dt><dd id="source-evidence-size">—</dd></div>
+          <div><dt>Coverage</dt><dd id="source-evidence-coverage">—</dd></div>
+          <div><dt>Revision</dt><dd id="source-evidence-revision">—</dd></div>
+        </dl>
+        <div class="review-actions">
+          <button id="source-evidence-build" class="link-button link-button-primary" type="button">Извлечь инструкции</button>
+          <button id="source-evidence-rebuild" class="link-button" type="button" hidden>Создать новую версию</button>
+          <button id="source-evidence-confirm" class="link-button link-button-primary" type="button" hidden>Подтвердить evidence</button>
+        </div>
+        <p id="source-evidence-error" class="form-error" role="alert"></p>
+      </section>
+
+      <section id="source-evidence-review" class="card" hidden>
+        <h2>Обязательные решения</h2>
+        <p>Выберите только фактически нужные ветки инструкции. До этого подтверждение и передача в Stage 21 заблокированы.</p>
+        <div id="source-evidence-questions" class="evidence-question-list"></div>
+      </section>
+
+      <section id="source-evidence-coverage-card" class="card" hidden>
+        <h2>Покрытие конструкции</h2>
+        <ul id="source-evidence-coverage-list"></ul>
+        <h3>Stage 21 blockers</h3>
+        <ul id="source-evidence-blockers"></ul>
+      </section>
+
+      <section id="source-evidence-result" hidden>
+        <div class="card"><h2>Канонический порядок размеров</h2><p id="source-evidence-size-order"></p><p id="source-evidence-counts"></p></div>
+        <div id="source-evidence-components"></div>
+      </section>
+    </main>
+  </body>
+</html>

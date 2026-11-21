@@ -1,0 +1,107 @@
+{
+  "status": "ready",
+  "summary": "Для похожего поло начни со средней гладкой или слегка ворсистой пряжи.",
+  "visualEvidence": {
+    "knitScale": "мелкий или средний",
+    "verticalTexture": "частые узкие вертикальные дорожки",
+    "stitchClarity": "петли читаются умеренно",
+    "surface": "гладкая или со слабым ореолом ворса",
+    "fabricBehavior": {"behaviorCode": "pliable_drape"},
+    "colorEffect": "серо-коричневый меланж",
+    "claimProvenance": {
+      "knitScale": {"kind": "observed", "upstreamFactCode": "knit_scale", "uncertainty": null},
+      "verticalTexture": {"kind": "observed", "upstreamFactCode": "vertical_texture", "uncertainty": null},
+      "stitchClarity": {"kind": "inferred", "upstreamFactCode": "stitch_clarity", "uncertainty": "medium"},
+      "surface": {"kind": "observed", "upstreamFactCode": "surface", "uncertainty": null},
+      "fabricBehavior": {"kind": "inferred", "upstreamFactCode": "fabric_behavior", "uncertainty": "medium"},
+      "colorEffect": {"kind": "observed", "upstreamFactCode": "color_effect", "uncertainty": null}
+    },
+    "photoLimitations": ["Нет масштаба и крупного снимка петель."],
+    "confidence": "medium",
+    "basis": ["Видны вертикальные дорожки, воротник, планка и резинка."]
+  },
+  "limitations": [
+    {"code": "exact_fiber_composition_unknown", "explanation": "По фотографии нельзя точно определить состав волокон."},
+    {"code": "exact_brand_article_unknown", "explanation": "По фотографии нельзя точно определить марку, производителя или артикул пряжи."},
+    {"code": "original_yarn_linear_density_unknown", "explanation": "По фотографии нельзя точно определить метраж или линейную плотность исходной пряжи."},
+    {"code": "actual_original_gauge_unknown", "explanation": "По фотографии нельзя точно определить фактическую плотность вязания исходного изделия."},
+    {"code": "post_wash_behavior_unknown", "explanation": "По фотографии нельзя определить поведение пряжи и полотна после стирки или влажно-тепловой обработки."}
+  ],
+  "thinnerAlternative": {
+    "kind": "thinner",
+    "metersPer100g": {"min": 300, "max": 360, "unit": "m_per_100g"},
+    "categoryRu": "тоньше среднего",
+    "targetStitchesPer10cm": {"min": 24, "max": 28, "unit": "stitches_per_10cm"},
+    "targetRowsPer10cm": {"min": 32, "max": 38, "unit": "rows_per_10cm"},
+    "rowGaugeUncertainty": null,
+    "initialNeedlesMm": {"min": 2.75, "max": 3.25, "unit": "mm"},
+    "strandCount": 1,
+    "surface": "smooth",
+    "textureEffect": "Вертикальные дорожки будут мельче и чётче.",
+    "drapeStructure": "Полотно станет более пластичным.",
+    "garmentWeightVolume": "Изделие будет легче и тоньше.",
+    "trimBehavior": "Воротник, планка и резинка потребуют плотного образца.",
+    "referenceSimilarity": "Фактура будет мельче, чем на фотографии.",
+    "risk": "Слишком рыхлое полотно потеряет форму.",
+    "confidence": "medium",
+    "basis": ["Это инженерный ориентир для ручного вязания, а не распознавание исходной пряжи."]
+  },
+  "recommendedMiddle": {
+    "kind": "recommended_middle",
+    "metersPer100g": {"min": 220, "max": 280, "unit": "m_per_100g"},
+    "categoryRu": "средняя толщина",
+    "targetStitchesPer10cm": {"min": 20, "max": 24, "unit": "stitches_per_10cm"},
+    "targetRowsPer10cm": {"min": 28, "max": 34, "unit": "rows_per_10cm"},
+    "rowGaugeUncertainty": null,
+    "initialNeedlesMm": {"min": 3.25, "max": 4, "unit": "mm"},
+    "strandCount": 1,
+    "surface": "slight_halo",
+    "textureEffect": "Вертикальные дорожки останутся читаемыми, а слабый ворс слегка смягчит контур петель.",
+    "drapeStructure": "Полотно будет пластичным, но сохранит форму деталей.",
+    "garmentWeightVolume": "Ожидаются средние вес и объём.",
+    "trimBehavior": "Воротник, планка и резинка смогут держать форму после обработки.",
+    "referenceSimilarity": "Масштаб фактуры ближе всего к видимому на фотографии.",
+    "risk": "Другой состав может изменить драпировку и объём.",
+    "confidence": "medium",
+    "basis": ["Баланс видимой фактуры и конструкции отдельными деталями."]
+  },
+  "thickerAlternative": {
+    "kind": "thicker",
+    "metersPer100g": {"min": 160, "max": 210, "unit": "m_per_100g"},
+    "categoryRu": "толще среднего",
+    "targetStitchesPer10cm": {"min": 17, "max": 20, "unit": "stitches_per_10cm"},
+    "targetRowsPer10cm": null,
+    "rowGaugeUncertainty": "Диапазон рядов особенно зависит от состава и обработки; его нужно получить по образцу.",
+    "initialNeedlesMm": {"min": 4, "max": 4.75, "unit": "mm"},
+    "strandCount": 1,
+    "surface": "medium_halo",
+    "textureEffect": "Вертикальные дорожки станут крупнее и мягче.",
+    "drapeStructure": "Полотно будет плотнее и жёстче.",
+    "garmentWeightVolume": "Изделие станет тяжелее и объёмнее.",
+    "trimBehavior": "Воротник и планка могут стать толще, а резинка — массивнее.",
+    "referenceSimilarity": "Масштаб фактуры будет крупнее видимого на фотографии.",
+    "risk": "Силуэт может потерять пластичность.",
+    "confidence": "medium",
+    "basis": ["Это отдельная более толстая альтернатива для сравнения."]
+  },
+  "surfaceRecommendation": {
+    "smooth": {"level": "smooth", "verticalTexture": "Вертикальная фактура читается максимально чётко.", "trimClarity": "Планка и воротник имеют самые ясные контуры.", "volumeHalo": "Полотно выглядит ровным, без пушистого объёма.", "referenceDifference": "Это наиболее близко к гладкой поверхности на фотографии."},
+    "slightHalo": {"level": "slight_halo", "verticalTexture": "Слабый ворс немного смягчает дорожки, но не скрывает их.", "trimClarity": "Планка и воротник остаются достаточно чёткими.", "volumeHalo": "Появляется лёгкая мягкая дымка без заметного объёма.", "referenceDifference": "Отличие от фотографии небольшое, если ворс остаётся слабым."},
+    "mediumHalo": {"level": "medium_halo", "verticalTexture": "Средний ворс заметно снижает читаемость вертикальных дорожек.", "trimClarity": "Контуры планки и воротника становятся мягче.", "volumeHalo": "Полотно выглядит пушистее и визуально объёмнее.", "referenceDifference": "Изделие будет заметно мягче и пушистее, чем на фотографии."},
+    "strongHalo": {"level": "strong_halo", "verticalTexture": "Сильный ворс или начёс может почти скрыть вертикальную фактуру.", "trimClarity": "Планка и воротник теряют чёткий графичный контур.", "volumeHalo": "Полотно выглядит сильно пушистым и значительно объёмнее.", "referenceDifference": "Это самое большое отличие от гладкой поверхности на фотографии."},
+    "companionThread": "Дополнительная пушистая нить требует нового образца, потому что меняет плотность и объём."
+  },
+  "manufacturingChoice": {
+    "provenance": "selected",
+    "constructionIdentity": "seamed_set_in_sleeve",
+    "decisionId": "decision:test",
+    "decisionRevision": 7,
+    "decisionFingerprint": "fnv1a32:27b54bd9",
+    "explanation": "Отдельные детали с втачным рукавом — выбранный владельцем способ ручного изготовления, а не наблюдение по фотографии."
+  },
+  "swatchRequirement": {
+    "message": "Это ориентир. Для расчёта свяжи образец, обработай его как изделие и измерь фактическую плотность.",
+    "targetIsNotActualGauge": true
+  },
+  "confidence": "medium"
+}

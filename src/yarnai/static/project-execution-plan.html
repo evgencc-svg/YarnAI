@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Подготовка проверяемого плана работы над изделием YarnAI.">
+    <title>План работы над изделием — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/project-execution-plan.css">
+    <script src="/static/project-readiness-engine.js" defer></script>
+    <script src="/static/project-details-experience.js" defer></script>
+    <script src="/static/project-details-closure.js" defer></script>
+    <script src="/static/project-initialization.js" defer></script>
+    <script src="/static/user-workspace-entry.js" defer></script>
+    <script src="/static/swatch-gauge.js" defer></script>
+    <script src="/static/project-calculation-entry.js" defer></script>
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/project-execution-plan.js" defer></script>
+    <script src="/static/project-execution-plan-workspace.js" defer></script>
+    <script src="/static/project-execution-plan-assistant.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar"><a id="project-back" href="/">← Вернуться в рабочее пространство</a><span class="brand">YarnAI</span></header>
+    <main class="workspace" aria-labelledby="page-title">
+      <section id="loading-state" class="card" aria-live="polite"><p>Проверяем подтверждённые источники и готовим план…</p></section>
+      <section id="blocked-state" class="card error-card" hidden aria-labelledby="blocked-title">
+        <p class="eyebrow">План приостановлен</p><h1 id="blocked-title">Не удалось безопасно открыть план</h1>
+        <div id="blocked-summary" role="alert" tabindex="-1"></div><a id="blocked-action" class="button" href="/">Исправить сведения проекта</a>
+      </section>
+      <div id="ready-state" hidden>
+        <section class="hero"><div><p class="eyebrow">Подготовка будущей работы</p><h1 id="page-title">План работы над изделием</h1><p class="lead">Это ещё не вязание: YarnAI показывает только подтверждённые и честно ограниченные будущие шаги.</p></div><span id="readiness-status" class="status-chip" aria-live="polite">Проверяем</span></section>
+
+        <section class="card" aria-labelledby="known-title"><h2 id="known-title">Что известно о проекте</h2><h3 id="project-title">Проект</h3><dl class="facts"><div><dt>Изделие</dt><dd id="garment-type">—</dd></div><div><dt>Получатель</dt><dd id="recipient">—</dd></div><div><dt>Плотность</dt><dd id="gauge-value">—</dd></div></dl></section>
+        <section class="card" aria-labelledby="calculation-title"><h2 id="calculation-title">На каком расчёте основан план</h2><dl class="facts"><div><dt>Рабочая ширина</dt><dd id="working-width">—</dd></div><div><dt>Начальный результат</dt><dd id="calculation-stitches">—</dd></div></dl><a id="edit-calculation" href="/">Исправить расчёт</a> · <a id="edit-gauge" href="/">Исправить плотность</a></section>
+        <section class="card" aria-labelledby="readiness-title"><h2 id="readiness-title">Насколько план готов</h2><p id="readiness-copy"></p><div id="error-summary" class="issues error" role="alert" tabindex="-1" hidden><h3>Что мешает построить план</h3><ul id="error-list"></ul></div></section>
+
+        <section class="card" aria-labelledby="steps-title"><h2 id="steps-title">Последовательность этапов</h2><ol id="plan-steps" class="plan-list"></ol></section>
+        <div class="columns">
+          <section class="card" aria-labelledby="confirmed-title"><h2 id="confirmed-title">Что подтверждено</h2><ul id="confirmed-list"></ul></section>
+          <section class="card" aria-labelledby="conditional-title"><h2 id="conditional-title">Что пока условно</h2><ul id="conditional-list"></ul></section>
+        </div>
+        <section class="card" aria-labelledby="missing-title"><h2 id="missing-title">Какие этапы пока не включены</h2><p>Они появятся только после подтверждения технологии и конструкции.</p><ul id="missing-list"></ul></section>
+
+        <section class="card" aria-labelledby="bounded-title"><h2 id="bounded-title">Необязательные уточнения</h2><p>Оставьте «Не подтверждено», если этих сведений ещё нет. Неизвестные значения не будут угаданы.</p><fieldset><legend>Ограниченные параметры плана</legend><div class="field-grid">
+          <label>Направление вязания<select id="direction"><option value="unknown">Не подтверждено</option><option value="bottom_up">Снизу вверх</option><option value="top_down">Сверху вниз</option></select></label>
+          <label>Способ вязания<select id="working-method"><option value="unknown">Не подтверждено</option><option value="in_round">По кругу</option><option value="flat">Поворотными рядами</option></select></label>
+          <label>Начальный участок<select id="foundation-type"><option value="unknown">Не подтверждено</option><option value="ribbing">Резинка</option><option value="other">Другой подтверждённый тип</option></select></label>
+          <label>Расположение деталей<select id="piece-layout"><option value="unknown">Не подтверждено</option><option value="separate_front_back">Отдельные перед и спинка</option><option value="single_body">Единое полотно</option></select></label>
+        </div><label class="ack"><input id="bounded-confirmation" type="checkbox"> Подтверждаю выбранные уточнения. Они введены на этом этапе и не заменяют исходные сведения проекта.</label></fieldset></section>
+
+        <section id="warnings-section" class="card" aria-labelledby="warnings-title"><h2 id="warnings-title">Предупреждения и допущения</h2><div class="columns"><div><h3>Предупреждения</h3><ul id="warning-list"></ul></div><div><h3>Допущения</h3><ul id="assumption-list"></ul></div></div><fieldset><legend>Подтверждение предупреждений</legend><label class="ack"><input id="warning-acknowledgement" type="checkbox"> Я прочитала актуальные предупреждения и понимаю границу достоверности частичного плана.</label></fieldset></section>
+        <section class="card actions" aria-labelledby="confirmation-title"><h2 id="confirmation-title">Подтверждение плана</h2><p id="confirmation-reason">Проверяем готовность.</p><button id="confirm-plan" class="button primary" type="button" disabled>Подтвердить план выполнения</button><p id="save-status" role="status" aria-live="polite" tabindex="-1"></p></section>
+        <section id="completed-section" class="card completed" hidden aria-labelledby="completed-title"><p class="eyebrow">План подтверждён</p><h2 id="completed-title">Сохранена immutable revision</h2><p>Первый подтверждённый шаг: набрать <strong id="completed-stitches">—</strong> петель.</p><button type="button" disabled aria-describedby="execution-disabled-reason">Начать выполнение</button><p id="execution-disabled-reason">Следующий этап ещё не подключён. Подтверждение плана не начинает вязание.</p></section>
+        <section id="history-section" class="card" hidden aria-labelledby="history-title"><h2 id="history-title">История revisions</h2><ol id="history-list"></ol></section>
+      </div>
+    </main>
+  </body>
+</html>

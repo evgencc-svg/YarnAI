@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Начальный расчёт петель по подтверждённым данным проекта YarnAI.">
+    <title>Начальный расчёт — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/project-calculation-entry.css">
+    <script src="/static/project-readiness-engine.js" defer></script>
+    <script src="/static/project-details-experience.js" defer></script>
+    <script src="/static/project-details-closure.js" defer></script>
+    <script src="/static/project-initialization.js" defer></script>
+    <script src="/static/user-workspace-entry.js" defer></script>
+    <script src="/static/swatch-gauge.js" defer></script>
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/project-calculation-entry.js" defer></script>
+    <script src="/static/project-calculation-entry-workspace.js" defer></script>
+    <script src="/static/project-calculation-entry-assistant.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a id="project-back" class="back-link" href="/">← Вернуться в проект</a>
+      <span class="brand">YarnAI</span>
+    </header>
+    <main class="workspace" aria-labelledby="page-title">
+      <section id="loading-state" class="state-card" aria-live="polite">
+        <p>Проверяем проект, плотность и сохранённые расчёты…</p>
+      </section>
+
+      <section id="blocked-state" class="state-card state-card-error" hidden aria-labelledby="blocked-title">
+        <p class="eyebrow">Расчёт приостановлен</p>
+        <h1 id="blocked-title">Не удалось безопасно открыть расчёт</h1>
+        <div id="blocked-summary" role="alert" tabindex="-1"></div>
+        <a id="blocked-action" class="button button-primary" href="/">Исправить данные проекта</a>
+      </section>
+
+      <div id="ready-state" hidden>
+        <section class="hero">
+          <div>
+            <p class="eyebrow">Начальный расчёт изделия</p>
+            <h1 id="page-title">Сколько петель набрать для рабочей ширины</h1>
+            <p class="lead">Используем только подтверждённые сведения проекта и плотность контрольного образца.</p>
+          </div>
+          <span id="readiness-status" class="status-chip" aria-live="polite">Проверяем</span>
+        </section>
+
+        <section class="card" aria-labelledby="context-title">
+          <p class="eyebrow">Что рассчитываем</p>
+          <h2 id="context-title"><span id="project-title"></span></h2>
+          <dl class="facts">
+            <div><dt>Изделие</dt><dd id="garment-type">—</dd></div>
+            <div><dt>Размер</dt><dd id="size-mode">—</dd></div>
+            <div><dt>Получатель</dt><dd id="recipient">—</dd></div>
+            <div><dt>Плотность</dt><dd id="gauge-value">—</dd></div>
+            <div><dt>Источник плотности</dt><dd id="gauge-source">—</dd></div>
+            <div><dt>Рабочая ширина</dt><dd id="width-source">—</dd></div>
+          </dl>
+        </section>
+
+        <form id="entry-form" novalidate>
+          <section id="width-input-section" class="card" hidden aria-labelledby="width-title">
+            <p class="eyebrow">Недостающий параметр</p>
+            <h2 id="width-title">Укажите рабочую ширину одной детали</h2>
+            <p>Это единственный новый параметр. Подтверждённые сведения проекта и плотность повторно вводить не нужно.</p>
+            <fieldset>
+              <legend>Рабочая ширина</legend>
+              <div class="field-row">
+                <label for="working-width">Ширина</label>
+                <input id="working-width" name="working-width" type="number" inputmode="decimal" min="0.01" max="500" step="any" aria-describedby="working-width-help working-width-error">
+                <select id="working-width-unit" name="working-width-unit" aria-label="Единица рабочей ширины">
+                  <option value="cm">см</option>
+                  <option value="in">дюймы</option>
+                </select>
+              </div>
+              <p id="working-width-help" class="hint">Допустимо значение больше 0 и не больше 500 см после перевода.</p>
+              <p id="working-width-error" class="field-error"></p>
+              <label class="acknowledgement">
+                <input id="width-confirmation" name="width-confirmation" type="checkbox">
+                Подтверждаю, что это рабочая ширина одной детали, а не обхват и не половина мерки.
+              </label>
+            </fieldset>
+            <p id="draft-status" role="status" aria-live="polite" tabindex="-1">Черновик ещё не сохранён.</p>
+          </section>
+
+          <section class="card result-card" aria-labelledby="result-title">
+            <p class="eyebrow">Первое конкретное число</p>
+            <h2 id="result-title">Начальный набор петель</h2>
+            <div id="error-summary" class="issues issues-error" role="alert" tabindex="-1" hidden>
+              <h3>Что нужно исправить</h3>
+              <ul id="error-list"></ul>
+            </div>
+            <div id="calculation-result" hidden>
+              <p id="human-formula" class="formula"></p>
+              <p class="final-result"><strong id="final-stitches">—</strong> петель</p>
+              <p id="rounding-description" class="hint"></p>
+            </div>
+          </section>
+
+          <section id="warning-section" class="card" hidden aria-labelledby="warning-title">
+            <h2 id="warning-title">Допущения и предупреждения</h2>
+            <div class="issues issues-warning"><ul id="warning-list"></ul></div>
+            <div class="issues"><h3>Границы расчёта</h3><ul id="assumption-list"></ul></div>
+            <fieldset>
+              <legend>Подтверждение предупреждений</legend>
+              <label class="acknowledgement">
+                <input id="warning-acknowledgement" type="checkbox">
+                Я прочитала обязательные предупреждения и подтверждаю этот способ округления.
+              </label>
+            </fieldset>
+          </section>
+
+          <section class="card actions" aria-labelledby="confirmation-title">
+            <h2 id="confirmation-title">Подтверждение</h2>
+            <p id="confirmation-reason">Кнопка станет доступна, когда обязательные данные и подтверждения готовы.</p>
+            <button id="confirm-entry" class="button button-primary" type="button" disabled>Подтвердить начальный расчёт</button>
+            <p id="save-status" role="status" aria-live="polite" tabindex="-1"></p>
+          </section>
+        </form>
+
+        <section id="completed-section" class="card completed-card" hidden aria-labelledby="completed-title">
+          <p class="eyebrow">Расчёт подтверждён</p>
+          <h2 id="completed-title">Начальный результат сохранён</h2>
+          <p><strong id="completed-stitches">—</strong> петель для ширины <span id="completed-width">—</span>.</p>
+          <p id="completed-state"></p>
+          <a id="open-execution-plan" class="button" href="/">Перейти к плану работы</a>
+          <p id="next-step-description" class="hint">YarnAI подготовит проверяемую последовательность будущей работы. Вязание ещё не начнётся.</p>
+        </section>
+
+        <section id="history-section" class="card" hidden aria-labelledby="history-title">
+          <h2 id="history-title">История расчётов</h2>
+          <ol id="history-list"></ol>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

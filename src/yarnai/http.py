@@ -36,6 +36,14 @@ from yarnai.pattern_content_extraction import (
     PdfExtractionError,
     extract_pdf_text,
 )
+from yarnai.vision_review import VisionGatewaySettings, VisionReviewGateway, VisionReviewHttpApi
+from yarnai.garment_reference import (
+    GARMENT_ANALYSIS_ROUTE,
+    MAX_GARMENT_ANALYSIS_REQUEST_BODY_BYTES,
+    GarmentReferenceGateway,
+    GarmentReferenceHttpApi,
+)
+from yarnai.garment_yarn_recommendation import YARN_RECOMMENDATION_ROUTE
 
 
 TECHNICAL_ERROR_MESSAGE = (
@@ -164,11 +172,13 @@ class RequestBodyLimitMiddleware:
             await self.application(scope, receive, send)
             return
         headers = dict(scope.get("headers", []))
-        request_limit = (
-            MAX_PDF_BYTES
-            if scope.get("path") == "/api/v1/pattern-content-extraction/pdf"
-            else self.maximum_bytes
-        )
+        route = scope.get("path")
+        if route == "/api/v1/pattern-content-extraction/pdf":
+            request_limit = MAX_PDF_BYTES
+        elif route in {GARMENT_ANALYSIS_ROUTE, YARN_RECOMMENDATION_ROUTE}:
+            request_limit = MAX_GARMENT_ANALYSIS_REQUEST_BODY_BYTES
+        else:
+            request_limit = self.maximum_bytes
         raw_length = headers.get(b"content-length")
         if raw_length:
             try:
@@ -222,6 +232,280 @@ async def user_interface(_request: Request) -> FileResponse:
 
     return FileResponse(
         STATIC_DIRECTORY / "first-user-flow.html",
+        media_type="text/html",
+    )
+
+
+async def user_workspace_entry(_request: Request) -> FileResponse:
+    """Return the user project workspace on the established home UI."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "first-user-flow.html",
+        media_type="text/html",
+    )
+
+
+async def saved_projects(_request: Request) -> FileResponse:
+    """Return the saved-project list on the same project-workspace origin."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "first-user-flow.html",
+        media_type="text/html",
+    )
+
+
+async def swatch_assistant(_request: Request) -> FileResponse:
+    """Return the project-scoped swatch measurement workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "swatch-assistant.html",
+        media_type="text/html",
+    )
+
+
+async def project_calculation_entry(_request: Request) -> FileResponse:
+    """Return the project-scoped initial calculation workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-calculation-entry.html",
+        media_type="text/html",
+    )
+
+
+async def project_execution_plan(_request: Request) -> FileResponse:
+    return FileResponse(STATIC_DIRECTORY / "project-execution-plan.html", media_type="text/html")
+
+
+async def project_execution_start(_request: Request) -> FileResponse:
+    return FileResponse(STATIC_DIRECTORY / "project-execution-start.html", media_type="text/html")
+
+async def project_execution_first_step(_request: Request) -> FileResponse:
+    return FileResponse(STATIC_DIRECTORY / "project-execution-first-step.html", media_type="text/html")
+
+
+async def project_execution_next_step(_request: Request) -> FileResponse:
+    return FileResponse(STATIC_DIRECTORY / "project-execution-next-step.html", media_type="text/html")
+
+
+async def project_execution_next_step_clarification(_request: Request) -> FileResponse:
+    return FileResponse(
+        STATIC_DIRECTORY / "project-execution-next-step-clarification.html",
+        media_type="text/html",
+    )
+
+
+async def foundation_section_execution_preparation(_request: Request) -> FileResponse:
+    """Return the project-scoped foundation-section preparation workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "foundation-section-execution-preparation.html",
+        media_type="text/html",
+    )
+
+
+async def foundation_section_execution(_request: Request) -> FileResponse:
+    """Return the project-scoped foundation-section execution workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "foundation-section-execution.html",
+        media_type="text/html",
+    )
+
+
+async def foundation_section_measurement(_request: Request) -> FileResponse:
+    """Return the project-scoped physical foundation measurement workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "foundation-section-measurement.html",
+        media_type="text/html",
+    )
+
+
+async def primary_fabric_preparation(_request: Request) -> FileResponse:
+    """Return the project-scoped primary-fabric preparation workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "primary-fabric-preparation.html",
+        media_type="text/html",
+    )
+
+
+async def primary_fabric_execution(_request: Request) -> FileResponse:
+    """Return the project-scoped primary-fabric execution workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "primary-fabric-execution.html",
+        media_type="text/html",
+    )
+
+
+async def primary_fabric_measurement(_request: Request) -> FileResponse:
+    """Return the project-scoped physical primary-fabric measurement workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "primary-fabric-measurement.html",
+        media_type="text/html",
+    )
+
+
+async def project_next_section_planning(_request: Request) -> FileResponse:
+    """Return the planning boundary after the current immutable plan is exhausted."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-next-section-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_construction_strategy_planning(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 77 construction strategy clarification."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-construction-strategy-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_shaping_policy_planning(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 78 shaping-policy clarification."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-shaping-policy-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_sleeve_target_geometry_planning(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 79 sleeve geometry planning workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-sleeve-target-geometry-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_sleeve_physical_execution(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 80 physical sleeve execution workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-sleeve-physical-execution.html",
+        media_type="text/html",
+    )
+
+
+async def project_sleeve_pair_validation(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 81 physical sleeve-pair validation."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-sleeve-pair-validation.html",
+        media_type="text/html",
+    )
+
+
+async def project_body_underarm_physical_confirmation(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 82 body-underarm physical confirmation."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-body-underarm-physical-confirmation.html",
+        media_type="text/html",
+    )
+
+
+async def project_underarm_allocation_planning(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 83 underarm allocation planning workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-underarm-allocation-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_join_layout_planning(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 84 immutable join-layout workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-join-layout-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_underarm_allocation_execution(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 85 physical underarm allocation workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-underarm-allocation-execution.html",
+        media_type="text/html",
+    )
+
+
+async def project_raglan_interface_planning(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 86 immutable raglan-interface workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-raglan-interface-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_body_sleeves_join_execution(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 87 physical body/sleeves join workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-body-sleeves-join-execution.html",
+        media_type="text/html",
+    )
+
+
+async def project_yoke_target_geometry_planning(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 88 yoke target geometry workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-yoke-target-geometry-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_raglan_shaping_schedule_planning(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 89 raglan shaping schedule workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-raglan-shaping-schedule-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_raglan_shaping_execution(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 90 physical raglan shaping workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-raglan-shaping-execution.html",
+        media_type="text/html",
+    )
+
+
+async def project_neckline_opening_planning(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 91 neckline/opening planning workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-neckline-opening-planning.html",
+        media_type="text/html",
+    )
+
+
+async def project_neckline_opening_execution(_request: Request) -> FileResponse:
+    """Return the project-scoped Stage 92 physical neckline/opening workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-neckline-opening-execution.html",
+        media_type="text/html",
+    )
+
+
+async def project_realized_finishable_edge_evidence(_request: Request) -> FileResponse:
+    """Return the project-scoped realized physical edge-evidence workspace."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "project-realized-finishable-edge-evidence.html",
         media_type="text/html",
     )
 
@@ -343,6 +627,38 @@ async def pattern_import(_request: Request) -> FileResponse:
     )
 
 
+async def garment_reference_analysis(_request: Request) -> FileResponse:
+    """Return the garment-reference brief and technology decision page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "garment-reference-analysis.html",
+        media_type="text/html",
+    )
+
+
+async def manual_calculation_intake(_request: Request) -> FileResponse:
+    """Return the local factual-data draft for one confirmed manual route."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "manual-calculation-intake.html",
+        media_type="text/html",
+    )
+
+
+async def garment_polo_execution(_request: Request) -> FileResponse:
+    """Return the measured, resumable flat polo knitting workflow."""
+    return FileResponse(STATIC_DIRECTORY / "garment-polo-execution.html", media_type="text/html")
+
+
+async def garment_reference_happy_path_fixture(_request: Request) -> FileResponse:
+    """Return the test-only isolated garment-reference fixture page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "garment-reference-happy-path-fixture.html",
+        media_type="text/html",
+    )
+
+
 async def pattern_analysis(_request: Request) -> FileResponse:
     """Return the imported-material analysis lifecycle page."""
 
@@ -397,11 +713,29 @@ async def pattern_technology_review(_request: Request) -> FileResponse:
     )
 
 
+async def pattern_source_instruction_evidence(_request: Request) -> FileResponse:
+    """Return the source PDF instruction evidence and review page."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-source-instruction-evidence.html",
+        media_type="text/html",
+    )
+
+
 async def pattern_execution_plan(_request: Request) -> FileResponse:
     """Return the deterministic execution-plan page for confirmed technology."""
 
     return FileResponse(
         STATIC_DIRECTORY / "pattern-execution-plan.html",
+        media_type="text/html",
+    )
+
+
+async def pattern_execution_print(_request: Request) -> FileResponse:
+    """Return the read-only adapted instruction prepared for browser printing."""
+
+    return FileResponse(
+        STATIC_DIRECTORY / "pattern-execution-print.html",
         media_type="text/html",
     )
 
@@ -778,12 +1112,50 @@ def _technical_error_response(code: str) -> JSONResponse:
     )
 
 
-def create_app(settings: RuntimeSettings | None = None) -> Starlette:
+def create_app(
+    settings: RuntimeSettings | None = None,
+    *,
+    vision_gateway: VisionReviewGateway | None = None,
+    garment_reference_gateway: GarmentReferenceGateway | None = None,
+) -> Starlette:
     """Create the public YarnAI HTTP application."""
 
     runtime_settings = settings or RuntimeSettings.from_environment()
     routes = [
         Route("/", user_interface, methods=["GET"]),
+        Route("/saved-projects", saved_projects, methods=["GET"]),
+        Route("/user-workspace-entry", user_workspace_entry, methods=["GET"]),
+        Route("/swatch-assistant", swatch_assistant, methods=["GET"]),
+        Route("/project-calculation-entry", project_calculation_entry, methods=["GET"]),
+        Route("/project-execution-plan", project_execution_plan, methods=["GET"]),
+        Route("/project-execution-start", project_execution_start, methods=["GET"]),
+        Route("/project-execution-first-step", project_execution_first_step, methods=["GET"]),
+        Route("/project-execution-next-step", project_execution_next_step, methods=["GET"]),
+        Route("/project-execution-next-step-clarification", project_execution_next_step_clarification, methods=["GET"]),
+        Route("/project-foundation-section-preparation", foundation_section_execution_preparation, methods=["GET"]),
+        Route("/project-foundation-section-execution", foundation_section_execution, methods=["GET"]),
+        Route("/project-foundation-section-measurement", foundation_section_measurement, methods=["GET"]),
+        Route("/project-primary-fabric-preparation", primary_fabric_preparation, methods=["GET"]),
+        Route("/project-primary-fabric-execution", primary_fabric_execution, methods=["GET"]),
+        Route("/project-primary-fabric-measurement", primary_fabric_measurement, methods=["GET"]),
+        Route("/project-next-section-planning", project_next_section_planning, methods=["GET"]),
+        Route("/project-construction-strategy-planning", project_construction_strategy_planning, methods=["GET"]),
+        Route("/project-shaping-policy-planning", project_shaping_policy_planning, methods=["GET"]),
+        Route("/project-sleeve-geometry-planning", project_sleeve_target_geometry_planning, methods=["GET"]),
+        Route("/project-sleeve-physical-execution", project_sleeve_physical_execution, methods=["GET"]),
+        Route("/project-sleeve-pair-validation", project_sleeve_pair_validation, methods=["GET"]),
+        Route("/project-body-underarm-physical-confirmation", project_body_underarm_physical_confirmation, methods=["GET"]),
+        Route("/project-underarm-allocation-planning", project_underarm_allocation_planning, methods=["GET"]),
+        Route("/project-join-layout-planning", project_join_layout_planning, methods=["GET"]),
+        Route("/project-underarm-allocation-execution", project_underarm_allocation_execution, methods=["GET"]),
+        Route("/project-raglan-interface-planning", project_raglan_interface_planning, methods=["GET"]),
+        Route("/project-body-sleeves-join-execution", project_body_sleeves_join_execution, methods=["GET"]),
+        Route("/project-yoke-target-geometry-planning", project_yoke_target_geometry_planning, methods=["GET"]),
+        Route("/project-raglan-shaping-schedule-planning", project_raglan_shaping_schedule_planning, methods=["GET"]),
+        Route("/project-raglan-shaping-execution", project_raglan_shaping_execution, methods=["GET"]),
+        Route("/project-neckline-opening-planning", project_neckline_opening_planning, methods=["GET"]),
+        Route("/project-neckline-opening-execution", project_neckline_opening_execution, methods=["GET"]),
+        Route("/project-realized-finishable-edge-evidence", project_realized_finishable_edge_evidence, methods=["GET"]),
         Route("/calculator", width_calculator, methods=["GET"]),
         Route("/about", about_first_function, methods=["GET"]),
         Route("/example", canonical_example, methods=["GET"]),
@@ -823,6 +1195,22 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
             methods=["GET"],
         ),
         Route(
+            "/garment-reference-analysis",
+            garment_reference_analysis,
+            methods=["GET"],
+        ),
+        Route(
+            "/manual-calculation-intake",
+            manual_calculation_intake,
+            methods=["GET"],
+        ),
+        Route("/garment-polo-execution", garment_polo_execution, methods=["GET"]),
+        Route(
+            "/garment-reference-happy-path-fixture",
+            garment_reference_happy_path_fixture,
+            methods=["GET"],
+        ),
+        Route(
             "/pattern-analysis",
             pattern_analysis,
             methods=["GET"],
@@ -853,8 +1241,18 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
             methods=["GET"],
         ),
         Route(
+            "/pattern-source-instruction-evidence",
+            pattern_source_instruction_evidence,
+            methods=["GET"],
+        ),
+        Route(
             "/pattern-execution-plan",
             pattern_execution_plan,
+            methods=["GET"],
+        ),
+        Route(
+            "/pattern-execution-print",
+            pattern_execution_print,
             methods=["GET"],
         ),
         Route(
@@ -1030,6 +1428,16 @@ def create_app(settings: RuntimeSettings | None = None) -> Starlette:
                 create_session_factory(engine),
             ).routes()
         )
+    routes.extend(
+        VisionReviewHttpApi(
+            vision_gateway or VisionReviewGateway(VisionGatewaySettings()),
+        ).routes()
+    )
+    routes.extend(
+        GarmentReferenceHttpApi(
+            garment_reference_gateway or GarmentReferenceGateway(),
+        ).routes()
+    )
     routes.append(
         Mount(
             "/static",

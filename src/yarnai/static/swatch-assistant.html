@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Измерение контрольного образца и подтверждение плотности для проекта YarnAI.">
+    <title>Плотность образца — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/swatch-assistant-workspace.css">
+    <script src="/static/project-readiness-engine.js" defer></script>
+    <script src="/static/project-details-experience.js" defer></script>
+    <script src="/static/project-details-closure.js" defer></script>
+    <script src="/static/project-initialization.js" defer></script>
+    <script src="/static/user-workspace-entry.js" defer></script>
+    <script src="/static/swatch-gauge.js" defer></script>
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/swatch-assistant-workspace.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a id="workspace-back" href="/" class="back-link">← В рабочее пространство</a>
+      <span class="brand">YarnAI</span>
+    </header>
+    <main id="swatch-workspace" class="workspace" aria-labelledby="page-title">
+      <section id="loading-state" class="state-card" aria-live="polite">
+        <p>Проверяем проект и сохранённые измерения…</p>
+      </section>
+      <section id="blocked-state" class="state-card state-card-error" hidden>
+        <p class="eyebrow">Работа приостановлена</p>
+        <h1 id="blocked-title">Не удалось открыть помощник</h1>
+        <p id="blocked-message"></p>
+        <a id="blocked-action" class="button button-primary" href="/">Вернуться в проект</a>
+      </section>
+      <div id="ready-state" hidden>
+        <section class="hero">
+          <div>
+            <p class="eyebrow">Контрольный образец</p>
+            <h1 id="page-title">Подтвердим вашу плотность</h1>
+            <p class="lead">Введите реальный замер связанного образца. До явного подтверждения результат останется черновиком.</p>
+          </div>
+          <div class="status-stack">
+            <span id="swatch-status" class="status-chip">Черновик</span>
+            <span id="gauge-status" class="status-chip status-chip-muted">Плотность не подтверждена</span>
+          </div>
+        </section>
+
+        <section class="project-card" aria-labelledby="project-context-title">
+          <div id="project-image-wrap" class="project-image-wrap" hidden>
+            <img id="project-image" alt="">
+          </div>
+          <div class="project-copy">
+            <p class="eyebrow">Ваш проект</p>
+            <h2 id="project-context-title"></h2>
+            <dl class="facts">
+              <div><dt>Изделие</dt><dd id="context-garment"></dd></div>
+              <div><dt>Размер</dt><dd id="context-size"></dd></div>
+              <div><dt>Получатель</dt><dd id="context-recipient"></dd></div>
+              <div><dt>Пряжа</dt><dd id="context-yarn"></dd></div>
+              <div><dt>Инструмент</dt><dd id="context-tool"></dd></div>
+              <div><dt>Способ вязания</dt><dd id="context-technique"></dd></div>
+            </dl>
+          </div>
+        </section>
+
+        <form id="gauge-form" novalidate>
+          <section class="work-card" aria-labelledby="preparation-title">
+            <div class="section-heading">
+              <span class="step-number">1</span>
+              <div><h2 id="preparation-title">Подготовка образца</h2><p id="swatch-explanation">Измеряем образец из выбранной пряжи и основным узором проекта.</p></div>
+            </div>
+            <fieldset>
+              <legend>Подтвердите состояние образца</legend>
+              <div class="check-grid">
+                <label><input name="knitted" type="checkbox"> Образец связан</label>
+                <label><input name="washed" type="checkbox"> Обработан как готовое изделие</label>
+                <label><input name="dry" type="checkbox"> Полностью высушен</label>
+                <label><input name="unstretched" type="checkbox"> Измерен без растягивания</label>
+                <label><input name="representative" type="checkbox"> Выбрана репрезентативная область узора</label>
+                <label><input name="same-yarn" type="checkbox"> Та же пряжа</label>
+                <label><input name="same-tools" type="checkbox"> Те же спицы или крючок</label>
+                <label><input name="same-pattern" type="checkbox"> Тот же основной узор</label>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="work-card" aria-labelledby="measurement-title">
+            <div class="section-heading">
+              <span class="step-number">2</span>
+              <div><h2 id="measurement-title">Измерение</h2><p>Считайте петли и ряды внутри одного и того же прямоугольного участка, без кромок.</p></div>
+            </div>
+            <fieldset>
+              <legend>Единицы длины</legend>
+              <div class="segmented">
+                <label><input name="unit" type="radio" value="cm" checked> Сантиметры</label>
+                <label><input name="unit" type="radio" value="in"> Дюймы</label>
+              </div>
+              <p id="unit-help" class="hint">Можно измерить любой участок, не только 10 × 10 см.</p>
+            </fieldset>
+            <div class="measurement-grid">
+              <label for="stitches">Количество петель
+                <input id="stitches" name="stitches" type="number" inputmode="decimal" min="0.01" max="10000" step="any" aria-describedby="stitches-error">
+                <span id="stitches-error" class="field-error"></span>
+              </label>
+              <label for="rows">Количество рядов
+                <input id="rows" name="rows" type="number" inputmode="decimal" min="0.01" max="10000" step="any" aria-describedby="rows-error">
+                <span id="rows-error" class="field-error"></span>
+              </label>
+              <label for="width">Ширина участка, <span class="unit-label">см</span>
+                <input id="width" name="width" type="number" inputmode="decimal" min="0.01" step="any" aria-describedby="width-error">
+                <span id="width-error" class="field-error"></span>
+              </label>
+              <label for="height">Высота участка, <span class="unit-label">см</span>
+                <input id="height" name="height" type="number" inputmode="decimal" min="0.01" step="any" aria-describedby="height-error">
+                <span id="height-error" class="field-error"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="work-card" aria-labelledby="photo-title">
+            <div class="section-heading">
+              <span class="step-number">3</span>
+              <div><h2 id="photo-title">Фотография образца</h2><p>Фото хранится только локально как материал проекта; YarnAI не выдаёт его за AI-анализ.</p></div>
+            </div>
+            <input id="swatch-photo-input" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+            <div id="photo-empty" class="photo-empty">
+              <button id="choose-photo" type="button" class="button button-secondary">Добавить фотографию</button>
+              <small>JPEG, PNG или WebP, до 20 МБ</small>
+            </div>
+            <figure id="photo-preview-wrap" class="photo-preview" hidden>
+              <img id="photo-preview" alt="Фотография измеряемого контрольного образца">
+              <figcaption><span id="photo-name"></span>
+                <button id="replace-photo" type="button">Заменить</button>
+                <button id="remove-photo" type="button">Убрать</button>
+              </figcaption>
+            </figure>
+            <p id="photo-status" class="inline-status" role="status" tabindex="-1"></p>
+          </section>
+
+          <section class="result-card" aria-labelledby="result-title">
+            <div class="section-heading">
+              <span class="step-number">4</span>
+              <div><h2 id="result-title">Результат</h2><p>Плотность нормализуется к 10 см без преждевременной потери точности.</p></div>
+            </div>
+            <div id="gauge-result" class="gauge-result" aria-live="polite">
+              <div><strong id="stitch-result">—</strong><span>петель на 10 см</span></div>
+              <div><strong id="row-result">—</strong><span>рядов на 10 см</span></div>
+            </div>
+            <div id="error-summary" class="issues issues-error" role="alert" tabindex="-1" hidden>
+              <h3>Что нужно исправить</h3><ul id="error-list"></ul>
+            </div>
+            <div id="warning-summary" class="issues issues-warning" hidden>
+              <h3>Обратите внимание</h3><ul id="warning-list"></ul>
+            </div>
+            <div id="assumption-summary" class="issues" hidden>
+              <h3>Как посчитано</h3><ul id="assumption-list"></ul>
+            </div>
+            <label id="warning-ack-wrap" class="acknowledgement" hidden>
+              <input id="warning-ack" type="checkbox">
+              Я прочитала серьёзные предупреждения и всё равно подтверждаю этот замер
+            </label>
+            <div class="confirm-row">
+              <button id="confirm-gauge" class="button button-primary" type="button" disabled>Подтвердить плотность</button>
+              <p id="save-status" role="status" aria-live="polite" tabindex="-1">Черновик ещё не сохранён.</p>
+            </div>
+          </section>
+        </form>
+
+        <section id="confirmed-panel" class="confirmed-panel" hidden aria-labelledby="confirmed-title">
+          <p class="eyebrow">Плотность подтверждена</p>
+          <h2 id="confirmed-title">Результат сохранён для этого проекта</h2>
+          <p id="confirmed-summary"></p>
+          <a id="continue-workspace" class="button button-primary" href="/">Продолжить работу над изделием</a>
+        </section>
+        <section id="history-panel" class="history-panel" hidden>
+          <h2>История измерений</h2>
+          <ol id="history-list"></ol>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

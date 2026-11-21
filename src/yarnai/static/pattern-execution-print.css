@@ -1,0 +1,71 @@
+@page { size: A4; margin: 16mm 15mm 18mm; }
+
+body { background: #f4f1eb; color: #211f1b; }
+.print-shell { width: min(100% - 2rem, 54rem); margin: 0 auto; padding: 1rem 0 3rem; }
+.print-state, .print-document { background: #fff; border: 1px solid #ded8ce; border-radius: 1rem; box-shadow: 0 .75rem 2rem rgba(52, 43, 31, .08); }
+.print-state { padding: 2rem; }
+.print-blocked { border-color: #d49b7b; }
+.print-actions { position: sticky; top: .75rem; z-index: 2; display: flex; flex-wrap: wrap; gap: .65rem; justify-content: flex-end; padding: .9rem; border-bottom: 1px solid #e5dfd6; background: rgba(255, 255, 255, .96); }
+.print-document { overflow: clip; }
+.document-header, .document-section, .document-footer { padding: 1.35rem 2rem; }
+.document-header { padding-top: 2.2rem; border-bottom: 2px solid #2f684d; }
+.document-kicker { margin: 0 0 .5rem; color: #2f684d; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.document-header h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.7rem); line-height: 1.12; overflow-wrap: anywhere; }
+.document-purpose { margin: .7rem 0 0; font-size: 1.15rem; font-weight: 700; }
+.document-section { border-bottom: 1px solid #e7e1d8; }
+.document-section h2 { margin: 0 0 1rem; font-size: 1.35rem; }
+.before-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 0; }
+.before-grid div { min-width: 0; padding: .75rem; border-radius: .65rem; background: #f5f3ee; }
+.before-grid dt, .glossary-list dt { font-weight: 800; }
+.before-grid dd, .glossary-list dd { margin: .25rem 0 0; overflow-wrap: anywhere; }
+.change-list { display: grid; gap: .85rem; }
+.print-change { padding: .9rem 1rem; border-left: .25rem solid #7aa98c; background: #f7faf7; break-inside: avoid; page-break-inside: avoid; }
+.print-change h3 { margin: 0 0 .6rem; font-size: 1.05rem; }
+.print-change p { margin: .35rem 0; }
+.change-label { font-weight: 800; }
+.glossary-list { display: grid; grid-template-columns: auto 1fr; gap: .45rem .75rem; margin: 0; }
+.glossary-list dd { margin: 0; }
+.status-note { border: 1px solid #94b7a2; border-left-width: .35rem; background: #f2f8f4; }
+.status-note p { margin: .4rem 0; font-weight: 650; }
+.instruction-section { border-bottom: 0; }
+.step-count { color: #565149; }
+.print-phase { margin-top: 1.4rem; }
+.print-phase > h3 { margin: 0 0 .7rem; padding-bottom: .35rem; border-bottom: 2px solid #d8e4dc; font-size: 1.18rem; break-after: avoid; page-break-after: avoid; }
+.print-step { display: grid; grid-template-columns: 2.35rem minmax(0, 1fr); gap: .7rem; margin: 0; padding: .85rem 0; border-bottom: 1px solid #e9e4dc; break-inside: avoid; page-break-inside: avoid; }
+.step-number { display: grid; place-items: center; align-self: start; width: 2.15rem; height: 2.15rem; border-radius: 50%; background: #2f684d; color: #fff; font-weight: 800; }
+.step-body { min-width: 0; }
+.step-body h4 { margin: 0 0 .35rem; font-size: 1rem; }
+.step-body p { margin: .28rem 0; overflow-wrap: anywhere; }
+.step-detail { color: #5b554d; font-size: .93rem; }
+.document-footer { border-top: 2px solid #2f684d; color: #4f4a43; font-size: .9rem; }
+.document-footer p { margin: 0; }
+
+@media (max-width: 620px) {
+  .print-shell { width: min(100% - 1rem, 54rem); }
+  .document-header, .document-section, .document-footer { padding: 1rem; }
+  .before-grid { grid-template-columns: 1fr; }
+  .print-actions { display: grid; grid-template-columns: 1fr; }
+  .print-actions > * { width: 100%; }
+}
+
+@media print {
+  html, body { width: 210mm; min-height: 297mm; background: #fff !important; }
+  body { margin: 0; font-family: Arial, "Helvetica Neue", sans-serif; font-size: 10pt; line-height: 1.4; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .no-print, .site-header, .noscript-message { display: none !important; }
+  .print-shell { width: auto; margin: 0; padding: 0; }
+  .print-document { border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+  .document-header, .document-section { padding: 0 0 7mm; margin: 0 0 7mm; }
+  .instruction-section { padding-bottom: 1mm; margin-bottom: 1mm; }
+  .document-footer { padding: 2mm 0 0; margin: 0; font-size: 8.5pt; line-height: 1.25; }
+  .document-header { padding-top: 0; }
+  .document-header h1 { font-size: 22pt; }
+  .document-section h2 { font-size: 15pt; break-after: avoid; page-break-after: avoid; }
+  .before-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .print-change { background: #f7faf7 !important; }
+  .status-note { padding: 4mm; background: #f2f8f4 !important; }
+  .print-step { grid-template-columns: 9mm minmax(0, 1fr); padding: 3mm 0; }
+  .step-number { width: 8mm; height: 8mm; background: #2f684d !important; color: #fff !important; }
+  .print-phase { break-before: auto; page-break-before: auto; }
+  .print-phase > h3, .step-body h4 { orphans: 3; widows: 3; }
+  a { color: inherit; text-decoration: none; }
+}

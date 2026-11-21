@@ -1,0 +1,193 @@
+.project-details-collaboration-card {
+  grid-column: 1 / -1;
+  margin-top: 1.25rem;
+  border: 1px solid #d8d0c3;
+  border-radius: 1.25rem;
+  background: #fffdf8;
+  overflow: hidden;
+}
+
+.project-details-collaboration-card > summary {
+  padding: 1.1rem 1.25rem;
+  cursor: pointer;
+  font-weight: 750;
+  list-style-position: inside;
+}
+
+.project-details-collaboration-content,
+.project-details-collaboration-helper {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.project-details-collaboration-grid,
+.project-details-collaboration-editor,
+.project-details-review-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.project-details-collaboration-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.project-details-collaboration-fieldset,
+.project-details-collaboration-panel,
+.project-details-review-row {
+  min-width: 0;
+  margin: 0;
+  padding: 1rem;
+  border: 1px solid #ded7cb;
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.project-details-collaboration-fieldset legend {
+  padding: 0 .35rem;
+  font-weight: 700;
+}
+
+.project-details-collaboration-options {
+  display: grid;
+  gap: .65rem;
+}
+
+.project-details-collaboration-options label,
+.project-details-review-decisions label {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+}
+
+.project-details-collaboration-field {
+  display: grid;
+  gap: .4rem;
+  min-width: 0;
+}
+
+.project-details-collaboration-field input,
+.project-details-collaboration-field textarea,
+.project-details-collaboration-field select {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+.project-details-collaboration-actions,
+.project-details-review-decisions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.project-details-collaboration-status {
+  overflow-wrap: anywhere;
+  min-height: 1.4em;
+}
+
+.project-details-collaboration-error {
+  border-left: .3rem solid #9b2c2c;
+  padding-left: .8rem;
+  color: #681c1c;
+}
+
+.project-details-collaboration-scope,
+.project-details-collaboration-values,
+.project-details-review-values {
+  margin: .75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-details-collaboration-values li,
+.project-details-review-values li {
+  display: grid;
+  grid-template-columns: minmax(7rem, .45fr) minmax(0, 1fr);
+  gap: .5rem;
+  padding: .45rem 0;
+  border-bottom: 1px solid #eee8de;
+  overflow-wrap: anywhere;
+}
+
+.project-details-collaboration-readonly {
+  display: inline-block;
+  margin-left: .45rem;
+  font-size: .78rem;
+  color: #645b50;
+}
+
+.project-details-review-row[data-conflict="true"] {
+  border-color: #a85d1b;
+  box-shadow: inset .25rem 0 #a85d1b;
+}
+
+.project-details-review-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+}
+
+.project-details-review-values li {
+  display: block;
+  border: 0;
+  border-radius: .75rem;
+  background: #f6f1e8;
+  padding: .75rem;
+}
+
+.project-details-review-values strong,
+.project-details-review-values span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.project-details-collaboration-helper-shell {
+  max-width: 70rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.project-details-collaboration-helper[hidden],
+.project-details-review-panel[hidden] {
+  display: none !important;
+}
+
+.project-details-collaboration-card button:focus-visible,
+.project-details-collaboration-card input:focus-visible,
+.project-details-collaboration-card textarea:focus-visible,
+.project-details-collaboration-helper button:focus-visible,
+.project-details-collaboration-helper input:focus-visible,
+.project-details-collaboration-helper textarea:focus-visible {
+  outline: 3px solid #365f55;
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  .project-details-collaboration-grid,
+  .project-details-review-values {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .project-details-collaboration-card,
+  .project-details-collaboration-content,
+  .project-details-collaboration-helper,
+  .project-details-collaboration-panel,
+  .project-details-review-row {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .project-details-collaboration-actions > * {
+    width: 100%;
+  }
+}
+
+@media (max-width: 390px) {
+  .project-details-collaboration-card > summary,
+  .project-details-collaboration-content,
+  .project-details-collaboration-helper {
+    padding-left: .8rem;
+    padding-right: .8rem;
+  }
+}

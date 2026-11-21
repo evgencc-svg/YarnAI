@@ -30,19 +30,17 @@ class _PatternImportParser(HTMLParser):
             self.assets.append(values["src"] or "")
         if tag == "link" and values.get("href"):
             self.assets.append(values["href"] or "")
-        if tag == "img" and values.get("src"):
-            self.assets.append(values["src"] or "")
         if tag == "input" and values.get("id") == "pattern-import-input":
             self.file_input = values
 
 
-def test_pattern_import_route_serves_separate_intake_screen() -> None:
-    response = TestClient(app).get("/import-pattern")
+def test_pattern_import_route_serves_material_intake_screen() -> None:
+    response = TestClient(app).get("/import-pattern?project=test-project")
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
-    assert "Import Pattern" in response.text
-    assert "Все материалы войдут в один будущий проект" in response.text
+    assert "Что у тебя есть?" in response.text
+    assert "Добавь фото, схему, PDF или описание вещи" in response.text
     assert 'id="pattern-import-workflow"' in response.text
 
 
@@ -60,8 +58,9 @@ def test_pattern_import_assets_are_local_and_available() -> None:
         "/static/first-blocking.js",
         "/static/pattern-analysis.js",
         "/static/pattern-import.js",
-        "/static/pattern-import-assistant.js",
-        "/static/favicon.png",
+        "/static/garment-reference-analysis.js",
+        "/static/material-intake-experience.js",
+        "/static/material-intake-experience-assistant.js",
     ]
     for asset in parser.assets:
         assert asset.startswith("/static/")
@@ -70,19 +69,19 @@ def test_pattern_import_assets_are_local_and_available() -> None:
         assert response.content
 
 
-def test_pattern_import_ui_has_material_list_and_explicit_confirmation() -> None:
+def test_pattern_import_ui_has_material_list_and_explicit_action() -> None:
     html = (STATIC / "pattern-import.html").read_text(encoding="utf-8")
     parser = _PatternImportParser()
     parser.feed(html)
 
     for element_id in (
-        "pattern-import-add",
+        "material-intake-drop-zone",
         "pattern-import-input",
         "pattern-import-materials",
-        "pattern-import-confirm",
+        "material-intake-description",
+        "material-intake-summary-title",
         "pattern-import-continue",
         "pattern-import-corrupted",
-        "pattern-import-reset",
         "pattern-import-blocked",
         "pattern-import-completed",
     ):
@@ -93,34 +92,32 @@ def test_pattern_import_ui_has_material_list_and_explicit_confirmation() -> None
     assert "application/pdf" in accept
     assert "image/*" in accept
     assert "text/plain" in accept
-    assert ">Продолжить<" in "".join(html.split())
-    assert 'id="pattern-import-continue"' in html
+    assert "Проверить материалы" in html
     assert "disabled" in html.split('id="pattern-import-continue"', 1)[1].split(">", 1)[0]
 
 
-def test_stage_14_completed_view_is_the_only_entry_point() -> None:
-    html = (STATIC / "first-blocking.html").read_text(encoding="utf-8")
-    controller = (STATIC / "first-blocking-assistant.js").read_text(
+def test_home_and_legacy_entry_points_still_target_import_pattern() -> None:
+    blocking_html = (STATIC / "first-blocking.html").read_text(encoding="utf-8")
+    blocking_controller = (STATIC / "first-blocking-assistant.js").read_text(
         encoding="utf-8"
     )
-    engine = (STATIC / "first-blocking.js").read_text(encoding="utf-8")
+    workspace_controller = (
+        STATIC / "user-workspace-entry-assistant.js"
+    ).read_text(encoding="utf-8")
 
-    assert 'id="blocking-pattern-import-link"' in html
-    assert 'href="/import-pattern"' in html
-    assert "/import-pattern?project=" in controller
-    assert 'result.blocking.status === "completed"' in engine
-    assert "Создать проект по описанию" in engine
+    assert 'id="blocking-pattern-import-link"' in blocking_html
+    assert 'href="/import-pattern"' in blocking_html
+    assert "/import-pattern?project=" in blocking_controller
+    assert 'let createDestination = "/import-pattern"' in workspace_controller
 
 
-def test_intake_does_not_read_or_analyze_material_contents() -> None:
-    html = (STATIC / "pattern-import.html").read_text(encoding="utf-8")
-    engine = (STATIC / "pattern-import.js").read_text(encoding="utf-8")
-    controller = (STATIC / "pattern-import-assistant.js").read_text(
-        encoding="utf-8"
-    )
-    scripts = f"{engine}\n{controller}"
+def test_intake_does_not_analyze_material_contents() -> None:
+    domain = (STATIC / "material-intake-experience.js").read_text(encoding="utf-8")
+    controller = (
+        STATIC / "material-intake-experience-assistant.js"
+    ).read_text(encoding="utf-8")
+    scripts = f"{domain}\n{controller}"
 
-    assert "Содержимое не читается, не распознаётся и не анализируется" in html
     for forbidden_api in (
         "FileReader",
         ".arrayBuffer(",
@@ -131,27 +128,11 @@ def test_intake_does_not_read_or_analyze_material_contents() -> None:
         "createImageBitmap",
     ):
         assert forbidden_api not in scripts
-    assert "PATTERN_IMPORT" in engine
-    assert "sourceFingerprint" in engine
-    assert "materials" in engine
+    assert "createObjectURL" in controller
+    assert "revokeObjectURL" in controller
 
 
-def test_stage_16_is_absent_and_no_preview_is_rendered() -> None:
-    html = (STATIC / "pattern-import.html").read_text(encoding="utf-8")
-    engine = (STATIC / "pattern-import.js").read_text(encoding="utf-8")
-    controller = (STATIC / "pattern-import-assistant.js").read_text(
-        encoding="utf-8"
-    )
-    combined = f"{html}\n{engine}\n{controller}"
-
-    assert "Stage 16" not in combined
-    assert "STAGE_16" not in combined
-    assert "preview" not in combined.lower()
-    assert "thumbnail" not in combined.lower()
-    assert "<canvas" not in html.lower()
-
-
-def test_existing_routes_remain_available_with_pattern_import() -> None:
+def test_existing_routes_remain_available_with_material_intake() -> None:
     client = TestClient(app)
     for route in (
         "/",

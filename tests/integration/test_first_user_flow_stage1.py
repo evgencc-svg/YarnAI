@@ -82,9 +82,9 @@ def test_root_leads_with_three_intention_actions(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/html")
     assert "Что ты хочешь связать?" in page.headings
-    assert "📷 Показать фотографию изделия." in page.buttons["choose-photo"]
-    assert "📄 Загрузить схему или описание." in page.buttons["choose-pattern"]
-    assert "💬 Просто рассказать словами." in page.buttons["choose-text"]
+    assert "Фото Показать фотографию изделия." in page.buttons["choose-photo"]
+    assert "PDF Загрузить схему или описание." in page.buttons["choose-pattern"]
+    assert "Аа Просто рассказать словами." in page.buttons["choose-text"]
     assert "Желаемая ширина" not in response.text
     assert "Плотность" not in response.text
     assert "Создать аккаунт" not in response.text
@@ -109,12 +109,59 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
     response = client.get("/")
     page = parse_flow(response.text)
 
-    assert page.stylesheets == ["/static/first-user-flow.css"]
+    assert page.stylesheets == [
+        "/static/first-user-flow.css",
+        "/static/user-workspace-entry.css",
+        "/static/project-details-experience.css",
+        "/static/project-details-collaboration.css",
+        "/static/project-details-closure.css",
+        "/static/project-initialization.css",
+    ]
     assert page.scripts == [
         "/static/intent-engine.js",
         "/static/project-readiness-engine.js",
         "/static/swatch-assistant.js",
         "/static/project-system.js",
+        "/static/project-backup.js",
+        "/static/project-details-experience.js",
+        "/static/project-details-collaboration.js",
+        "/static/project-details-closure.js",
+        "/static/project-initialization.js",
+        "/static/swatch-gauge.js",
+        "/static/project-calculation-entry.js",
+        "/static/project-execution-plan.js",
+        "/static/project-execution-plan-workspace.js",
+        "/static/project-execution-start.js",
+        "/static/project-execution-start-workspace.js",
+        "/static/project-execution-first-step.js",
+        "/static/project-execution-first-step-workspace.js",
+        "/static/project-execution-next-step.js",
+        "/static/project-execution-next-step-workspace.js",
+        "/static/project-execution-next-step-clarification.js",
+        "/static/project-execution-next-step-clarification-workspace.js",
+        "/static/foundation-section-execution-preparation.js",
+        "/static/foundation-section-execution.js",
+        "/static/foundation-section-measurement.js",
+        "/static/primary-fabric-preparation.js",
+        "/static/primary-fabric-execution.js",
+        "/static/primary-fabric-measurement.js",
+        "/static/project-next-section-planning.js",
+        "/static/project-construction-strategy-planning.js",
+        "/static/project-shaping-policy-planning.js",
+        "/static/project-sleeve-target-geometry-planning.js",
+        "/static/project-sleeve-physical-execution.js",
+        "/static/project-underarm-allocation-execution.js",
+        "/static/project-raglan-interface-planning.js",
+        "/static/project-body-sleeves-join-execution.js",
+        "/static/project-yoke-target-geometry-planning.js",
+        "/static/project-raglan-shaping-schedule-planning.js",
+        "/static/project-raglan-shaping-execution.js",
+        "/static/project-neckline-opening-planning-v1.js",
+            "/static/project-neckline-opening-planning-v2.js",
+            "/static/project-neckline-opening-planning.js",
+            "/static/project-neckline-opening-execution.js",
+            "/static/project-realized-finishable-edge-evidence.js",
+            "/static/user-workspace-entry.js?v=20260830-stage22-stale-route-v6",
         "/static/calculated-project.js",
         "/static/first-knitting-step.js",
         "/static/first-fabric-section.js",
@@ -127,6 +174,12 @@ def test_flow_assets_are_packaged_and_use_no_external_dependencies(
         "/static/first-tail-securing.js",
         "/static/first-blocking.js",
         "/static/first-user-flow.js",
+        "/static/user-workspace-entry-assistant.js",
+        "/static/project-backup-assistant.js",
+        "/static/project-details-experience-assistant.js",
+        "/static/project-details-collaboration-assistant.js",
+        "/static/project-details-closure-assistant.js",
+        "/static/project-initialization-assistant.js",
     ]
     for asset in [*page.stylesheets, *page.scripts]:
         asset_response = client.get(asset)

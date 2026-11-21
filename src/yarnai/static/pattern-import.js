@@ -378,6 +378,7 @@
     const sourceState = validCompletedSource(sourceRecord?.state)
       ? copy(sourceRecord.state)
       : null;
+    const directIntakeSource = validDirectIntakeCalculation(calculation);
     const progress = oneProgress(
       aggregate,
       PROGRESS_KIND,
@@ -388,16 +389,16 @@
       project,
       projectId: project.project_id,
       calculation,
-      sourceCompleted: Boolean(sourceState),
+      sourceCompleted: Boolean(sourceState || directIntakeSource),
     };
     if (!raw) {
       return {
         ...aggregateResult(
-          sourceState ? "missing" : "blocked",
+          sourceState || directIntakeSource ? "missing" : "blocked",
           project,
           calculation,
           null,
-          sourceState
+          sourceState || directIntakeSource
             ? []
             : [
                 notice(
@@ -406,7 +407,7 @@
                 ),
               ],
         ),
-        source: sourceState,
+        source: sourceState || directIntakeSource,
         sourceProgress: sourceRecord || null,
         progress: progress || null,
         input,
@@ -418,7 +419,7 @@
         ...aggregateResult("corrupted", project, calculation, null, [
           restored.diagnostic,
         ]),
-        source: sourceState,
+        source: sourceState || directIntakeSource,
         sourceProgress: sourceRecord || null,
         progress,
         rawState: copy(raw),
@@ -434,7 +435,7 @@
             "Запись Import Pattern относится к другому проекту.",
           ),
         ]),
-        source: sourceState,
+        source: sourceState || directIntakeSource,
         sourceProgress: sourceRecord || null,
         progress,
         rawState: copy(raw),
@@ -445,7 +446,7 @@
         input,
       };
     }
-    if (!sourceState) {
+    if (!sourceState && !directIntakeSource) {
       return {
         ...aggregateResult("blocked", project, calculation, restored.state, [
           notice(
@@ -467,7 +468,7 @@
         restored.state,
         restored.state.blockers,
       ),
-      source: sourceState,
+      source: sourceState || directIntakeSource,
       sourceProgress: sourceRecord,
       progress,
       input,
@@ -788,6 +789,15 @@
         value.type === SOURCE_PROGRESS_KIND &&
         value.status === "completed" &&
         value.completedAt,
+    );
+  }
+
+  function validDirectIntakeCalculation(value) {
+    return Boolean(
+      isRecord(value) &&
+        value.domain_status === "READY" &&
+        value.request?.workflow_kind === "material_intake" &&
+        value.request?.version === 1,
     );
   }
 

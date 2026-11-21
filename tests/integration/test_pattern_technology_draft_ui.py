@@ -171,3 +171,32 @@ def test_stage_19_and_stage_20_navigation_is_bidirectional() -> None:
     assert "/pattern-technology-draft?project=" in review_controller
     assert "Вернуться к проверке анализа" in technology_html
     assert "/pattern-analysis-review?project=" in technology_controller
+
+
+def test_stage_20_separates_source_and_adaptation_and_is_honest_about_plan() -> None:
+    html = (STATIC / "pattern-technology-draft.html").read_text(encoding="utf-8")
+    assistant = (STATIC / "pattern-technology-experience-assistant.js").read_text(
+        encoding="utf-8"
+    )
+    domain = (STATIC / "pattern-technology-experience.js").read_text(
+        encoding="utf-8"
+    )
+
+    for element_id in (
+        "technology-source-evidence-list",
+        "technology-adaptation-profile-list",
+        "technology-plan-status",
+        "technology-plan-status-counts",
+    ):
+        assert f'id="{element_id}"' in html
+    assert "SOURCE_PATTERN_EVIDENCE" in html
+    assert "USER_ADAPTATION_PROFILE" in html
+    assert "Технологический план ещё не построен" in html
+    prepare_draft = assistant[
+        assistant.index("async function prepareDraft") : assistant.index(
+            "function renderCurrent"
+        )
+    ]
+    assert "reviewApi.ensureForProject" not in prepare_draft
+    assert "MISSING_OPERATIONS" in domain
+    assert "MISSING_FINISHING" in domain

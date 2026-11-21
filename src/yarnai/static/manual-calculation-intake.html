@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Локальный черновик фактических данных для будущего ручного расчёта YarnAI.">
+    <title>Подготовка данных для расчёта — YarnAI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="stylesheet" href="/static/garment-reference-analysis.css">
+    <link rel="stylesheet" href="/static/manual-calculation-intake.css">
+    <script src="/static/project-system.js" defer></script>
+    <script src="/static/garment-reference-analysis.js" defer></script>
+    <script src="/static/garment-measurement-requirements.js" defer></script>
+    <script src="/static/garment-yarn-requirements.js" defer></script>
+    <script src="/static/garment-yarn-recommendation.js" defer></script>
+    <script src="/static/garment-yarn-target-decision.js" defer></script>
+    <script src="/static/manual-calculation-intake.js" defer></script>
+    <script src="/static/garment-actual-yarn.js" defer></script>
+    <script src="/static/manual-intake-validation.js" defer></script>
+    <script src="/static/garment-calculation-preview.js" defer></script>
+    <script src="/static/garment-set-in-geometry.js" defer></script>
+    <script src="/static/garment-polo-finishing.js" defer></script>
+    <script src="/static/garment-set-in-design.js" defer></script>
+    <script src="/static/garment-set-in-design-assistant.js" defer></script>
+    <script src="/static/garment-polo-finishing-assistant.js" defer></script>
+    <script src="/static/manual-calculation-intake-assistant.js" defer></script>
+    <script src="/static/garment-actual-yarn-assistant.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/saved-projects">YarnAI</a>
+      <span id="project-title">Проект по фотографии</span>
+      <a href="/saved-projects">Мои проекты</a>
+    </header>
+    <main id="manual-intake-root" class="shell" aria-busy="true">
+      <section id="loading" class="panel" aria-live="polite"><p>Открываем сохранённый черновик…</p></section>
+      <section id="blocked" class="panel blocked" role="alert" hidden>
+        <h1>Подготовка данных недоступна</h1>
+        <p id="blocked-message"></p>
+        <a id="blocked-back" class="button secondary" href="/saved-projects">Вернуться к проектам</a>
+      </section>
+      <div id="content" hidden>
+        <section class="hero panel">
+          <p class="eyebrow">Только фактические данные</p>
+          <h1>Подготовка данных для расчёта</h1>
+          <p>Фотография не содержит точных размеров, плотности и внутренних соединений. Введи фактические сведения и подтверди их: ниже появится базовый перевод размеров в петли и ряды. Полная инструкция требует отдельного расчёта формы деталей.</p>
+          <p><a id="analysis-back" href="#">← Вернуться к исходному анализу</a></p>
+        </section>
+
+        <section class="panel intake-summary" aria-labelledby="technology-title">
+          <div>
+            <p class="eyebrow">Подтверждённый ручной маршрут</p>
+            <h2 id="technology-title"></h2>
+            <p id="draft-state" class="status-chip">Черновик</p>
+          </div>
+          <div>
+            <strong>Последнее сохранение</strong>
+            <p id="last-saved">—</p>
+          </div>
+        </section>
+
+        <section id="yarn-route-panel" class="panel yarn-route-panel" aria-labelledby="yarn-route-title">
+          <p class="eyebrow">Сначала один выбор</p>
+          <h2 id="yarn-route-title">У вас уже есть пряжа, которую вы хотите использовать для этого изделия?</h2>
+          <div class="route-actions" role="group" aria-label="Маршрут выбора пряжи">
+            <button id="choose-existing-yarn" class="button" type="button">Да, пряжа уже есть</button>
+            <button id="choose-recommended-yarn" class="button secondary" type="button">Нет, помогите выбрать</button>
+          </div>
+          <p id="yarn-route-status" class="muted" role="status">Выбор маршрута ещё не сохранён. Конкретная пряжа не подтверждена.</p>
+
+          <div id="existing-yarn-route" class="actual-yarn-route" hidden>
+            <h3>Добавьте данные имеющейся пряжи</h3>
+            <p class="muted">Автоматического чтения этикетки нет. Фотографии сохраняются только локально, а факты нужно ввести вручную.</p>
+            <div class="candidate-photo-grid">
+              <label class="file-button">Фотография этикетки<input id="candidate-label-photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
+              <label class="file-button">Фотография мотка или нити<input id="candidate-yarn-photo" type="file" accept="image/jpeg,image/png,image/webp"></label>
+            </div>
+            <div id="candidate-photo-list" class="photo-grid"></div>
+            <div class="field-grid actual-yarn-fields">
+              <label>Масса мотка, г <input id="candidate-weight" type="number" min="0.01" max="1000000" step="any"></label>
+              <label>Длина нити, м <input id="candidate-length" type="number" min="0.01" max="1000000" step="any"></label>
+              <label>Количество мотков <input id="candidate-skeins" type="number" min="0.01" max="10000" step="any"></label>
+              <label>Общая масса, г <input id="candidate-total-weight" type="number" min="0.01" max="1000000" step="any"></label>
+              <label>Производитель <input id="candidate-manufacturer" maxlength="200"></label>
+              <label>Название <input id="candidate-name" maxlength="300"></label>
+              <label>Артикул <input id="candidate-article" maxlength="200"></label>
+              <label>Цвет <input id="candidate-color" maxlength="200"></label>
+              <label>Партия <input id="candidate-dye-lot" maxlength="200"></label>
+              <label>Состав <input id="candidate-composition" maxlength="500"></label>
+              <label>Спицы от, мм <input id="candidate-needles-min" type="number" min="0.01" max="30" step="any"></label>
+              <label>Спицы до, мм <input id="candidate-needles-max" type="number" min="0.01" max="30" step="any"></label>
+              <label>Поверхность
+                <select id="candidate-surface">
+                  <option value="unknown">Не знаю</option>
+                  <option value="smooth">Гладкая</option>
+                  <option value="slight_halo">Слегка пушистая</option>
+                  <option value="strong_halo">Сильно пушистая</option>
+                </select>
+              </label>
+            </div>
+            <div class="route-actions">
+              <button id="assess-existing-yarn" class="button" type="button">Сохранить и сравнить</button>
+              <button id="show-recommended-from-existing" class="button secondary" type="button">Вернуться к рекомендованным вариантам</button>
+            </div>
+            <p id="candidate-status" role="status"></p>
+            <section id="actual-yarn-assessment" class="actual-yarn-assessment" hidden aria-labelledby="actual-yarn-assessment-title">
+              <p class="eyebrow">Сравнение с сохранённым ориентиром</p>
+              <h3 id="actual-yarn-assessment-title">Недостаточно данных для оценки</h3>
+              <dl class="assessment-facts">
+                <dt>Выбранный ориентир</dt><dd id="assessment-target"></dd>
+                <dt>Данные вашей пряжи</dt><dd id="assessment-actual"></dd>
+              </dl>
+              <h4>Что, вероятно, изменится</h4>
+              <ul id="assessment-changes"></ul>
+              <h4>Что можно узнать только после образца</h4>
+              <ul id="assessment-swatch"></ul>
+              <p class="swatch-warning">Петли считаются по ширине, ряды — по высоте. Точная плотность определяется по связанному, обработанному и высушенному образцу.</p>
+              <label id="accept-differences-row" class="confirmation-check" hidden><input id="accept-yarn-differences" type="checkbox"> Я понимаю и принимаю ожидаемые отличия от выбранного ориентира.</label>
+              <div class="route-actions">
+                <button id="confirm-actual-yarn" class="button" type="button">Использовать эту пряжу</button>
+                <button id="edit-actual-yarn" class="button secondary" type="button">Изменить данные</button>
+                <button id="assessment-recommended" class="button secondary" type="button">Вернуться к рекомендованным вариантам</button>
+              </div>
+            </section>
+            <section id="actual-yarn-confirmed" class="target-confirmed" hidden>
+              <h3>Фактическая пряжа подтверждена</h3>
+              <p id="actual-yarn-confirmed-summary"></p>
+              <p>Плотность образца, расчёты и план вязания не создавались.</p>
+              <button id="change-confirmed-yarn" class="button secondary" type="button">Изменить данные</button>
+            </section>
+          </div>
+
+          <div id="recommended-yarn-route" class="actual-yarn-route" hidden>
+            <h3>Три сохранённых профиля рекомендации</h3>
+            <p>Ниже показаны ровно три уже сохранённых варианта: тоньше, максимально близко к фотографии и толще. Новый анализ, поиск магазинов или товаров не выполняется.</p>
+            <p class="muted">Чем тоньше пряжа, тем обычно больше петель на 10 см; чем толще — тем меньше. Точное число зависит от состава, крутки, пушистости, спиц и определяется только по обработанному образцу.</p>
+            <div id="recommended-route-profiles" class="recommended-route-profiles"></div>
+          </div>
+        </section>
+
+        <section id="polo-preparation-guide" class="panel polo-preparation-guide" aria-labelledby="polo-preparation-title" hidden>
+          <p class="eyebrow">Подготовка первого поло</p>
+          <h2 id="polo-preparation-title">Выбрать пряжу и подготовить образцы</h2>
+          <p>Сейчас выбери пряжу и подготовь основной образец лицевой глади. Резинка и проверка пуговицы понадобятся позже, при расчёте отделки. Советы ниже относятся к предложенной модели; они не определяют пряжу на фотографии.</p>
+          <details id="polo-yarn-help">
+            <summary>Пряжи пока нет — с чего начать выбор</summary>
+            <p>Начальный вариант для пробы — гладкая пряжа категории DK (средне-тонкая, категория 3). Это предложение для первой модели, которое ты можешь изменить. До покупки всего запаса сравни пробные образцы: приятны ли они к коже, нравится ли плотность и держит ли резинка форму после обработки.</p>
+            <div class="preparation-table"><table><thead><tr><th>Вариант для пробы</th><th>Название на этикетке</th><th>Ориентир спиц</th></tr></thead><tbody>
+              <tr><td>Тоньше</td><td>Sport — тонкая, категория 2</td><td>3,25–3,75 мм</td></tr>
+              <tr><td>Начальное предложение</td><td>DK / Light Worsted — средне-тонкая, категория 3</td><td>3,75–4,5 мм</td></tr>
+              <tr><td>Толще</td><td>Worsted / Aran — средняя, категория 4</td><td>4,5–5,5 мм</td></tr>
+            </tbody></table></div>
+            <p>Диапазоны — общие ориентиры <a href="https://www.craftyarncouncil.com/standards/yarn-weight-system" target="_blank" rel="noopener noreferrer">Craft Yarn Council, совета производителей пряжи (английский)</a>. Начинай с рекомендации на этикетке конкретного мотка. Метраж и состав сами по себе не гарантируют нужного полотна; окончательный выбор делай по образцу.</p>
+            <p>Для магазина: «Хочу связать поло лицевой гладью с упругими резинками, планками и отложным воротником. Нужна гладкая нить для пробы, с понятным уходом и возможностью докупить ту же партию». Выбери состав и цвет по ощущениям и условиям носки. Сохрани название, состав, метраж, массу и номер партии с этикетки. Общий запас YarnAI оценит после мерок и взвешивания образцов.</p>
+            <p><a class="button secondary" href="#yarn-title">Указать выбранную пряжу</a></p>
+          </details>
+          <details id="polo-swatch-help">
+            <summary>Как связать и измерить два образца</summary>
+            <ol>
+              <li>Возьми выбранную пряжу в том же числе сложений и те спицы, которыми будешь вязать. Для пробы можно начать с 48 петель. Нужна ширина не меньше 15 см и высота около 18 см; если образец уже, набери больше петель. Эти числа относятся только к пробе.</li>
+              <li>Основной образец: вяжи поворотными рядами лицевой гладью — лицевые на лицевой стороне, изнаночные на изнанке; первую и последнюю петлю каждого ряда провязывай лицевой. Закрой петли. Отдельно свяжи образец резинки: две крайние петли лицевыми, между ними повторяй 1 лицевую, 1 изнаночную; в следующих рядах вяжи по рисунку. Запиши его размер спиц отдельно.</li>
+              <li>Обработай оба образца тем способом, которым будешь ухаживать за вещью, с учётом этикетки. Полностью высуши и дай полотну отлежаться. Не растягивай при измерении. В середине, без кромочных, посчитай петли и ряды на измеренном участке; записывай реальные размеры участка, даже если это не 10×10 см.</li>
+              <li>Для оценки расхода запиши отдельно полные ширину, высоту и массу каждого сухого образца без этикетки и измерительных принадлежностей. Не путай полный образец с центральным участком для плотности. Если меняешь пряжу, сложения или спицы, нужен новый образец.</li>
+            </ol>
+            <p><a href="https://brooklyntweed.com/pages/swatching-101" target="_blank" rel="noopener noreferrer">Измерение образца с фотографиями — Brooklyn Tweed (английский)</a>. В форме ниже укажи плотность лицевой глади; плотность резинки и массы понадобятся в расчёте отделки.</p>
+            <p><a class="button secondary" href="#gauge-title">Ввести измерения основного образца</a></p>
+          </details>
+          <details>
+            <summary>Как проверить отверстие под настоящую пуговицу</summary>
+            <p>На отдельной небольшой пробе резинки закрой несколько петель в середине ряда, а в следующем ряду набери столько же над отверстием. Затем продолжи резинку и закрой пробу. Начальное число выбирается пробой, а не по диаметру пуговицы в сантиметрах.</p>
+            <p>Обработай и высуши пробу. Пуговица должна проходить без чрезмерного растяжения и удерживаться при лёгком натяжении полотна. Если отверстие слишком тесное или свободное, измени число петель и повтори пробу. Только после этого укажи проверенное число петель в отделке. Нужна та же пряжа, спицы и резинка, что у планки.</p>
+          </details>
+        </section>
+
+        <section id="yarn-recommendation-panel" class="panel recommendation-panel" aria-labelledby="yarn-recommendation-title" hidden>
+          <p class="eyebrow">Приблизительная рекомендация Yarn AI</p>
+          <h2 id="yarn-recommendation-title">Какая пряжа подойдёт для похожего результата</h2>
+          <div id="yarn-recommendation-empty" class="validation-first-action">
+            <h3>Рекомендация ещё не сформирована</h3>
+            <p>Старый анализ честно не содержит числовой характеристики пряжи. Конкретная пряжа ниже остаётся твоим отдельным выбором.</p>
+            <div id="yarn-supplement-controls" hidden>
+              <label class="confirmation-check"><input id="yarn-supplement-confirm" type="checkbox"> Я отдельно подтверждаю отправку очищенной копии exact сохранённой фотографии в OpenAI для одного анализа пряжи. Лимит — $0.05, повторов нет.</label>
+              <button id="run-yarn-supplement" class="button" type="button" disabled>Сформировать рекомендацию по пряже</button>
+              <p id="yarn-supplement-status" role="status"></p>
+            </div>
+          </div>
+          <div id="yarn-recommendation-content" hidden>
+            <p id="yarn-recommendation-summary" class="recommendation-summary"></p>
+            <p class="muted"><strong>Это ориентир по фотографии, а не распознанная марка пряжи.</strong> Ни одна карточка не выбирает конкретный товар и не заменяет будущий контрольный образец.</p>
+            <section id="yarn-target-decision" class="target-decision" aria-labelledby="yarn-target-decision-title">
+              <p class="eyebrow">Отдельный выбор</p>
+              <h3 id="yarn-target-decision-title">Выбери целевую характеристику будущей пряжи</h3>
+              <p id="yarn-target-decision-status" class="target-decision-status" role="status"></p>
+              <div id="yarn-target-options" class="target-option-grid"></div>
+              <div id="yarn-target-confirmation" class="target-confirmation" hidden>
+                <h4>Подтверди выбранный ориентир</h4>
+                <p id="yarn-target-selected-summary"></p>
+                <p><strong>Этот вариант станет целевой характеристикой будущей пряжи. Конкретную пряжу и фактическую плотность образца нужно будет указать отдельно.</strong></p>
+                <button id="confirm-yarn-target" class="button" type="button">Подтвердить целевой профиль</button>
+              </div>
+              <div id="yarn-target-confirmed" class="target-confirmed" hidden>
+                <h4>Целевой профиль подтверждён</h4>
+                <p id="yarn-target-confirmed-summary"></p>
+                <p>Следующий отдельный шаг — ввести фактическую пряжу. Образец плотности понадобится позже, до расчёта.</p>
+              </div>
+            </section>
+            <div class="recommendation-notes">
+              <article><h3>Что видно на фотографии</h3><ul id="yarn-recommendation-evidence"></ul></article>
+              <article><h3>Гладкость, ворс и начёс</h3><ul id="yarn-recommendation-surface"></ul></article>
+              <article><h3>Что нельзя установить</h3><ul id="yarn-recommendation-limitations"></ul></article>
+            </div>
+            <aside class="swatch-warning"><h3>Обязательная проверка образцом</h3><p id="yarn-recommendation-swatch"></p></aside>
+            <p class="muted">Больше метров на 100 г обычно означает более тонкую нить, меньше — более толстую. Но одинаковый метраж у разных составов не гарантирует одинаковое полотно.</p>
+          </div>
+        </section>
+
+        <section id="intake-sections-panel" class="panel" aria-labelledby="sections-title" hidden>
+          <p class="eyebrow">Состояние разделов</p>
+          <h2 id="sections-title">Можно заполнять в любом порядке</h2>
+          <ul id="section-status" class="section-status"></ul>
+          <p class="muted">Заполненность раздела и достаточность данных — разные вещи. Достаточность показывает отдельная проверка ниже.</p>
+        </section>
+
+        <form id="intake-form" hidden>
+          <section class="panel form-section requirements-panel" aria-labelledby="garment-requirements-title">
+            <p class="eyebrow">Определено подтверждённой технологией</p>
+            <h2 id="garment-requirements-title">Мерки и параметры изделия</h2>
+            <p id="garment-requirements-status" role="status">Формируем профиль необходимых данных…</p>
+            <div class="validation-first-action">
+              <h3>Что сделать первым</h3>
+              <p id="garment-requirements-first-action"></p>
+            </div>
+            <details><summary>Почему нужны эти мерки</summary><div id="garment-requirements-list" class="requirements-list"></div></details>
+            <p class="muted">Наблюдение по фотографии не заполняет мерки человека или готового изделия. Пустое значение никогда не считается нулём.</p>
+          </section>
+
+          <section class="panel form-section" aria-labelledby="sizing-title">
+            <p class="eyebrow">Размер и мерки</p>
+            <h2 id="sizing-title">Размеры твоего поло</h2>
+            <p>Возьми сантиметровую ленту и удобное поло с подходящей посадкой. Измеряй его на ровной поверхности без растяжения. Все размеры ниже — в сантиметрах. Фото без масштаба и обозначение размера L не дают точных мерок.</p>
+            <p><strong>Ширина по груди: выбери один способ.</strong> Введи обхват готового поло либо обхват груди человека и прибавку для свободы. Во втором случае YarnAI сам сложит два числа. Не нужно заполнять все три поля.</p>
+            <p id="bust-method-status" role="status"></p>
+            <label>Как задашь ширину поло?
+              <select id="bust-method"><option value="garment">Измерю подходящее поло</option><option value="body">Измерю человека и укажу прибавку</option></select>
+            </label>
+            <div class="field-grid">
+              <label>Целевой размер <input id="selected-size" maxlength="120" placeholder="Например: 48 или L"></label>
+            </div>
+            <fieldset>
+              <legend>Мерки человека, см</legend>
+              <div class="field-grid">
+                <label>Обхват груди <input id="body-bust" type="number" min="0.01" max="500" step="any"></label>
+                <label>Обхват талии <input id="body-waist" type="number" min="0.01" max="500" step="any"></label>
+                <label>Обхват бёдер <input id="body-hip" type="number" min="0.01" max="500" step="any"></label>
+                <label>Длина тела <input id="body-length" type="number" min="0.01" max="500" step="any"></label>
+                <label>Ширина плеч <input id="body-shoulder-width" type="number" min="0.01" max="500" step="any"></label>
+                <label>Ширина спины <input id="body-back-width" type="number" min="0.01" max="500" step="any"></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Желаемые размеры готового изделия, см</legend>
+              <div class="field-grid">
+                <label>Обхват груди изделия <input id="garment-bust" type="number" min="0.01" max="500" step="any"></label>
+                <label>Длина изделия <input id="garment-length" type="number" min="0.01" max="500" step="any"></label>
+                <label>Длина рукава <input id="garment-sleeve" type="number" min="0.01" max="500" step="any"></label>
+                <label>Обхват рукава в верхней части <input id="garment-upper-arm" type="number" min="0.01" max="500" step="any"></label>
+                <label>Обхват края рукава <input id="garment-cuff" type="number" min="0.01" max="500" step="any"></label>
+                <label>Ширина горловины <input id="garment-neck-width" type="number" min="0.01" max="500" step="any"></label>
+                <label>Глубина горловины спереди <input id="garment-front-neck-depth" type="number" min="0.01" max="500" step="any"></label>
+                <label>Обхват изделия по талии <input id="garment-waist" type="number" min="0.01" max="500" step="any"></label>
+                <label>Обхват изделия по бёдрам <input id="garment-hip" type="number" min="0.01" max="500" step="any"></label>
+                <label>Глубина кокетки реглан <input id="garment-yoke-depth" type="number" min="0.01" max="500" step="any"></label>
+                <label>Глубина проймы для втачного рукава <input id="garment-armhole-depth" type="number" min="0.01" max="500" step="any"></label>
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend>Свобода облегания, см</legend>
+              <div class="field-grid"><label>По груди <input id="ease-bust" type="number" min="-100" max="500" step="any"></label></div>
+            </fieldset>
+            <fieldset>
+              <legend>Предпочтения готового изделия</legend>
+              <div id="polo-design-proposal" hidden>
+                <p>Для текущего расчёта предлагается прямое поло: воротник, короткая планка с пуговицами, резинка по низу и краю рукавов. Это предложение будущего изделия, а не восстановленная по фото инструкция.</p>
+                <button id="apply-polo-proposal" class="button secondary" type="button">Выбираю предложенные параметры поло</button>
+                <p id="polo-design-warning" role="status"></p>
+              </div>
+              <div class="field-grid">
+                <label>Форма корпуса
+                  <select id="body-shaping-preference"><option value="">Не выбрано</option><option value="straight">Прямой корпус</option><option value="shaped">Приталенный корпус</option></select>
+                </label>
+                <label>Форма горловины
+                  <select id="neckline-style"><option value="">Не выбрано</option><option value="round_neck">Круглая</option><option value="v_neck">V-образная</option><option value="polo_collar_with_placket">Воротник поло с планкой</option></select>
+                </label>
+                <label>Застёжка
+                  <select id="closure-style"><option value="">Не выбрано</option><option value="none">Без застёжки</option><option value="short_front_placket">Короткая передняя планка</option><option value="full_front">Полная передняя застёжка</option></select>
+                </label>
+                <label>Нижний край
+                  <select id="hem-finish"><option value="">Не выбрано</option><option value="rib">Резинка</option><option value="folded">Подвёрнутый край</option><option value="plain">Простой край</option></select>
+                </label>
+                <label>Край рукава
+                  <select id="cuff-finish"><option value="">Не выбрано</option><option value="rib">Резинка</option><option value="folded">Подвёрнутый край</option><option value="plain">Простой край</option></select>
+                </label>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="panel form-section" aria-labelledby="yarn-title">
+            <p class="eyebrow">Профиль требований к пряже</p><h2 id="yarn-title">Что известно с этикетки или от тебя</h2>
+            <p id="yarn-requirements-status" role="status">Формируем профиль требований к пряже…</p>
+            <div class="validation-first-action">
+              <h3>Что сделать первым</h3>
+              <p id="yarn-requirements-first-action"></p>
+            </div>
+            <details><summary>Какие сведения о пряже понадобятся</summary><div id="yarn-requirements-list" class="requirements-list"></div></details>
+            <aside class="validation-first-action" aria-labelledby="photo-yarn-advisory-title">
+              <h3 id="photo-yarn-advisory-title">Что видно на исходной фотографии</h3>
+              <p>Это только ориентир из сохранённого анализа, не факт о составе, толщине или конкретной пряже. Эти сведения не заполняют поля автоматически.</p>
+              <ul id="photo-yarn-advisory"></ul>
+            </aside>
+            <label>Состояние
+              <select id="yarn-status"><option value="not_selected">Пряжа ещё не выбрана</option><option value="selected">Пряжа выбрана</option></select>
+            </label>
+            <div id="yarn-fields" class="field-grid">
+              <label>Название <input id="yarn-name" maxlength="300"></label>
+              <label>Сколько нитей вяжешь одновременно <input id="yarn-strand-count" type="number" min="1" max="100" step="1" inputmode="numeric"><small>Одна нить из мотка — 1; две вместе — 2. Это не число волокон внутри нити.</small></label>
+              <label>Состав <input id="yarn-composition" maxlength="500"></label>
+              <label>Длина нити, м <input id="yarn-length" type="number" min="0.01" max="100000" step="any"></label>
+              <label>Масса мотка, г <input id="yarn-mass" type="number" min="0.01" max="100000" step="any"></label>
+              <label>Имеющееся количество, мотков <input id="yarn-quantity" type="number" min="0.01" max="100000" step="any"></label>
+              <label class="wide">Заметка о пряже <textarea id="yarn-note" maxlength="2000" rows="3"></textarea></label>
+            </div>
+            <button id="use-one-strand" class="button secondary" type="button">Буду вязать одной нитью</button>
+            <p>Для первого расчёта нужны название именно твоей пряжи и число нитей. Состав, метраж и запас можно добавить позже с этикетки. Толщину отдельным числом вводить не нужно: петли и ряды рассчитываются по твоему образцу.</p>
+            <p><a href="#photos-title">Сохранить фото этикетки</a>. Оно останется в проекте; автоматического чтения текста этикетки пока нет.</p>
+          </section>
+
+          <section class="panel form-section" aria-labelledby="needles-title">
+            <p class="eyebrow">Спицы</p><h2 id="needles-title">Размеры в миллиметрах</h2>
+            <label>Состояние
+              <select id="needles-status"><option value="not_selected">Спицы ещё не выбраны</option><option value="selected">Спицы выбраны</option></select>
+            </label>
+            <div id="needles-fields" class="field-grid">
+              <label>Основные, мм <input id="needles-primary" type="number" min="0.01" max="30" step="any"></label>
+              <label>Дополнительные, через запятую <input id="needles-additional" placeholder="Например: 3, 4.5"></label>
+            </div>
+          </section>
+
+          <section class="panel form-section" aria-labelledby="gauge-title">
+            <p class="eyebrow">Контрольный образец</p><h2 id="gauge-title">Фактическое измерение — не обязательно 10×10 см</h2>
+            <div id="intake-swatch-instructions">
+              <p>Образец показывает, сколько места занимают петли и ряды именно из твоей пряжи на твоих спицах. Без него размер поло получится случайным. Если образец ещё не готов, сохрани черновик и вернись после сушки.</p>
+              <ol>
+                <li>Для предложенного поло свяжи основное полотно лицевой гладью: лицевые петли на лицевой стороне, изнаночные — на обратной, поворотными рядами. Возьми выбранную пряжу и нужное число нитей. Сделай образец не меньше 15 × 15 см, чтобы внутри осталось место для измерения без краёв.</li>
+                <li>Постирай и высуши так, как будешь ухаживать за поло, следуя этикетке пряжи. ВТО означает влажно-тепловую обработку; утюг и пар не обязательны и подходят не каждой пряже. Дождись полного высыхания, разложи без растяжения.</li>
+                <li>В середине полотна, подальше от краёв, отмерь участок около 10 см по горизонтали. Посчитай в нём петли и запиши <strong>петли + ширину этого же участка</strong>.</li>
+                <li>По вертикали в середине отмерь участок около 10 см. Посчитай ряды и запиши <strong>ряды + высоту этого же участка</strong>. Можно измерить другое расстояние; YarnAI пересчитает на 10 см сам.</li>
+              </ol>
+              <p><strong>В поля ширины и высоты вводи измеренный центральный участок, а не размер всего образца.</strong> Резинка, вес образца и проба отверстия для пуговицы понадобятся позже, при расчёте отделки.</p>
+            </div>
+            <div class="field-grid">
+              <label>Количество петель <input id="gauge-stitches" type="number" min="0.01" max="10000" step="any"></label>
+              <label>Измеренная ширина, см <input id="gauge-width" type="number" min="0.01" max="1000" step="any"></label>
+              <label>Количество рядов <input id="gauge-rows" type="number" min="0.01" max="10000" step="any"></label>
+              <label>Измеренная высота, см <input id="gauge-height" type="number" min="0.01" max="1000" step="any"></label>
+              <label>Спицы образца, мм <input id="gauge-needle" type="number" min="0.01" max="30" step="any"></label>
+              <label>Измерено после стирки и полного высыхания
+                <select id="gauge-treated"><option value="unknown">Неизвестно</option><option value="yes">Да</option><option value="no">Нет</option></select>
+              </label>
+            </div>
+            <button id="copy-swatch-needles" class="button secondary" type="button">Образец связан основными спицами</button>
+            <output id="normalized-gauge" class="normalized-gauge">Нормализация на 10 см появится только после четырёх фактических чисел.</output>
+          </section>
+
+          <section class="panel form-section" aria-labelledby="photos-title">
+            <p class="eyebrow">Только локально</p><h2 id="photos-title">Дополнительные фотографии</h2>
+            <div class="photo-controls">
+              <label>Назначение <select id="photo-role"></select></label>
+              <label class="button secondary" for="additional-photo">Приложить фотографию</label>
+              <input id="additional-photo" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+            </div>
+            <p class="muted">Файл сохраняется в проекте и никуда не отправляется. Анализ изображения не запускается.</p>
+            <div id="photo-grid" class="photo-grid"></div>
+          </section>
+
+          <section class="panel form-section" aria-labelledby="notes-title">
+            <p class="eyebrow">Неизвестное остаётся неизвестным</p><h2 id="notes-title">Заметки</h2>
+            <label>Твои факты, вопросы и неизвестные сведения <textarea id="notes" maxlength="8000" rows="5"></textarea></label>
+          </section>
+
+          <section id="validation-panel" class="panel validation-panel" aria-labelledby="validation-title">
+            <p class="eyebrow">Детерминированно и локально</p>
+            <h2 id="validation-title">Проверка данных</h2>
+            <p>Проверка не анализирует фотографии и не рассчитывает изделие. Она только показывает, достаточно ли подтверждённых исходных данных.</p>
+            <div class="validation-actions">
+              <button id="validate-intake" class="button secondary" type="button">Проверить данные</button>
+              <strong id="validation-status" class="validation-status" role="status">Проверка ещё не выполнялась</strong>
+            </div>
+            <section id="first-action-panel" class="validation-first-action" hidden>
+              <h3>Что сделать первым</h3>
+              <p id="validation-first-action"></p>
+            </section>
+            <details><summary>Все результаты проверки</summary><div id="validation-results" class="validation-results" hidden>
+              <section><h3>Пройдено</h3><ul id="validation-completed"></ul></section>
+              <section><h3>Не хватает или неверно</h3><ul id="validation-blockers"></ul></section>
+              <section><h3>Конфликты</h3><ul id="validation-conflicts"></ul></section>
+              <section><h3>Неразрешённые вопросы</h3><ul id="validation-unresolved"></ul></section>
+              <section><h3>Рекомендации</h3><ul id="validation-warnings"></ul></section>
+            </div></details>
+            <div class="confirmation-box">
+              <p id="validation-explanation"><strong>Подтверждаются только введённые исходные данные. Расчёт изделия ещё не выполнен.</strong></p>
+              <button id="confirm-validation" class="button" type="button" disabled>Подтвердить исходные данные</button>
+              <button id="reopen-validation" class="button secondary" type="button" hidden>Вернуться к редактированию</button>
+            </div>
+          </section>
+
+          <section id="garment-calculation-preview" class="panel form-section" hidden aria-labelledby="calculation-preview-title">
+            <h2 id="calculation-preview-title">Расчёт по подтверждённому образцу</h2>
+            <p id="calculation-preview-source"></p>
+            <p id="calculation-preview-status" role="status"></p>
+            <div id="calculation-preview-values"></div>
+            <h3>Что ещё нужно для инструкции</h3>
+            <ul id="calculation-preview-limitations"></ul>
+          </section>
+
+          <section class="panel save-panel">
+            <button id="save-draft" class="button" type="submit">Сохранить черновик</button>
+            <p id="save-status" role="status"></p>
+            <p id="form-error" class="form-error" role="alert"></p>
+          </section>
+        </form>
+        <section id="set-in-design" class="panel form-section" hidden aria-labelledby="set-in-design-title">
+          <p class="eyebrow">Предложение формы · отдельные детали · втачной рукав</p>
+          <h2 id="set-in-design-title">Форма поло перед составлением инструкции</h2>
+          <p>Это новая конструкция по твоим размерам. Скрытые детали исходного изделия не восстановлены по фотографии. Предложение: прямой корпус, лицевая гладь, симметричные проймы, швы по бокам и на рукавах.</p>
+          <p>Ниже — параметры для твоего выбора. Ширина плеч подставлена из мерки тела, если она есть; остальные числа предложены YarnAI. Они станут решением только после подтверждения.</p>
+          <p><strong>Длина рукава в этом расчёте — от верхней точки оката до нижнего края, включая манжету. Длина корпуса и глубина проймы измеряются от высшей точки плеча у шеи.</strong> Если ты измеряла иначе, сначала исправь исходные данные.</p>
+          <div id="set-in-design-fields" class="field-grid"></div>
+          <button id="set-in-design-calculate" class="button secondary" type="button">Рассчитать и сохранить форму</button>
+          <p id="set-in-design-status" role="status"></p>
+          <div id="set-in-design-result" hidden>
+            <div id="set-in-design-diagram"></div>
+            <div id="set-in-design-numbers"></div>
+            <details><summary>Как рассчитана форма и откуда взялись числа</summary><div id="set-in-design-method"></div></details>
+            <p>Здесь проверяется форма деталей. Расчёт резинок, воротника, планок, пуговиц и расхода расположен ниже. После подтверждения формы и отделки открой пошаговый план — он содержит рабочие ряды и контрольные измерения.</p>
+            <label id="set-in-design-consent-label"><input id="set-in-design-consent" type="checkbox"> Выбираю лицевую гладь и показанную форму с этими размерами. Понимаю, что посадка ещё не проверена вязанием.</label>
+            <button id="set-in-design-confirm" class="button" type="button" disabled>Подтвердить форму для дальнейшего расчёта</button>
+          </div>
+        </section>
+        <section id="polo-finishing" class="panel form-section" hidden aria-labelledby="polo-finishing-title">
+          <p class="eyebrow">Та же пряжа · отдельный образец отделки</p>
+          <h2 id="polo-finishing-title">Резинки, застёжка, воротник и запас пряжи</h2>
+          <p>Предложение для этого поло: резинка 1×1 на нижнем крае, манжетах, двух перекрывающихся планках и отложном воротнике. Это чередование одной лицевой и одной изнаночной петли. Измерь отдельный обработанный образец в спокойном состоянии, без растяжения, из той же пряжи и в то же число нитей.</p>
+          <p>Проверь отверстие на настоящей пуговице: закрой выбранное число петель в одном ряду, в следующем набери столько же. Пуговица должна проходить и удерживаться после обработки образца. Здесь вводится проверенное число, а не догадка по диаметру.</p>
+          <div id="polo-finishing-fields"></div>
+          <button id="polo-finishing-calculate" class="button secondary" type="button">Рассчитать и сохранить отделку</button>
+          <p id="polo-finishing-status" role="status"></p>
+          <div id="polo-finishing-result" hidden>
+            <div id="polo-finishing-numbers"></div>
+            <ul id="polo-finishing-limitations"></ul>
+            <label id="polo-finishing-consent-label"><input id="polo-finishing-consent" type="checkbox"> Проверила данные образцов, расчёт отделки и оценку запаса. Принимаю показанные размеры для составления плана.</label>
+            <button id="polo-finishing-confirm" class="button" type="button" disabled>Подтвердить расчёт отделки</button>
+            <a id="polo-finishing-plan" class="button" href="#" hidden>Открыть план и продолжить вязание</a>
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

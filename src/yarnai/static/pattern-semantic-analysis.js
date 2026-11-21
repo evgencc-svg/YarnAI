@@ -3,6 +3,7 @@
 (function exposePatternSemanticAnalysis(globalObject) {
   const rules = globalObject.YarnAIPatternSemanticRules || (typeof require === "function" ? require("./pattern-semantic-rules.js") : null);
   const VERSION = 1;
+  const ANALYZER_VERSION = 3;
   const PROGRESS_KIND = "PATTERN_SEMANTIC_ANALYSIS";
   const STATUSES = Object.freeze(["waiting", "analyzing", "completed", "partial", "failed"]);
   const activeRuns = new Set();
@@ -17,7 +18,7 @@
     requireTimestamp(now);
     if (!string(input?.projectId) || !string(input?.sourceExtractionId) || !positiveInteger(input?.sourceExtractionRevision) || !positiveInteger(input?.sourceImportRevision) || !validFingerprint(input?.sourceFingerprint)) throw semanticError("SEMANTIC_SOURCE_REVISION_MISMATCH", "Связь с извлечённым содержимым повреждена.");
     const state = {
-      id: makeId(), projectId: input.projectId, kind: PROGRESS_KIND, version: VERSION, revision: 1, status: "waiting",
+      id: makeId(), projectId: input.projectId, kind: PROGRESS_KIND, version: VERSION, analyzerVersion: ANALYZER_VERSION, revision: 1, status: "waiting",
       sourceExtractionId: input.sourceExtractionId, sourceExtractionRevision: input.sourceExtractionRevision, sourceImportRevision: input.sourceImportRevision, sourceFingerprint: input.sourceFingerprint,
       result: emptyResult(), warnings: [], errors: [], createdAt: now, updatedAt: now, startedAt: null, completedAt: null, failedAt: null,
     };
@@ -27,7 +28,7 @@
   function startState(state, now = new Date().toISOString(), source = null) {
     requireValidState(state); requireTimestamp(now);
     if (!["waiting", "partial", "failed"].includes(state.status)) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Семантический анализ уже выполняется или завершён.");
-    const next = copy(state); next.status = "analyzing"; next.revision += 1; next.updatedAt = now; next.startedAt = now; next.completedAt = null; next.failedAt = null; next.result = rules.emptyResult(); next.warnings = []; next.errors = [];
+    const next = copy(state); next.status = "analyzing"; next.analyzerVersion = ANALYZER_VERSION; next.revision += 1; next.updatedAt = now; next.startedAt = now; next.completedAt = null; next.failedAt = null; next.result = rules.emptyResult(); next.warnings = []; next.errors = [];
     if (source) {
       if (!string(source.sourceExtractionId) || !positiveInteger(source.sourceExtractionRevision) || !positiveInteger(source.sourceImportRevision) || !validFingerprint(source.sourceFingerprint)) throw semanticError("SEMANTIC_SOURCE_REVISION_MISMATCH", "Новая связь с extraction повреждена.");
       next.sourceExtractionId = source.sourceExtractionId; next.sourceExtractionRevision = source.sourceExtractionRevision; next.sourceImportRevision = source.sourceImportRevision; next.sourceFingerprint = source.sourceFingerprint;
@@ -44,7 +45,7 @@
 
   function failureState(state, diagnostic, now = new Date().toISOString(), result = null) {
     requireValidState(state); requireTimestamp(now); const normalized = normalizeDiagnostic(diagnostic);
-    const next = copy(state); next.status = "failed"; next.revision += 1; next.updatedAt = now; next.startedAt = next.startedAt || now; next.completedAt = null; next.failedAt = now; next.result = result ? copy(result) : rules.emptyResult();
+    const next = copy(state); next.status = "failed"; next.analyzerVersion = ANALYZER_VERSION; next.revision += 1; next.updatedAt = now; next.startedAt = next.startedAt || now; next.completedAt = null; next.failedAt = now; next.result = result ? copy(result) : rules.emptyResult();
     if (!next.result.diagnostics.some((entry) => entry.code === normalized.code)) next.result.diagnostics.push(normalized);
     next.result.diagnostics.sort((a, b) => lexical(a.code, b.code) || (a.start ?? -1) - (b.start ?? -1)); next.warnings = next.result.diagnostics.filter((entry) => entry.severity === "warning").map(noticeFromDiagnostic); next.errors = next.result.diagnostics.filter((entry) => entry.severity === "error").map(noticeFromDiagnostic); if (!next.errors.length) next.errors.push(noticeFromDiagnostic({ ...normalized, severity: "error" }));
     requireValidState(next); return next;
@@ -61,7 +62,7 @@
     const extractionProgress = oneProgress(aggregate, "PATTERN_CONTENT_EXTRACTION", calculation.calculation_id); const analysisProgress = oneProgress(aggregate, PROGRESS_KIND, calculation.calculation_id); const extraction = extractionProgress?.state || null;
     if (!analysisProgress) return { state: "missing", project, calculation, extractionProgress, extraction, analysisProgress: null, analysis: null, diagnostic: null };
     try { requireValidState(analysisProgress.state); } catch (error) { return { state: "corrupted", project, calculation, extractionProgress, extraction, analysisProgress, analysis: null, diagnostic: diagnostic(error.code || "SEMANTIC_INTERNAL_ERROR", "error", error.userMessage || "Запись семантического анализа повреждена.") }; }
-    const analysis = copy(analysisProgress.state); const sourceProblem = validateSource(project, extractionProgress, extraction, analysis);
+    const analysis = copy(analysisProgress.state); const effectiveAnalyzerVersion = positiveInteger(analysis.analyzerVersion) || 1; if (effectiveAnalyzerVersion < ANALYZER_VERSION) return { state: "analyzer_stale", project, calculation, extractionProgress, extraction, analysisProgress, analysis, diagnostic: diagnostic("SEMANTIC_ANALYZER_VERSION_MISMATCH", "error", "Сохранённый семантический результат создан устаревшей версией анализатора.") }; const sourceProblem = validateSource(project, extractionProgress, extraction, analysis);
     if (sourceProblem) return { state: "stale", project, calculation, extractionProgress, extraction, analysisProgress, analysis, diagnostic: sourceProblem };
     return { state: analysis.status, project, calculation, extractionProgress, extraction, analysisProgress, analysis, diagnostic: null };
   }
@@ -84,6 +85,7 @@
       const recovered = interruptedState(inspected.analysis); await repository.failPatternSemanticAnalysis(projectId, inspected.calculation.calculation_id, recovered, { operationKind: "PATTERN_SEMANTIC_ANALYSIS_INTERRUPTED", projectStage: "pattern_semantic_analysis_failed" }); return inspectAggregate(await repository.getProject(projectId));
     }
     if (inspected.analysis) {
+      if (inspected.state === "analyzer_stale") { const failed = failureState(inspected.analysis, inspected.diagnostic); await repository.failPatternSemanticAnalysis(projectId, inspected.calculation.calculation_id, failed, { operationKind: "PATTERN_SEMANTIC_ANALYSIS_ANALYZER_STALE", projectStage: "pattern_semantic_analysis_failed" }); return inspectAggregate(await repository.getProject(projectId)); }
       if (inspected.state === "stale" && inspected.analysis.status !== "failed") {
         const failed = failureState(inspected.analysis, inspected.diagnostic); await repository.failPatternSemanticAnalysis(projectId, inspected.calculation.calculation_id, failed, { operationKind: "PATTERN_SEMANTIC_ANALYSIS_SOURCE_INVALID", projectStage: "pattern_semantic_analysis_failed" }); return inspectAggregate(await repository.getProject(projectId));
       }
@@ -106,7 +108,7 @@
       const startOptions = { operationKind: options.rebaseSource ? "PATTERN_SEMANTIC_ANALYSIS_RETRIED" : "PATTERN_SEMANTIC_ANALYSIS_STARTED", projectStage: "pattern_semantic_analysis_analyzing" };
       if (options.rebaseSource) await repository.retryPatternSemanticAnalysis(projectId, calculationId, started, startOptions); else await repository.startPatternSemanticAnalysis(projectId, calculationId, started, startOptions);
       await yieldToBrowser(); if (typeof options.beforeAnalyze === "function") options.beforeAnalyze();
-      const result = await analyzeDeterministically(inspected.extraction, options); const status = rules.determineStatus(inspected.extraction, result); const current = inspectAggregate(await repository.getProject(projectId));
+      const domainBySourceFileId = { ...buildEvidenceDomainMap(inspected.project, inspected.extraction), ...(options.domainBySourceFileId || {}) }; const result = await analyzeDeterministically(inspected.extraction, { ...options, domainBySourceFileId }); const status = rules.determineStatus(inspected.extraction, result); const current = inspectAggregate(await repository.getProject(projectId));
       if (current.state === "stale") throw semanticError(current.diagnostic.code, current.diagnostic.message);
       if (status === "failed") { const primary = result.diagnostics.find((entry) => entry.severity === "error") || diagnostic("SEMANTIC_INTERNAL_ERROR", "error", "Анализ не дал доступного результата."); const failed = failureState(current.analysis, primary, undefined, result); await repository.failPatternSemanticAnalysis(projectId, calculationId, failed, { operationKind: "PATTERN_SEMANTIC_ANALYSIS_FAILED", projectStage: "pattern_semantic_analysis_failed" }); }
       else { const finished = finishState(current.analysis, result, status); await repository.completePatternSemanticAnalysis(projectId, calculationId, finished, { operationKind: "PATTERN_SEMANTIC_ANALYSIS_FINISHED", projectStage: `pattern_semantic_analysis_${status}` }); }
@@ -124,9 +126,9 @@
   async function retryForProject(repository, projectId, options = {}) { let inspected = inspectAggregate(await repository.getProject(projectId)); if (inspected.analysis?.status === "analyzing") inspected = await ensureForProject(repository, projectId); if (inspected.state === "stale" && inspected.analysis?.status === "completed") inspected = await ensureForProject(repository, projectId); if (!["partial", "failed"].includes(inspected.analysis?.status)) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Повтор доступен только для partial или failed анализа."); return runForProject(repository, projectId, { ...options, rebaseSource: true }); }
 
   function requireValidState(value) {
-    if (!value || value.kind !== PROGRESS_KIND || value.version !== VERSION || !string(value.id) || !string(value.projectId) || !positiveInteger(value.revision) || !STATUSES.includes(value.status) || !string(value.sourceExtractionId) || !positiveInteger(value.sourceExtractionRevision) || !positiveInteger(value.sourceImportRevision) || !validFingerprint(value.sourceFingerprint) || !Array.isArray(value.warnings) || !Array.isArray(value.errors) || !isTimestamp(value.createdAt) || !isTimestamp(value.updatedAt) || !nullableTimestamp(value.startedAt) || !nullableTimestamp(value.completedAt) || !nullableTimestamp(value.failedAt)) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Запись семантического анализа повреждена.");
+    if (!value || value.kind !== PROGRESS_KIND || value.version !== VERSION || (value.analyzerVersion !== undefined && (!positiveInteger(value.analyzerVersion) || value.analyzerVersion > ANALYZER_VERSION)) || !string(value.id) || !string(value.projectId) || !positiveInteger(value.revision) || !STATUSES.includes(value.status) || !string(value.sourceExtractionId) || !positiveInteger(value.sourceExtractionRevision) || !positiveInteger(value.sourceImportRevision) || !validFingerprint(value.sourceFingerprint) || !Array.isArray(value.warnings) || !Array.isArray(value.errors) || !isTimestamp(value.createdAt) || !isTimestamp(value.updatedAt) || !nullableTimestamp(value.startedAt) || !nullableTimestamp(value.completedAt) || !nullableTimestamp(value.failedAt)) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Запись семантического анализа повреждена.");
     validateResult(value.result); value.warnings.forEach(validateNotice); value.errors.forEach(validateNotice);
-    if (value.status === "waiting" && (value.startedAt !== null || value.completedAt !== null || value.failedAt !== null || JSON.stringify(value.result) !== JSON.stringify(rules.emptyResult()))) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Пустой результат анализа был изменён до запуска.");
+    if (value.status === "waiting" && (value.startedAt !== null || value.completedAt !== null || value.failedAt !== null || !emptyCompatibleResult(value.result))) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Пустой результат анализа был изменён до запуска.");
     if (value.status === "analyzing" && (!value.startedAt || value.completedAt !== null || value.failedAt !== null)) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Временные отметки выполняющегося анализа повреждены.");
     if (["completed", "partial"].includes(value.status) && (!value.startedAt || !value.completedAt || value.failedAt !== null)) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Временные отметки завершённого анализа повреждены.");
     if (value.status === "failed" && (!value.startedAt || !value.failedAt || value.completedAt !== null || !value.errors.length)) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Состояние ошибки анализа повреждено."); return true;
@@ -134,7 +136,7 @@
 
   function validateResult(value) {
     const empty = rules.emptyResult(); if (!value || value.schemaVersion !== 1) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Результат семантического анализа повреждён.");
-    for (const key of Object.keys(empty)) if (!(key in value)) throw semanticError("SEMANTIC_INTERNAL_ERROR", `В результате отсутствует группа ${key}.`);
+    for (const key of Object.keys(empty)) if (!(key in value) && !["evidenceDomains", "userAdaptationProfile", "parameterLedger"].includes(key)) throw semanticError("SEMANTIC_INTERNAL_ERROR", `В результате отсутствует группа ${key}.`);
     if (!Array.isArray(value.evidence) || !Array.isArray(value.diagnostics) || !Array.isArray(value.unsupportedContent) || !Array.isArray(value.rowInstructions) || !Array.isArray(value.repeatInstructions)) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Массивы результата анализа повреждены.");
     for (const item of value.evidence) if (!string(item.sourceFileId) || !string(item.sourceFileName) || nonNegativeInteger(item.start) === null || nonNegativeInteger(item.end) === null || item.end < item.start || typeof item.text !== "string" || item.text.length > 500 || !string(item.ruleId)) throw semanticError("SEMANTIC_INTERNAL_ERROR", "Evidence семантического анализа повреждён.");
     value.diagnostics.forEach(normalizeDiagnostic); return true;
@@ -159,15 +161,21 @@
   function yieldToBrowser() { return new Promise((resolve) => globalObject.setTimeout(resolve, 0)); }
 
   function analyzeDeterministically(extraction, options = {}) {
-    if (options.synchronous === true || typeof globalObject.Worker !== "function") return Promise.resolve(rules.analyzeExtraction(extraction));
+    const analysisOptions = { domainBySourceFileId: copy(options.domainBySourceFileId || {}) }; if (options.synchronous === true || typeof globalObject.Worker !== "function") return Promise.resolve(rules.analyzeExtraction(extraction, analysisOptions));
     return new Promise((resolve, reject) => {
       const worker = new globalObject.Worker("/static/pattern-semantic-worker.js");
       worker.onmessage = (event) => { worker.terminate(); if (event.data?.ok) resolve(event.data.result); else reject(semanticError("SEMANTIC_INTERNAL_ERROR", "Фоновый семантический анализ завершился контролируемой ошибкой.")); };
       worker.onerror = () => { worker.terminate(); reject(semanticError("SEMANTIC_INTERNAL_ERROR", "Не удалось выполнить семантический анализ в фоновом процессе.")); };
-      worker.postMessage({ extraction: copy(extraction) });
+      worker.postMessage({ extraction: copy(extraction), options: analysisOptions });
     });
   }
 
-  const api = { VERSION, PROGRESS_KIND, STATUSES, PatternSemanticAnalysisError, emptyResult, createInitialState, startState, finishState, failureState, interruptedState, validateSource, inspectAggregate, ensureForProject, runForProject, retryForProject, analyzeDeterministically, requireValidState, validateResult };
+  function buildEvidenceDomainMap(project, extraction) {
+    const normalizedDescription = comparableText(project?.draft_input?.material_intake?.description); const domains = {}; for (const file of extraction?.result?.files || []) { const sourceFileId = String(file.sourceFileId || ""); if (!sourceFileId) continue; if (file.evidenceDomain === rules.EVIDENCE_DOMAINS?.USER_ADAPTATION_PROFILE) domains[sourceFileId] = file.evidenceDomain; else if (normalizedDescription && comparableText(file.text) === normalizedDescription) domains[sourceFileId] = rules.EVIDENCE_DOMAINS.USER_ADAPTATION_PROFILE; else domains[sourceFileId] = rules.EVIDENCE_DOMAINS?.SOURCE_PATTERN_EVIDENCE || "SOURCE_PATTERN_EVIDENCE"; } return domains;
+  }
+  function comparableText(value) { let output = ""; let spaced = false; for (const character of String(value || "").trim()) { const whitespace = character === " " || character === "\n" || character === "\r" || character === "\t"; if (whitespace) { if (!spaced) output += " "; spaced = true; } else { output += character.toLowerCase(); spaced = false; } } return output.trim(); }
+  function emptyCompatibleResult(value) { return Boolean(value) && Number(value.schemaVersion) === 1 && Number(value.sourceSummary?.textLength || 0) === 0 && !(value.evidence || []).length && Number(value.analysisSummary?.recognizedFields || 0) === 0; }
+
+  const api = { VERSION, ANALYZER_VERSION, PROGRESS_KIND, STATUSES, PatternSemanticAnalysisError, emptyResult, createInitialState, startState, finishState, failureState, interruptedState, validateSource, inspectAggregate, ensureForProject, runForProject, retryForProject, analyzeDeterministically, buildEvidenceDomainMap, requireValidState, validateResult };
   globalObject.YarnAIPatternSemanticAnalysis = Object.freeze(api); if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
