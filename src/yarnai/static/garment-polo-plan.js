@@ -1,9 +1,9 @@
 "use strict";
 
 (function initializePoloPlan(root) {
-  const VERSION="GARMENT_POLO_PLAN_V1";
+  const VERSION="GARMENT_POLO_PLAN_V2";
   const fingerprint=value=>root.YarnAIGarmentSetInGeometry.fingerprint(value);
-  const even=n=>2*Math.round(n/2);
+  const even=n=>root.YarnAIGarmentCalculationPreview.roundCount(n,2);
   const fmt=n=>new Intl.NumberFormat("ru-RU",{maximumFractionDigits:2}).format(n);
   function fail(code,message){throw Object.assign(new Error(message),{code,userMessage:message});}
   function transitionText(from,to){
@@ -34,6 +34,7 @@
     if(after<0||((startDec||endDec)&&before-bo<2+2*(startDec+endDec)))fail("PLAN_ROW_IMPOSSIBLE","В ряду недостаточно петель для кромочных и убавок после закрытия. Форму нужно пересмотреть.");
     if(before===0)return {after:0,text:"Эта половина уже закрыта."};
     if(after===0){if(bo!==before)fail("PLAN_LAST_DECREASE_INVALID","Нельзя убавить последнюю живую петлю.");return{after:0,text:`Закрой все оставшиеся ${before} п., протяни хвост нити через последнюю петлю.`};}
+    if (bo && after === 1 && !startDec && !endDec) return {after,text:`В начале ряда закрой ${bo} п. Единственная оставшаяся петля уже провязана. Останется 1 п.`};
     const work=flatWork(row),parts=[];
     if(bo)parts.push(`В начале ряда закрой ${bo} п. Рабочая петля после закрытия уже провязана и считается первой кромочной`);
     if(startDec||endDec){
@@ -110,23 +111,31 @@
     if(live!==g.sleeve.cap.finalBindOff)fail("PLAN_CAP_BALANCE","Окат не заканчивается расчётным числом петель.");
     return rows;
   }
-  function bandForLength(f,lengthCm,provisional=false){
+  function bandForLength(f,lengthCm,provisional=false,withHoles=true){
     if(!Number.isFinite(lengthCm)||lengthCm<=0)fail("PLAN_EDGE_MEASUREMENT","Нужна измеренная длина края планки.");
     const gs=f.rib.stitchesPerCm,stitches=even(lengthCm*gs)+2,length=(stitches-2)/gs,i=f.input;
-    const holes=Array.from({length:i.buttonCount},(_,n)=>{
+    const holes=Array.from({length:withHoles ? i.buttonCount : 0},(_,n)=>{
       const target=i.buttonEndMarginCm+n*(length-2*i.buttonEndMarginCm)/(i.buttonCount-1);
       const first=Math.round(1.5+target*gs-(i.buttonholeStitches-1)/2),last=first+i.buttonholeStitches-1;
       return {first,last,count:i.buttonholeStitches,centerCm:((first+last)/2-1.5)/gs};
     });
+    if(stitches < 4) fail("PLAN_BAND_TOO_SHORT","На измеренном крае планки не помещаются две кромочные и раппорт резинки.");
     if(holes.some((h,n)=>h.first<3||h.last>stitches-2||(n&&(h.first<=holes[n-1].last+1||h.centerCm-holes[n-1].centerCm<=i.buttonDiameterCm))))fail("PLAN_BUTTON_EDGE_CONFLICT","Измеренный край не вмещает выбранные пуговицы и отверстия. Нужен пересмотр застёжки.");
     return{...f.band,stitches,lengthCm:length,...(provisional ? {targetEdgeCm:lengthCm, provisional:true} : {measuredEdgeCm:lengthCm}),holes};
   }
-  function bandRows(b,withHoles,manufacturer = false){
+  function pickupAlongSlit(stitches, edgeRows) {
+    if (stitches > 2 * edgeRows) fail("PLAN_PICKUP_TOO_DENSE","Для планки требуется больше двух петель на ряд разреза. Проверь плотность резинки и длину края: этот способ набора здесь не подходит.");
+    if (stitches <= edgeRows) return "Поднимай по одной петле из выбранных рядов, равномерно пропуская лишние ряды.";
+    const doubles = stitches - edgeRows;
+    return `Отметь ${edgeRows} точек вдоль разреза, по одной на ряд. В ${doubles} равномерно распределённых точках получи по две петли, в остальных — по одной. Для двух подними петлю на вспомогательную спицу и провяжи её за переднюю и заднюю стенки. Обе новые петли оставь на рабочей спице. Это часть набора.`;
+  }
+  function bandRows(b,withHoles,manufacturer = false,sideOfSlit = "B"){
     let live=b.stitches;const rows=[];
     for(let row=1;row<=b.rows;row++){
       const before=live,side=row%2?"изнаночная":"лицевая";
       let text=row===1?"Первая кромочная лицевая; далее чередуй 1 изнаночную и 1 лицевую до последней петли; последняя кромочная лицевая.":"Обе кромочные лицевые; остальные петли вяжи по рисунку резинки 1×1.";
-      const holes=(row%2?b.holes.map(h=>({...h,first:b.stitches+1-h.last,last:b.stitches+1-h.first})):b.holes).sort((a,bb)=>a.first-bb.first);
+      const fromNeck = (row % 2 === 1) === (sideOfSlit === "B");
+      const holes=(fromNeck?b.holes.map(h=>({...h,first:b.stitches+1-h.last,last:b.stitches+1-h.first})):b.holes).sort((a,bb)=>a.first-bb.first);
       if(withHoles&&row===b.holeRow){
         const actions=[];let consumed=0;
         for(const h of holes){actions.push(`провяжи ${h.first-consumed} п. по рисунку, закрой ${h.count} п. по приёму закрытия середины`);consumed=h.last+1;}
@@ -154,6 +163,8 @@
     const stock = manufacturer ? "Точный расход пряжи не определён." : `По оценке нужно ${f.yarn.requiredGrams} г с запасом, доступно ${f.yarn.availableGrams} г.`;
     const evidence=Object.fromEntries(records.map(r=>[r.stepId,r.input]));
     const back=bodyRows(g,f,false),front=bodyRows(g,f,true),sleeve=sleeveRows(g,f);
+    // Validate the proposed pickup even when measured-swatch mode hides provisional rows.
+    pickupAlongSlit(f.band.stitches,g.body.placket.rows);
     const steps=[];
     const add=(id,title,text,fields=[],rows=null,extra={})=>steps.push({id,title,text:Array.isArray(text)?text:[text],fields,rows,...extra});
     const worked=yes("done","Этот шаг действительно выполнен; это моя отметка, а не автоматическая проверка изделия");
@@ -180,34 +191,37 @@
       add(`sleeve${n}_rib`,`Рукав ${n}: манжета`,`Свяжи ${f.cuff.rows} р. резинки 1×1.`,[count(f.cuff.stitches)],ribRows(f.cuff.stitches,f.cuff.rows));
       add(`sleeve${n}_main`,`Рукав ${n}: расширение и окат`,`Перейди к глади. Окат начинается в ряду ${f.sleeve.beforeCapRows+1} основного полотна; его длина уже входит в полную длину рукава.`,[count(g.sleeve.cap.finalBindOff)],sleeve);
       add(`sleeve${n}_close`,`Рукав ${n}: закрой верх оката`,`Закрой все оставшиеся ${g.sleeve.cap.finalBindOff} п. без стягивания; протяни хвост через последнюю петлю. Оставь хвост для закрепления.`,[worked]);
-      add(`sleeve${n}_measure`,`Рукав ${n}: обработай и измерь`,(manufacturer ? "Обработай и высуши по этикетке пряжи. " : "Обработай и высуши как образец. ") + "Полная длина измеряется от нижнего края манжеты до вершины оката. Ширина под окатом между будущими швами станет обхватом рукава; измерь её на плоской детали, не удваивай. Длину края оката измерь гибкой лентой вдоль линии вшивания, включая его верх.",[measure("lengthCm","Полная длина рукава, см",f.sleeve.achievedLengthCm),measure("upperCm","Ширина под окатом без кромочных, см",(g.sleeve.upperStitches-2)/g.gauge.stitchesPerCm),measure("capCm","Длина всего края оката по линии шва, см",g.sleeve.cap.perimeterCm,Math.max(1,g.sleeve.cap.perimeterCm*0.05))]);
+      add(`sleeve${n}_measure`,`Рукав ${n}: обработай и измерь`,(manufacturer ? "Обработай и высуши по этикетке пряжи. " : "Обработай и высуши как образец. ") + "Полная длина измеряется от нижнего края манжеты до вершины оката. Ширина под окатом между будущими швами станет обхватом рукава; измерь её на плоской детали, не удваивай. Длину края оката измерь гибкой лентой вдоль линии вшивания, включая его верх. Отметь середину верхнего закрытия. Выбери и пометь конец оката, который будешь вшивать в перед. Измерь от него до середины по той же линии шва.",[measure("lengthCm","Полная длина рукава, см",f.sleeve.achievedLengthCm),measure("upperCm","Ширина под окатом без кромочных, см",(g.sleeve.upperStitches-2)/g.gauge.stitchesPerCm),measure("capCm","Длина всего края оката по линии шва, см",g.sleeve.cap.perimeterCm,Math.max(1,g.sleeve.cap.perimeterCm*0.05)),measure("frontCapCm","Край оката от передней подмышки до метки плеча, см",g.sleeve.cap.perimeterCm/2,Math.max(1,g.sleeve.cap.perimeterCm*0.05))]);
     }
     add("shoulders","Соедини плечи",["Разложи перед и спинку лицевой стороной вверх, плечевыми краями друг к другу. Плечо А переда соответствует плечу Б спинки, и наоборот. Совмести внешний край, ступеньки плечевого скоса и край горловины.",`Соедини по ${g.body.shoulder.stitchesEach} закрытых петель каждого плеча горизонтальным трикотажным швом: иглой попеременно подхватывай обе дужки петли под закрытым краем одной и другой детали. Сохраняй размер стежка; не стягивай. Хвосты пока не обрезай коротко.`],[worked]);
     add("neck_measure","Измерь соединённую горловину","Измерь будущую линию набора от верхнего конца разреза А вокруг спинки до верхнего конца разреза Б. Верхи планок пока не включай: их ещё нет. Не растягивай край.",[measure("neckCm","Длина края горловины без верхов планок, см",f.collar.neckEdgeCm-2*f.band.widthCm,Math.max(1,(f.collar.neckEdgeCm-2*f.band.widthCm)*0.1))]);
     const upper=evidence.prepare?.upperBand;
-    const bandData=side=>evidence.front_measure?bandForLength(f,evidence.front_measure[`slit${side}`]):null;
+    const bandData=(side,withHoles)=>evidence.front_measure?bandForLength(f,evidence.front_measure[`slit${side}`],false,withHoles):null;
     for(const which of ["lower","upper"]){
-      const side=upper?(which==="upper"?upper:upper==="A"?"B":"A"):null,actualBand=side?bandData(side):null,
-        b=actualBand || (manufacturer ? bandForLength(f,g.body.placket.rows/g.gauge.rowsPerCm,true) : null),label=which==="upper"?"Верхняя планка с отверстиями":"Нижняя планка";
-      add(`${which}_pickup`,`${label}: подними петли`,b?`${actualBand ? "На половине " + side : "Предварительный набор до измерения разреза: на выбранной половине"} подними ${b.stitches} п. по ${actualBand ? "измеренному" : "расчётному"} краю ${fmt(b.measuredEdgeCm ?? b.targetEdgeCm)} см на спицы ${f.rib.needleMm} мм, начиная снизу и заканчивая у горловины, с лицевой стороны. Раздели край и число петель на четыре части маркерами; поднимай равномерно, не делая двойных наборов из одного отверстия подряд. Для каждой петли вводи спицу под кромочную, захватывай рабочую нить и вытягивай петлю.`:"Точное число будет рассчитано после выбора верхней планки и измерения обработанного разреза.",b?[count(b.stitches)]:[],null,{requires:["prepare","front_measure"],derived:b});
-      add(`${which}_rib`,`${label}: свяжи резинку`,b?`Первый ряд после поднятия петель — изнаночный, от горловины к низу. ${which==="upper"?(manufacturer ? "Размер отверстия рассчитан по диаметру пуговицы и заданной плотности резинки. После восстановления петель примерь пуговицу: она должна проходить и держаться. При необходимости перевяжи отверстие до закрытия планки." : "Отверстия выполняются по проверенному образцу. Их положения в таблице учитывают направление текущего ряда."):"Отверстий в этой планке нет."}`:"Расписание появится после измерения края.",b?[count(b.stitches)]:[],b?bandRows(b,which==="upper",manufacturer):null,{requires:["prepare","front_measure"]});
+      const side=upper?(which==="upper"?upper:upper==="A"?"B":"A"):null,actualBand=side?bandData(side,which==="upper"):null,
+        b=actualBand || (manufacturer ? bandForLength(f,g.body.placket.rows/g.gauge.rowsPerCm,true,which==="upper") : null),label=which==="upper"?"Верхняя планка с отверстиями":"Нижняя планка";
+      add(`${which}_pickup`,`${label}: подними петли`,b?`${actualBand ? "На половине " + side : "Предварительный набор до измерения разреза: на выбранной половине"} подними ${b.stitches} п. по ${actualBand ? "измеренному" : "расчётному"} краю ${fmt(b.measuredEdgeCm ?? b.targetEdgeCm)} см на спицы ${f.rib.needleMm} мм с лицевой стороны. ${side==="A"?"Поднимай от горловины к низу.":side==="B"?"Поднимай от низа к горловине.":"На половине А поднимай от горловины к низу, на Б — от низа к горловине."} Раздели край и число петель на четыре части маркерами; поднимай равномерно, сверяя число в каждой четверти. Вводи спицу под кромочную, захватывай рабочую нить и вытягивай петлю. ${pickupAlongSlit(b.stitches,g.body.placket.rows)}`:"Точное число будет рассчитано после выбора верхней планки и измерения обработанного разреза.",b?[count(b.stitches)]:[],null,{requires:["prepare","front_measure"],derived:b});
+      add(`${which}_rib`,`${label}: свяжи резинку`,b?`Первый ряд после поднятия петель — изнаночный. ${side==="A"?"Вяжи от низа к горловине.":side==="B"?"Вяжи от горловины к низу.":"Первый ряд идёт обратно вдоль края. В таблице показан вариант Б; выбор стороны уточнит порядок петель."} ${which==="upper"?(manufacturer ? "Размер отверстия рассчитан по диаметру пуговицы и заданной плотности резинки. После восстановления петель примерь пуговицу: она должна проходить и держаться. При необходимости перевяжи отверстие до закрытия планки." : "Отверстия выполняются по проверенному образцу. Их положения в таблице учитывают направление текущего ряда."):"Отверстий в этой планке нет."}`:"Расписание появится после измерения края.",b?[count(b.stitches)]:[],b?bandRows(b,which==="upper",manufacturer,side ?? "B"):null,{requires:["prepare","front_measure"]});
       add(`${which}_close`,`${label}: закрой край`,manufacturer ? "Закрой все петли по рисунку без стягивания, хвост закрепи позже." : "Закрой все петли по рисунку резинки без стягивания, тем же способом и натяжением, что на образце; хвост закрепи позже.",[worked]);
     }
     add("bands_measure","Закрепи планки и проверь застёжку",["Наложи верхнюю планку с отверстиями поверх нижней на всю ширину. Нижние торцы обеих планок пришей к закрытым петлям основания разреза. Расправь без перекоса.",(manufacturer ? "Обработай края по этикетке пряжи. " : "Обработай края как образец. ") + "Измерь ширину каждой планки и проверь настоящую пуговицу во всех отверстиях. Пуговицы пока можно не пришивать."],[measure("upperWidthCm","Ширина верхней планки, см",f.band.widthCm),measure("lowerWidthCm","Ширина нижней планки, см",f.band.widthCm),yes("buttonFit","Пуговица проходит во все отверстия и удерживается; планки лежат ровно")]);
     const neckCm=evidence.neck_measure?.neckCm,bands=evidence.bands_measure;
     const collar=neckCm&&bands?{stitches:even((neckCm+bands.upperWidthCm+bands.lowerWidthCm)*f.rib.stitchesPerCm)+2,rows:f.collar.rows,edgeCm:neckCm+bands.upperWidthCm+bands.lowerWidthCm}:manufacturer ? {stitches:f.collar.stitches,rows:f.collar.rows,edgeCm:f.collar.neckEdgeCm,provisional:true} : null;
-    add("collar_pickup","Подними петли воротника",collar?`${collar.provisional ? "Предварительный набор. Уточни его по измеренным краям перед вязанием. " : ""}С изнаночной стороны подними ${collar.stitches} п. на спицы ${f.rib.needleMm} мм по краю длиной ${fmt(collar.edgeCm)} см: от свободного края верхней планки по её верху, вокруг горловины и по верху нижней планки до свободного края. Распредели петли равномерно по отмеченным четвертям края. Воротник будет отворачиваться наружу.`:"Число будет уточнено по измеренной горловине и двум обработанным планкам.",collar?[count(collar.stitches)]:[],null,{requires:["neck_measure","bands_measure"],derived:collar});
+    add("collar_pickup","Подними петли воротника",collar?`${collar.provisional ? "Предварительный набор. Уточни его по измеренным краям перед вязанием. " : ""}С изнаночной стороны подними ${collar.stitches} п. на спицы ${f.rib.needleMm} мм по краю длиной ${fmt(collar.edgeCm)} см: от свободного края планки А по её верху, вокруг горловины и по верху планки Б до свободного края. Обозначения А и Б сохраняются при повороте изделия. Распредели петли равномерно по отмеченным четвертям края. Воротник будет отворачиваться наружу.`:"Число будет уточнено по измеренной горловине и двум обработанным планкам.",collar?[count(collar.stitches)]:[],null,{requires:["neck_measure","bands_measure"],derived:collar});
     add("collar_rib","Свяжи воротник",`Свяжи ${f.collar.rows} р. резинки 1×1, около ${fmt(f.collar.heightCm)} см. Не соединяй в круг.`,collar?[count(collar.stitches)]:[],collar?ribRows(collar.stitches,collar.rows):null,{requires:["neck_measure","bands_measure"]});
     add("collar_close","Закрой и отверни воротник",`Закрой все петли по рисунку свободно. Обработай ${manufacturer ? "по этикетке пряжи" : "как образец"}, высуши, отверни воротник наружу. Не фиксируй горячим утюгом без разрешения этикетки пряжи.`,[measure("heightCm","Высота воротника после обработки, см",f.collar.heightCm),yes("liesFlat","Воротник лежит ровно, его край не стягивает горловину")]);
     const fit=[];
     if(evidence.front_measure&&evidence.back_measure&&evidence.sleeve1_measure&&evidence.sleeve2_measure){
       for(const [n,frontSide,backSide] of [[1,"A","B"],[2,"B","A"]]){
         const arm=evidence.front_measure[`arm${frontSide}`]+evidence.back_measure[`arm${backSide}`],cap=evidence[`sleeve${n}_measure`].capCm;
-        fit.push({sleeve:n,frontSide,backSide,armCm:arm,capCm:cap,easeCm:cap-arm});
+        const frontCap=evidence[`sleeve${n}_measure`].frontCapCm;
+        fit.push({sleeve:n,frontSide,backSide,armCm:arm,capCm:cap,easeCm:cap-arm,
+          frontEaseCm:frontCap-evidence.front_measure[`arm${frontSide}`],
+          backEaseCm:cap-frontCap-evidence.back_measure[`arm${backSide}`]});
       }
     }
-    add("sleeve_fit","Сверь реальные края перед вшиванием",fit.length?fit.map(x=>`Рукав ${x.sleeve}: окат ${fmt(x.capCm)} см, пройма перед ${x.frontSide} + спинка ${x.backSide}: ${fmt(x.armCm)} см; разница ${fmt(x.easeCm)} см. Допускается неотрицательная разница не более ${fmt(g.design.capEaseCm+0.5)} см.`):"Проверка использует сохранённые измерения всех четырёх деталей.",[worked],null,{requires:["front_measure","back_measure","sleeve1_measure","sleeve2_measure"],seamFit:fit});
-    add("attach_sleeves","Вшей оба рукава",["Разложи изделие, пока боковые и рукавные швы открыты. Рукав 1 приложи к пройме А переда + Б спинки; рукав 2 — наоборот. Совмести середину верхнего закрытия оката с плечевым швом, оба подмышечных закрытия — с нижними углами проймы.","Приметай или закрепи маркерами по четвертям. Небольшую подтверждённую разницу краёв равномерно распредели по верхней части оката, без складок; подмышечные закрытия соединяй один к одному. Сшей пряжей иглой, подхватывая крайние дужки/протяжки на линии шва поочерёдно с двух сторон. Если появляются складки или приходится растягивать пройму, остановись и проверь измерения, а не затягивай шов."],[worked]);
+    add("sleeve_fit","Сверь реальные края перед вшиванием",fit.length?fit.map(x=>`Рукав ${x.sleeve}: окат ${fmt(x.capCm)} см, пройма перед ${x.frontSide} + спинка ${x.backSide}: ${fmt(x.armCm)} см; разница ${fmt(x.easeCm)} см. До метки плеча разница спереди ${fmt(x.frontEaseCm)} см, сзади ${fmt(x.backEaseCm)} см. Каждый участок должен доставать до метки без растяжения. Допускается неотрицательная суммарная разница не более ${fmt(g.design.capEaseCm+0.5)} см.`):"Проверка использует сохранённые измерения всех четырёх деталей.",[worked],null,{requires:["front_measure","back_measure","sleeve1_measure","sleeve2_measure"],seamFit:fit});
+    add("attach_sleeves","Вшей оба рукава",["Разложи изделие, пока боковые и рукавные швы открыты. Рукав 1 приложи к пройме А переда + Б спинки; рукав 2 — наоборот. Приложи отмеченный передний конец оката к передней пройме. Совмести середину верхнего закрытия оката с плечевым швом, оба подмышечных закрытия — с нижними углами проймы.","Приметай или закрепи маркерами по четвертям. Небольшую подтверждённую разницу краёв равномерно распредели по верхней части оката, без складок; подмышечные закрытия соединяй один к одному. Сшей пряжей иглой, подхватывая крайние дужки/протяжки на линии шва поочерёдно с двух сторон. Если появляются складки или приходится растягивать пройму, остановись и проверь измерения, а не затягивай шов."],[worked]);
     add("side_seams","Сшей бока и рукава",["Сложи изделие по плечам и совмести перед со спинкой. С каждой стороны соедини боковой шов от низа до подмышки, затем шов рукава от манжеты до подмышки. Совмести резинки, начала пройм и точки прибавок.","На прямых вертикальных краях используй матрасный шов: лицевые стороны обращены к тебе; иглой подхватывай поперечную протяжку между кромочной и следующей петлёй попеременно с каждой стороны. Через несколько стежков мягко подтяни нить. Не захватывай дополнительные столбики: по одной кромочной с каждой стороны уже учтено в расчёте."],[worked]);
     add("buttons","Пришей пуговицы и закрепи нити",`Расположи верхнюю планку поверх нижней, совмести верх и низ. Через каждое из ${f.input.buttonCount} отверстий отметь центр на нижней планке. Пришей пуговицы в отмеченных местах несколькими проходами подходящей прочной нити, оставляя место для толщины планки. Проверь застёгивание. Все хвосты закрепи с изнанки на нескольких петлях в двух направлениях; не обрезай вплотную.`,[worked]);
     add("final","Обработай готовое поло и проверь примеркой",["Обработай изделие по этикетке той же пряжи, высуши горизонтально. Измерь без растяжения и примерь. Проверь свободу движений, плечи, рукава, воротник и застёжку. Если посадка не устраивает, не отмечай готовность — вернись к нужному измерению или расчёту.","Финальная отметка означает твоё сообщение о завершении и примерке. Программа не наблюдала вязание и не подтверждает посадку вместо тебя."],[measure("bustCm","Обхват готового поло, см",2*g.body.achievedWidthCm),measure("lengthCm","Длина готового поло, см",f.body.achievedLengthCm),yes("fitAccepted","После примерки посадка и свобода движений устраивают"),yes("finishAccepted","Оба рукава, все швы, воротник, планки, пуговицы и концы нитей закончены")]);
@@ -229,8 +243,9 @@
       if(field.target!==undefined&&Math.abs(n-field.target)>field.tolerance+1e-9)fail("PLAN_MEASUREMENT_MISMATCH",`${field.label}: получено ${fmt(n)}, расчёт ${fmt(field.target)}, допустимое отклонение для этого контроля ${fmt(field.tolerance)}. Остановись, проверь сухую деталь и исходные данные. Подгонять запись под расчёт нельзя.`);
       input[field.key]=n;
     }
+    if (input.frontCapCm !== undefined && input.frontCapCm >= input.capCm) fail("PLAN_CAP_MEASUREMENT","Часть оката до метки плеча должна быть короче всего края оката.");
     if(step.stockRequired&&inspected.finishing.yarn.status==="shortage")fail("PLAN_YARN_SHORTAGE","По оценке пряжи не хватает. Обнови фактический запас и подтверди расчёт отделки.");
-    if(step.seamFit?.some(s=>s.easeCm<0||s.easeCm>inspected.geometry.design.capEaseCm+0.5))fail("PLAN_SEAM_MISMATCH","Реальные края оката и проймы не согласованы. Вшивание заблокировано; перепроверь измерения и детали. Припуск нельзя убрать растяжением проймы.");
+    if(step.seamFit?.some(s=>![s.frontEaseCm,s.backEaseCm].every(ease=>Number.isFinite(ease) && ease >= -1e-9) || s.easeCm > inspected.geometry.design.capEaseCm+0.5+1e-9))fail("PLAN_SEAM_MISMATCH","Реальные края оката и проймы не согласованы. Вшивание заблокировано; перепроверь измерения и детали. Припуск нельзя убрать растяжением проймы.");
     return input;
   }
   const api={VERSION,fingerprint,fmt,even,fail,transitionText,ribRows,bodyRows,sleeveRows,bandForLength,bandRows,build,validateCompletion};

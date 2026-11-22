@@ -8,7 +8,7 @@
     if (!Number.isFinite(n) || n < min || n > max || (integer && !Number.isInteger(n))) fail("FINISH_INPUT_INVALID", `${title}: нужно ${integer ? "целое " : ""}число от ${min} до ${max}.`);
     return n;
   }
-  const even = n => 2 * Math.round(n / 2);
+  const even = n => root.YarnAIGarmentCalculationPreview.roundCount(n, 2);
   function normalize(v, manufacturer = false) {
     if (!manufacturer && v.mainFabricConfirmed !== true) fail("MAIN_FABRIC_UNCONFIRMED", "Подтверди, что основной обработанный образец связан лицевой гладью из той же пряжи и в то же число нитей.");
     if (!manufacturer && v.ribTreated !== true) fail("RIB_GAUGE_UNCONFIRMED", "Нужен обработанный и высушенный образец резинки 1×1, измеренный без растяжения.");
@@ -45,8 +45,8 @@
   function transition(from, to) {
     const difference = to - from;
     if (difference < 0 && -difference > Math.floor((from - 2) / 2)
-      || difference > from - 3) fail("RIB_TRANSITION_TOO_LARGE", "Разница плотностей требует отдельного перехода в несколько рядов. Эта версия рассчитывает переход за один ряд и не подменяет твои измерения.");
-    return { from, to, difference, technique: difference > 0 ? "make_one" : difference < 0 ? "knit_two_together" : "none" };
+      || difference > from - 2) fail("RIB_TRANSITION_TOO_LARGE", "Разница плотностей требует отдельного перехода в несколько рядов. Эта версия рассчитывает переход за один ряд и не подменяет твои измерения.");
+    return { from, to, difference, technique: difference > 0 ? "knit_front_back" : difference < 0 ? "knit_two_together" : "none" };
   }
   function rowArea(start, rows, events, gs, gr) {
     let live = start, stitchRows = 0;

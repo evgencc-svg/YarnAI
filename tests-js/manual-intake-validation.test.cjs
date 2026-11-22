@@ -87,7 +87,7 @@ function codes(result) { return result.blockers.map((entry) => entry.reasonCode)
 function ready(source = completeSource()) { return validation.validateSources(source, validation.syntheticFixtureContext()); }
 
 async function repository() { const value = new system.ProjectRepository(); repositories.push(value); await value.initialize(); return value; }
-async function seed(optionId = "option:raglan", polo = false, label = null) {
+async function seed(optionId = "option:raglan", polo = false, label = null, variant = {}) {
   const repo = await repository();
   const project = await repo.createProject({ title: "TEST ONLY — manual validation", draft_input: { workflow_intent: { version: 1, kind: "garment_reference" } } });
   let inspected = await garment.addPhotosForProject(repo, project.project_id, [new Blob([Buffer.from("front")], { type: "image/png" })]);
@@ -97,14 +97,14 @@ async function seed(optionId = "option:raglan", polo = false, label = null) {
   await intake.ensureForProject(repo, project.project_id);
   await intake.saveDraftForProject(repo, project.project_id, {
     targetSizing: {
-      bodyMeasurements: { bust_circumference: 96, body_shoulder_width: 42, body_back_width: 38 },
-      finishedGarmentMeasurements: { finished_bust_circumference: 108, finished_body_length: label ? 60 : 62, finished_sleeve_length: 58, finished_upper_arm_circumference: 34, finished_cuff_circumference: 18, finished_neck_width: 18, finished_front_neck_depth: 8, finished_yoke_depth: 24, finished_armhole_depth: 24 },
+      bodyMeasurements: { bust_circumference: (variant.measurements?.finished_bust_circumference ?? 108) - 12, body_shoulder_width: 42, body_back_width: 38 },
+      finishedGarmentMeasurements: { finished_bust_circumference: 108, finished_body_length: label ? 60 : 62, finished_sleeve_length: 58, finished_upper_arm_circumference: 34, finished_cuff_circumference: 18, finished_neck_width: 18, finished_front_neck_depth: 8, finished_yoke_depth: 24, finished_armhole_depth: 24, ...variant.measurements },
       ease: { bust_ease: 12 },
       fitPreferences: { body_shaping_preference: "straight", neckline_style: polo ? "polo_collar_with_placket" : "round_neck", closure_style: polo ? "short_front_placket" : "none" },
     },
     constructionInputs: { hem_finish: "rib", cuff_finish: "rib" },
     yarn: { selectionStatus: "selected", name: "TEST ONLY yarn", strandCount: 1, composition: "шерсть", lengthMeters: 200, skeinMassGrams: 100, quantityAvailable: 6 },
-    needles: { selectionStatus: "selected", primaryMm: 4.5 }, gauge: label ? { source: "manufacturer", label } : { sourceMeasurement: { stitches: 23, widthCm: 12.5, rows: 31, heightCm: 14, needleSizeMm: 4.5, afterTreatment: "yes" } },
+    needles: { selectionStatus: "selected", primaryMm: variant.needle ?? 4.5 }, gauge: label ? { source: "manufacturer", label } : { sourceMeasurement: { stitches: 23, widthCm: 12.5, rows: 31, heightCm: 14, needleSizeMm: variant.needle ?? 4.5, afterTreatment: "yes" } },
   });
   return { repo, project };
 }
@@ -370,6 +370,7 @@ function finishingFixture() {
     hemHeightCm:4,cuffHeightCm:4,collarHeightCm:7,buttonCount:3,buttonDiameterCm:1.5,buttonholeStitches:3,buttonEndMarginCm:1.5,
     mainMassGrams:12,mainFullWidthCm:14,mainFullHeightCm:16,ribMassGrams:10,ribFullWidthCm:12,ribFullHeightCm:12,reservePercent:15,availableGrams:600};
 }
+require("./polo-audit.cjs")({seed, intake, validation, preview, geometry, finishingDomain, poloPlan, finishingFixture});
 async function finishingSeed() {
   const seeded=await confirmedPreviewSeed('option:set-in',true),id=seeded.project.project_id;
   const design=await designDomain.saveForProject(seeded.repo,id,geometry.proposals(seeded.confirmed.state.confirmedSnapshot),0);
@@ -451,13 +452,34 @@ test('47 physical row compiler reaches every body endpoint with reachable bind-o
   assert.equal(sleeve.length,f.sleeve.mainRows);
 });
 
-async function executionSeed(){
+async function executionSeed(finishInput = finishingFixture()){
   const seeded=await finishingSeed(),id=seeded.project.project_id;
-  const saved=await designDomain.saveFinishingForProject(seeded.repo,id,finishingFixture(),seeded.accepted.progress.revision);
+  const saved=await designDomain.saveFinishingForProject(seeded.repo,id,finishInput,seeded.accepted.progress.revision);
   const finished=await designDomain.confirmFinishingForProject(seeded.repo,id,saved.finishing.fingerprint,saved.progress.revision);
   return{...seeded,finished};
 }
 function syntheticCompletion(step){return Object.fromEntries(step.fields.map(f=>[f.key,f.type==='checkbox'?true:f.type==='select'?f.options[0].value:f.target]));}
+
+test("audit: an incompatible upper slit cannot strand saved progress and the plain slit needs no buttonholes",async()=>{
+  const fixture={...finishingFixture(),buttonholeStitches:5,buttonEndMarginCm:2.75};
+  const {repo,project}=await executionSeed(fixture), id=project.project_id;
+  let view=await poloExecution.startForProject(repo,id);
+  while(view.plan.steps[view.state.stepIndex].id!=="front_measure"){
+    const step=view.plan.steps[view.state.stepIndex];
+    if(step.rows) view=await poloExecution.savePositionForProject(repo,id,step.id,step.rows.length,"",view.progress.revision);
+    view=await poloExecution.completeStepForProject(repo,id,step.id,syntheticCompletion(step),view.progress.revision);
+  }
+  const step=view.plan.steps[view.state.stepIndex], actual=syntheticCompletion(step);
+  const short=actual.slitA-0.49, revision=view.progress.revision;
+  await assert.rejects(()=>poloExecution.completeStepForProject(repo,id,step.id,{...actual,slitA:short},revision),{code:"PLAN_BUTTON_EDGE_CONFLICT"});
+  await repo.close();
+  const reopened=await repository();
+  view=await poloExecution.inspectForProject(reopened,id);
+  assert.equal(view.current,true);assert.equal(view.progress.revision,revision);
+  const next=await poloExecution.completeStepForProject(reopened,id,step.id,{...actual,slitB:short},revision);
+  assert.equal(next.current,true);
+  assert.equal(next.plan.steps.find(s=>s.id==="lower_pickup").derived.holes.length,0);
+});
 
 test('48 full synthetic polo route reaches user-reported completion including actual-edge pickup recalculation',async()=>{
   const {repo,project}=await executionSeed(),id=project.project_id;

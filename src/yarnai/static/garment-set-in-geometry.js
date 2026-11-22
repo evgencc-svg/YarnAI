@@ -18,7 +18,7 @@
     if (!Number.isFinite(n) || n < min || n > max) fail("DESIGN_INPUT_INVALID", `${name}: допустимо от ${min} до ${max} см.`);
     return n;
   }
-  const even = value => 2 * Math.round(value / 2);
+  const even = value => root.YarnAIGarmentCalculationPreview.roundCount(value, 2);
   function fingerprint(value) {
     const canonical = item => Array.isArray(item) ? `[${item.map(canonical).join(",")}]`
       : item && typeof item === "object" ? `{${Object.keys(item).sort().map(key => `${JSON.stringify(key)}:${canonical(item[key])}`).join(",")}}` : JSON.stringify(item);
@@ -58,6 +58,7 @@
     return events;
   }
   function sleeveCap(upper, initial, top, gauge, armhole, design) {
+    if (top < 2) fail("CAP_TOP_TOO_NARROW", "При этой плотности на верхнем крае оката не остаётся петель для закрытия. Увеличь ширину верха оката или проверь плотность.");
     const topStep = Math.max(1, Math.round(top / 6));
     const decreases = (upper - 2 * initial - 2 * topStep - top) / 2;
     if (!Number.isSafeInteger(decreases) || decreases < 3 || decreases > 200) fail("CAP_WIDTH_INCOMPATIBLE", "Ширины рукава и верха оката не оставляют места для плавного формирования. Проверь ширину плеч, обхват рукава и предложенную ширину верха оката.");

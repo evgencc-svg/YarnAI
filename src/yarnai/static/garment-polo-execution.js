@@ -70,6 +70,9 @@
     const input=planner.validateCompletion(inspected.design,inspected.plan,step,raw,inspected.state.completedRows);
     const state=clone(inspected.state);
     state.records.push({stepId,stepFingerprint:step.fingerprint,input,completedRows:state.completedRows,note:state.note,reportedAt:new Date().toISOString(),evidence:"user_report"});
+    // An accepted slit length can still be too short for the chosen buttons.
+    // Compile its dependent steps before committing the measurement and position.
+    if (stepId === "front_measure") planner.build(inspected.design,state.records);
     state.stepIndex++;state.completedRows=0;state.note="";
     if(state.stepIndex===inspected.plan.steps.length){state.status="completed_reported";state.completedAt=new Date().toISOString();}
     return write(repository,projectId,inspected,state,"GARMENT_POLO_STEP_REPORTED");

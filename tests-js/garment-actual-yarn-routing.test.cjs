@@ -31,7 +31,12 @@ async function load(mode) {
       }, async selectRouteForProject() { writes++; throw new Error("Unexpected write"); }
     } };
   vm.runInNewContext(controller, sandbox);
-  for (let i = 0; i < 20; i++) await new Promise(resolve => setImmediate(resolve));
+  // WebCrypto may still be hashing after many event-loop turns on a busy runner.
+  const deadline = Date.now() + 5000;
+  while (!element("yarn-route-status").textContent && !element("form-error").textContent) {
+    assert.ok(Date.now() < deadline, "The yarn route did not finish initializing");
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
   return { element, writes: () => writes };
 }
 

@@ -8,6 +8,11 @@
     if (!Number.isFinite(value) || value <= 0) fail(`Неверное значение: ${label}.`);
     return value;
   }
+  // Decimal gauge ratios can land one binary ULP below an exact half step.
+  function roundCount(value, multiple = 1) {
+    const units = value / multiple;
+    return multiple * Math.round(units + Number.EPSILON * Math.abs(units));
+  }
   function build(state, artifact) {
     root.YarnAIManualIntakeValidation.requireValidState(state);
     if (state.status !== "confirmed" || state.abstain) fail("Сначала подтверди актуальные исходные данные.");
@@ -32,7 +37,7 @@
       const cm = m(key) / divisor;
       const rate = unit === "п." ? stitchRate : rowRate;
       const exact = cm * rate;
-      const rounded = factor * Math.round(exact / factor);
+      const rounded = roundCount(exact, factor);
       if (!Number.isSafeInteger(rounded) || rounded <= 0) fail(`Размер слишком мал или велик: ${label}.`);
       rows.push({ key, label, targetCm: cm, exact, value: rounded, unit,
         resultingCm: rounded / rate, deviationCm: rounded / rate - cm,
@@ -69,7 +74,7 @@
         "Расход пряжи и достаточность запаса не определены: нужен вес обработанного образца и полный расчёт площадей деталей."
       ] });
   }
-  const api = Object.freeze({ VERSION, build });
+  const api = Object.freeze({ VERSION, build, roundCount });
   root.YarnAIGarmentCalculationPreview = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
