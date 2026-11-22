@@ -181,12 +181,12 @@
       current_execution_state: {
         status: "completed", integrity: "current", identity: serverIdentity(review.identity),
       },
-      follow_up: false,
+      follow_up: review.request.followUp === true,
     };
   }
 
-  async function fetchGatewayConfiguration() {
-    const response = await globalObject.fetch("/api/v1/vision-reviews/configuration", {
+  async function fetchGatewayConfiguration(flow = "") {
+    const response = await globalObject.fetch("/api/v1/vision-reviews/configuration" + (flow === "polo" ? "?flow=polo" : ""), {
       method: "GET", credentials: "same-origin", cache: "no-store",
     });
     if (!response.ok) return normalizeGatewayConfiguration(null);

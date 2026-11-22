@@ -10,6 +10,8 @@
   <script src="/static/manual-calculation-intake.js" defer></script><script src="/static/manual-intake-validation.js" defer></script>
   <script src="/static/garment-calculation-preview.js" defer></script><script src="/static/garment-set-in-geometry.js" defer></script>
   <script src="/static/garment-polo-finishing.js" defer></script><script src="/static/garment-set-in-design.js" defer></script>
+  <script src="/static/pattern-execution-vision-review.js" defer></script>
+  <script src="/static/garment-polo-checkpoints.js" defer></script>
   <script src="/static/garment-polo-plan.js" defer></script><script src="/static/garment-polo-execution.js" defer></script>
   <script src="/static/garment-polo-execution-assistant.js" defer></script>
 </head>
@@ -18,13 +20,21 @@
   <main class="shell">
     <section class="hero panel"><p class="eyebrow">От набора петель до примерки</p><h1>Вяжем поло шаг за шагом</h1><p id="execution-gauge-source" hidden>Расчёт по плотности производителя. Сверь размеры первой детали во время вязания.</p><p>Отдельные детали, втачные рукава, лицевая гладь, резинка 1×1 и застёжка. План рассчитан по сохранённым данным; посадку проверяет вязание.</p><a id="execution-intake" href="/saved-projects">← Мерки, плотность и расчёт</a></section>
     <p id="execution-error" class="panel" role="alert" hidden></p>
-    <section id="execution-start-panel" class="panel" hidden><h2>Проверь весь порядок работы</h2><p>Справа можно открыть любой шаг. Ряды планок и воротника уточнятся после измерения обработанных краёв. Нажатие «Начать» создаст запись выполнения; оно не отмечает ни одного ряда связанным.</p><button id="execution-start" class="button" type="button">Начать этот план</button></section>
+    <section id="execution-start-panel" class="panel" hidden><h2>Проверь весь порядок работы</h2><p>Справа можно открыть любой шаг. Ряды планок и воротника уточнятся после измерения обработанных краёв. Нажатие «Начать» создаст запись выполнения; оно не отмечает ни одного ряда связанным.</p><label>Как часто проверять вязание? <select id="execution-mode"><option value="experienced">Обычный — ключевые этапы</option><option value="beginner">С поддержкой — дополнительные остановки перед сложными рядами</option></select></label><button id="execution-start" class="button" type="button">Начать этот план</button></section>
     <section id="execution-restart-panel" class="panel" hidden><h2>Прежний план сохранён в истории</h2><p>После изменения исходных данных прежние отметки не переносятся в новый расчёт. Начало заново меняет записи приложения, а не распускает связанную вещь.</p><label><input id="execution-restart-consent" type="checkbox"> Я проверила обновлённый расчёт и хочу начать новый журнал выполнения</label><button id="execution-restart" class="button secondary" type="button" disabled>Начать новый журнал, сохранив прежний</button></section>
     <div class="polo-layout">
       <section class="panel" id="execution-current" hidden>
         <p id="execution-progress-label" role="status"></p><progress id="execution-progress" max="1" value="0"></progress>
         <h2 id="execution-step-title"></h2><div id="execution-step-text"></div>
         <section id="execution-row-panel" class="polo-row" hidden><h3 id="execution-row-title"></h3><p id="execution-row-text"></p><p id="execution-row-count"></p><label>Сколько рядов этого шага уже полностью связано? <input id="execution-row-number" type="number" min="0" step="1" value="0"></label><div class="polo-controls"><button id="execution-next-row" class="button" type="button">Этот ряд связан — сохранить</button></div><details><summary>Все ряды этого шага</summary><div id="execution-row-table"></div></details></section>
+        <section id="execution-photo" class="polo-photo" aria-labelledby="execution-photo-title" hidden>
+          <h3 id="execution-photo-title">Перед продолжением проверим результат</h3>
+          <div id="execution-photo-guide"></div><div role="status" id="execution-photo-result"></div>
+          <label>Добавить от 1 до 3 фото <input id="execution-photo-files" type="file" multiple accept="image/jpeg,image/png,image/webp"></label>
+          <div class="polo-controls"><button type="button" id="execution-photo-save" class="button secondary">Сохранить снимки в проекте</button>
+          <button type="button" id="execution-photo-submit" class="button">Отправить на фотопроверку</button>
+          <button type="button" id="execution-photo-manual" class="button secondary" hidden>Я проверила вручную — сохранить мою отметку</button></div>
+        </section>
         <form id="execution-step-form"><div id="execution-fields" class="polo-checks"></div><label>Заметка на месте остановки<textarea id="execution-note" class="polo-note" maxlength="2000" placeholder="Например: остановилась после 7-го ряда, маркер у правого края"></textarea></label><div class="polo-controls"><button id="execution-save" class="button secondary" type="button">Сохранить место и заметку</button><button id="execution-complete" class="button" type="submit">Шаг выполнен — проверить и продолжить</button></div></form>
         <p id="execution-saved" role="status"></p>
       </section>

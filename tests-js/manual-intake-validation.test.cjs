@@ -458,6 +458,40 @@ async function executionSeed(finishInput = finishingFixture()){
   const finished=await designDomain.confirmFinishingForProject(seeded.repo,id,saved.finishing.fingerprint,saved.progress.revision);
   return{...seeded,finished};
 }
+// Transport double proves execution routing only. The image trial uses the real provider.
+async function photoDecision(repo,id,view,outcome="verified_continue",options={}) {
+  const bytes=options.bytes || "isolated simulation "+system.uuidv7();
+  let sent=0;
+  let selected=await poloExecution.selectPhotos(repo,id,[new Blob([bytes],{type:"image/png"})],view.progress.revision);
+  const fetchBefore=global.fetch;
+  try {
+    global.fetch=async(url,init)=>{
+      if(init.method==="GET") return {ok:true,json:async()=>({...configuration,enabled:options.online!==false})};
+      sent++;
+      const request=JSON.parse(init.body);
+      const response={schema_version:1,review_session_id:request.review_session_id,
+        identity:request.identity,provider:configuration.provider,model:configuration.model,
+        verdict:outcome,confidence:{level:"high",uncertainty_reasons:[]},
+        ui_message:global.YarnAIPatternExecutionVisionReview.UI_MESSAGES[outcome],
+        missing_evidence:outcome==="more_evidence_required"?["Покажи край крупно"]:[],
+        observations:request.allowed_checks.map(check=>({check,finding:"TEST ONLY",photo_sha256:request.photos[0].sha256,reliability:"visible_reliable"}))};
+      if(options.wrongStep) response.identity.step_id="other";
+      return {ok:true,json:async()=>response};
+    };
+    const restored=await poloExecution.inspectForProject(repo,id);
+    assert.deepEqual(restored.state,selected.state);
+    selected=await poloExecution.submitPhotos(repo,id,restored.progress.revision);
+    assert.equal(sent,options.online===false?0:1);
+    return selected;
+  } finally {global.fetch=fetchBefore;}
+}
+async function verifyDue(repo,id,view) {
+  for(const point of global.YarnAIPoloCheckpoints.pending(view)){
+    assert.equal(point.row,view.state.completedRows);
+    view=await photoDecision(repo,id,view);
+  }
+  return view;
+}
 function syntheticCompletion(step){return Object.fromEntries(step.fields.map(f=>[f.key,f.type==='checkbox'?true:f.type==='select'?f.options[0].value:f.target]));}
 
 test("audit: an incompatible upper slit cannot strand saved progress and the plain slit needs no buttonholes",async()=>{
@@ -467,6 +501,7 @@ test("audit: an incompatible upper slit cannot strand saved progress and the pla
   while(view.plan.steps[view.state.stepIndex].id!=="front_measure"){
     const step=view.plan.steps[view.state.stepIndex];
     if(step.rows) view=await poloExecution.savePositionForProject(repo,id,step.id,step.rows.length,"",view.progress.revision);
+    view=await verifyDue(repo,id,view);
     view=await poloExecution.completeStepForProject(repo,id,step.id,syntheticCompletion(step),view.progress.revision);
   }
   const step=view.plan.steps[view.state.stepIndex], actual=syntheticCompletion(step);
@@ -489,6 +524,7 @@ test('48 full synthetic polo route reaches user-reported completion including ac
     assert.equal(current.current,true,current.problem?.message);
     const step=current.plan.steps[current.state.stepIndex];seen.push(step.id);
     if(step.rows)current=await poloExecution.savePositionForProject(repo,id,step.id,step.rows.length,'TEST ONLY — no physical knitting',current.progress.revision);
+    current=await verifyDue(repo,id,current);
     current=await poloExecution.completeStepForProject(repo,id,step.id,syntheticCompletion(step),current.progress.revision);
   }
   assert.equal(current.current,true,current.problem?.message);
@@ -496,7 +532,8 @@ test('48 full synthetic polo route reaches user-reported completion including ac
   assert.equal(current.state.records.length,current.plan.steps.length);
   for(const required of ['back_main','front_main','sleeve1_main','sleeve2_main','shoulders','lower_rib','upper_rib','collar_rib','sleeve_fit','attach_sleeves','side_seams','buttons','final'])assert.ok(seen.includes(required));
   assert.equal(current.plan.physicalFitProven,false);
-  assert.ok(current.state.records.every(r=>r.evidence==='user_report'));
+  assert.equal(current.state.records.filter(r=>r.evidence==="photo_and_user_report").length,11);
+  assert.equal(current.state.records.filter(r=>r.evidence==="user_report").length,25);
   const snapshot=clone(current.state);
   await repo.close();const reopened=await repository();
   const restored=await poloExecution.inspectForProject(reopened,id);
@@ -529,6 +566,91 @@ test('50 input changes preserve execution but refuse continuation under a differ
   assert.equal(inspected.current,false);
   assert.deepEqual(inspected.state,execution.state);
   await assert.rejects(()=>poloExecution.completeStepForProject(repo,id,'prepare',{upperBand:'A',done:true},execution.progress.revision));
+});
+
+test("guided gates persist across correction, duplicate images, partial row skips and rewind",async()=>{
+  const {repo,project}=await executionSeed(), id=project.project_id;
+  let view=await poloExecution.startForProject(repo,id,0,false,"beginner");
+  const advance=()=>{const step=view.plan.steps[view.state.stepIndex];return poloExecution.completeStepForProject(repo,id,step.id,syntheticCompletion(step),view.progress.revision);};
+  view=await advance();view=await advance();
+  const rib=view.plan.steps[view.state.stepIndex];
+  view=await poloExecution.savePositionForProject(repo,id,rib.id,rib.rows.length,"",view.progress.revision);
+  for(const outcome of ["correction_required","more_evidence_required","cannot_determine"]){
+    view=await photoDecision(repo,id,view,outcome,{bytes:outcome});
+    await assert.rejects(advance,{code:"PHOTO_REQUIRED"});
+    await assert.rejects(()=>poloExecution.selectPhotos(repo,id,[new Blob([outcome],{type:"image/png"})],view.progress.revision),{code:"PHOTO_REPEATED"});
+    await assert.rejects(()=>poloExecution.manualCheck(repo,id,view.progress.revision),{code:"PHOTO_MANUAL_FORBIDDEN"});
+  }
+  view=await photoDecision(repo,id,view,"verified_continue",{online:false});
+  await assert.rejects(advance,{code:"PHOTO_REQUIRED"});
+  view=await photoDecision(repo,id,view,"verified_continue",{wrongStep:true});
+  await assert.rejects(advance,{code:"PHOTO_REQUIRED"});
+  view=await photoDecision(repo,id,view);
+  view=await advance();
+  assert.deepEqual(view.state.records.at(-1).reviews.map(r=>r.status),["correction_required","more_evidence_required","cannot_determine","automatic_unavailable","delivery_unknown","verified_continue"]);
+  const stop=global.YarnAIPoloCheckpoints.pending(view)[0];
+  assert.ok(stop.row>0 && stop.row<view.plan.steps[view.state.stepIndex].rows.length);
+  await assert.rejects(()=>poloExecution.savePositionForProject(repo,id,"back_main",stop.row+1,"",view.progress.revision),{code:"PHOTO_REQUIRED"});
+  view=await poloExecution.rewindForProject(repo,id,2,view.progress.revision);
+  view=await poloExecution.savePositionForProject(repo,id,rib.id,rib.rows.length,"",view.progress.revision);
+  await assert.rejects(advance,{code:"PHOTO_REQUIRED"});
+});
+
+test("experienced offline manual decision is explicit; restart invalidates the full binding",async()=>{
+  const {repo,project}=await executionSeed(),id=project.project_id;
+  let view=await poloExecution.startForProject(repo,id);
+  const points=mode=>view.plan.steps.flatMap(s=>global.YarnAIPoloCheckpoints.forStep(s,view.design,mode));
+  assert.equal(points("experienced").length,11);assert.equal(points("beginner").length,21);
+  const advance=()=>{const step=view.plan.steps[view.state.stepIndex];return poloExecution.completeStepForProject(repo,id,step.id,syntheticCompletion(step),view.progress.revision);};
+  view=await advance();view=await advance();
+  const step=view.plan.steps[2];
+  view=await poloExecution.savePositionForProject(repo,id,step.id,step.rows.length,"",view.progress.revision);
+  view=await photoDecision(repo,id,view,"verified_continue",{online:false});
+  await assert.rejects(advance,{code:"PHOTO_REQUIRED"});
+  view=await poloExecution.manualCheck(repo,id,view.progress.revision);
+  view=await advance();
+  assert.equal(view.state.records.at(-1).evidence,"user_report");
+  const old=view.state.records.at(-1).reviews.at(-1);
+  const prior=view.state.photoControl.sessionId;
+  view=await poloExecution.startForProject(repo,id,view.progress.revision,true,"beginner");
+  assert.notEqual(view.state.photoControl.sessionId,prior);
+  view=await advance();view=await advance();
+  const point=global.YarnAIPoloCheckpoints.pending(view)[0];
+  assert.equal(global.YarnAIPoloCheckpoints.passed(old,view.state,step,point),false);
+  assert.equal(view.state.history.at(-1).records.length,3);
+});
+
+test("reworking a reviewed row invalidates that photo before a new advance",async()=>{
+  const {repo,project}=await executionSeed(),id=project.project_id;
+  let view=await poloExecution.startForProject(repo,id);
+  for(let i=0;i<2;i++){const step=view.plan.steps[i];view=await poloExecution.completeStepForProject(repo,id,step.id,syntheticCompletion(step),view.progress.revision);}
+  const step=view.plan.steps[2], row=step.rows.length;
+  const save=n=>poloExecution.savePositionForProject(repo,id,step.id,n,"",view.progress.revision);
+  view=await save(row);
+  view=await photoDecision(repo,id,view);
+  const old=view.state.photoControl.reviews.at(-1);
+  const policy=global.YarnAIPoloCheckpoints,point=policy.forStep(step,view.design,"experienced")[0];
+  assert.equal(policy.passed(old,{...view.state,planFingerprint:"fnv1a32:00000000"},step,point),false);
+  assert.equal(policy.passed(old,view.state,{...step,fingerprint:"fnv1a32:00000000"},point),false);
+  view=await save(row-1);view=await save(row);
+  assert.equal(policy.passed(old,view.state,step,point),false);
+  assert.equal(view.state.history.at(-1).reviews[0].status,"verified_continue");
+  await assert.rejects(()=>poloExecution.completeStepForProject(repo,id,step.id,syntheticCompletion(step),view.progress.revision),{code:"PHOTO_REQUIRED"});
+});
+
+test("old polo sessions retain their completed and unreviewed steps",async()=>{
+  const {repo,project}=await executionSeed(),id=project.project_id;
+  let view=await poloExecution.startForProject(repo,id);
+  const legacy=clone(view.state);
+  delete legacy.photoControl;legacy.version=1;legacy.fingerprint=poloExecution.stateFingerprint(legacy);
+  await repo.updateCalculationProgress(id,legacy.calculationId,poloExecution.KIND,legacy,{baseProgressRevision:view.progress.revision});
+  view=await poloExecution.inspectForProject(repo,id);
+  for(let i=0;i<3;i++){
+    const step=view.plan.steps[i];
+    if(step.rows)view=await poloExecution.savePositionForProject(repo,id,step.id,step.rows.length,"",view.progress.revision);
+    view=await poloExecution.completeStepForProject(repo,id,step.id,syntheticCompletion(step),view.progress.revision);
+  }
+  assert.equal(view.current,true);assert.equal(view.state.records[2].evidence,"user_report");
 });
 
 test('51 actual seam mismatch, absent choice and wrong measurement are not accepted by confirmation alone',async()=>{

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import json
 from copy import deepcopy
 from pathlib import Path
 
@@ -23,7 +25,7 @@ from yarnai.vision_review import (
 )
 
 
-PHOTO_SHA = "a" * 64
+PHOTO_SHA = hashlib.sha256(b"local-photo-bytes").hexdigest()
 IDENTITY = {
     "project_id": "project-1",
     "session_id": "session-1",
@@ -373,6 +375,97 @@ def test_route_registered_once_and_module_has_no_network_client() -> None:
     assert "import httpx" not in source
     assert "import requests" not in source
     assert "urlopen(" not in source
+
+
+def test_polo_replay_and_double_click_survive_worker_restart(tmp_path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    import sqlite3
+    from yarnai.polo_vision_runtime import PoloVisionGateway
+    from yarnai.garment_reference import RESPONSES_ENDPOINT_URL
+
+    payload = request_payload()
+    identity = payload["identity"]
+    identity.update(step_id="back_rib", action_id="back_rib")
+    identity["checkpoint_identity"] = {"checkpoint_id":"back_rib.rib","revision":1,"fingerprint":"fnv1a32:12345678"}
+    payload["current_execution_state"]["identity"] = deepcopy(identity)
+    entered, release = Event(), Event()
+    calls = []
+
+    class Transport:
+        def post_json(self, endpoint, request, **kwargs):
+            assert endpoint == RESPONSES_ENDPOINT_URL
+            calls.append(endpoint)
+            entered.set()
+            assert release.wait(5)
+            result = verdict_payload()
+            result["identity"] = identity
+            return {"model": DEFAULT_MODEL, "status":"completed", "usage":{"input_tokens":100,
+                    "output_tokens":20,"total_tokens":120}, "output":[{"type":"message","content":[
+                        {"type":"output_text","text":json.dumps(result)}]}]}
+
+    path = tmp_path/"reviews.sqlite3"
+    gateway = PoloVisionGateway(enabled_settings(), "unit-test", path, Transport())
+    with ThreadPoolExecutor() as pool:
+        future = pool.submit(gateway.review, payload)
+        assert entered.wait(5)
+        try:
+            with pytest.raises(VisionReviewError, match="Повторная"):
+                gateway.review(payload)
+        finally:
+            release.set()
+        result = future.result(timeout=5)
+    rebuilt = PoloVisionGateway(enabled_settings(), "unit-test", path, Transport())
+    assert rebuilt.review(payload) == result
+    duplicate = {**payload, "review_session_id":"other-id"}
+    assert rebuilt.review(duplicate) == {**result,"review_session_id":"other-id"}
+    changed = {**duplicate,"review_session_id":"third-id","photo_requirements":["A different direction"]}
+    with pytest.raises(VisionReviewError, match="Снимок"):
+        rebuilt.review(changed)
+    with sqlite3.connect(path) as db:
+        row = db.execute("SELECT usage,cost_usd FROM reviews").fetchone()
+    assert json.loads(row[0])["total_tokens"] == 120 and float(row[1]) > 0
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize("defect", ["hash","low","uncertain","partial"])
+def test_polo_incomplete_evidence_and_wrong_bytes_fail_closed(defect):
+    request = request_payload()
+    result = verdict_payload()
+    if defect == "hash":
+        request["photos"][0]["content_base64"] = base64.b64encode(b"other bytes").decode()
+    if defect == "low":
+        result["confidence"]["level"] = "low"
+    if defect == "uncertain":
+        result["confidence"]["uncertainty_reasons"] = ["край закрыт"]
+    if defect == "partial":
+        request["allowed_checks"].append("visible_length")
+    with pytest.raises(VisionReviewError):
+        validate_provider_verdict(result, request, enabled_settings())
+
+
+def test_polo_specific_availability_and_unreliable_claims_request_another_view(tmp_path):
+    from yarnai.polo_vision_runtime import PoloVisionGateway
+    payload = request_payload()
+    payload["identity"].update(step_id="back_rib", action_id="back_rib",
+        checkpoint_identity={"checkpoint_id":"back_rib.rib","revision":1,"fingerprint":"fnv1a32:12345678"})
+    payload["current_execution_state"]["identity"] = deepcopy(payload["identity"])
+    response = verdict_payload()
+    response.update(identity=payload["identity"])
+    response["confidence"]["level"] = "low"
+    class Transport:
+        def post_json(self,*args,**kwargs):
+            return {"model":DEFAULT_MODEL,"status":"completed","output":[{"type":"message",
+                    "content":[{"type":"output_text","text":json.dumps(response)}]}]}
+    gateway = PoloVisionGateway(enabled_settings(),"unit-test",tmp_path/"polo.sqlite",Transport())
+    with TestClient(create_app(vision_gateway=gateway)) as client:
+        assert not client.get("/api/v1/vision-reviews/configuration").json()["enabled"]
+        assert client.get("/api/v1/vision-reviews/configuration?flow=polo").json()["enabled"]
+    answer = gateway.review(payload)
+    assert answer["verdict"] == "more_evidence_required"
+    assert answer["missing_evidence"] == payload["photo_requirements"]
+    assert answer["observations"] == []
+    assert gateway.review(payload) == answer
 
 
 def test_browser_cannot_override_provider_or_model() -> None:

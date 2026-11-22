@@ -1,0 +1,144 @@
+[
+  {
+    "case": "under",
+    "verdict": "cannot_determine",
+    "observations": [
+      {
+        "check": "overall_step_state",
+        "finding": "На фото видна горизонтальная прямоугольная полоса под спицей; по силуэту не заметны клин, расширение или сужение. Однако это не подтверждает число рядов и рисунок вязки.",
+        "photo_sha256": "9c72059647b737787d2861e6f25c746f24160b006393b9b52a61d2d5e671be4d",
+        "reliability": "visible_reliable"
+      },
+      {
+        "check": "construction_detail",
+        "finding": "Повторяющийся графический рисунок не позволяет надёжно различить чередование лицевых и изнаночных петель 1×1; фактуру и отдельные петли проверить нельзя.",
+        "photo_sha256": "9c72059647b737787d2861e6f25c746f24160b006393b9b52a61d2d5e671be4d",
+        "reliability": "not_reliably_visible"
+      },
+      {
+        "check": "row_count",
+        "finding": "Полный участок между нижним краем и спицей показан, но провязанные ряды не различимы как петлевые ряды. Нельзя ни подтвердить 12 рядов, ни исключить недовяз или лишние ряды.",
+        "photo_sha256": "9c72059647b737787d2861e6f25c746f24160b006393b9b52a61d2d5e671be4d",
+        "reliability": "not_reliably_visible"
+      }
+    ],
+    "missing": [
+      "Сделайте настоящее фото детали лицевой стороной вверх строго сверху: вся полоса резинки на спице должна быть в кадре, без рук и без растяжения.",
+      "Добавьте крупный, резкий и хорошо освещённый снимок одного непрерывного столбика от наборного края до спицы, чтобы можно было посчитать все 12 провязанных рядов; наборный край в счёт не включать."
+    ],
+    "provider_status": "completed",
+    "usage": "{\"cache_write_tokens\":1871,\"cached_input_tokens\":0,\"input_tokens\":1874,\"output_tokens\":986,\"reasoning_tokens\":250,\"total_tokens\":2860}",
+    "estimated_usd": "0.016516"
+  },
+  {
+    "case": "over",
+    "verdict": "correction_required",
+    "observations": [
+      {
+        "check": "overall_step_state",
+        "finding": "Вся полоса видна целиком лицевой стороной вверх: она прямоугольная, находится на спице, боковые края открыты. Явных клиньев, расширений или сужений не видно.",
+        "photo_sha256": "46785b1884f938cface1e9057436ddf8f9a5c04e42daa42e931b4ef8002e113c",
+        "reliability": "visible_reliable"
+      },
+      {
+        "check": "construction_detail",
+        "finding": "По всей ширине виден регулярный чередующийся рисунок резинки 1×1; нарушений рисунка на видимой части не обнаружено.",
+        "photo_sha256": "46785b1884f938cface1e9057436ddf8f9a5c04e42daa42e931b4ef8002e113c",
+        "reliability": "visible_reliable"
+      },
+      {
+        "check": "row_count",
+        "finding": "От наборного края внизу до спицы сверху различимы 16 провязанных рядов. Это на 4 ряда больше требуемых 12; наборный край в этот счёт не включён.",
+        "photo_sha256": "46785b1884f938cface1e9057436ddf8f9a5c04e42daa42e931b4ef8002e113c",
+        "reliability": "visible_reliable"
+      }
+    ],
+    "missing": [],
+    "provider_status": "completed",
+    "usage": "{\"cache_write_tokens\":1870,\"cached_input_tokens\":0,\"input_tokens\":1873,\"output_tokens\":936,\"reasoning_tokens\":390,\"total_tokens\":2809}",
+    "estimated_usd": "0.015913"
+  },
+  {
+    "case": "ambiguous",
+    "http": 422,
+    "error": "provider_response_unsupported_claim",
+    "provider_status": "completed",
+    "usage": "{\"cache_write_tokens\":1868,\"cached_input_tokens\":0,\"input_tokens\":1871,\"output_tokens\":711,\"reasoning_tokens\":82,\"total_tokens\":2582}",
+    "estimated_usd": "0.013208"
+  },
+  {
+    "case": "correct",
+    "verdict": "correction_required",
+    "observations": [
+      {
+        "check": "overall_step_state",
+        "finding": "На фото видна вся прямоугольная полоса на спице; боковые края прямые, клиньев, расширений и сужений не видно.",
+        "photo_sha256": "c5447d982f6600e7f69e57b84809c8847534a2ffa897f6422d9a356bc32f0779",
+        "reliability": "visible_reliable"
+      },
+      {
+        "check": "construction_detail",
+        "finding": "По всей видимой ширине читается чередование лицевых V-образных и изнаночных дугообразных столбиков, соответствующее резинке 1×1.",
+        "photo_sha256": "c5447d982f6600e7f69e57b84809c8847534a2ffa897f6422d9a356bc32f0779",
+        "reliability": "visible_reliable"
+      },
+      {
+        "check": "row_count",
+        "finding": "От наборного края до спицы на полностью видимом столбике различимы 14 провязанных рядов. Это больше требуемых 12 рядов; наборный край в этот счёт не включён. Выполните ручной пересчёт по одному полному столбику.",
+        "photo_sha256": "c5447d982f6600e7f69e57b84809c8847534a2ffa897f6422d9a356bc32f0779",
+        "reliability": "visible_reliable"
+      }
+    ],
+    "missing": [],
+    "provider_status": "completed",
+    "usage": "{\"cache_write_tokens\":1928,\"cached_input_tokens\":0,\"input_tokens\":1931,\"output_tokens\":1073,\"reasoning_tokens\":516,\"total_tokens\":3004}",
+    "estimated_usd": "0.017702",
+    "image_sha256": "c5447d982f6600e7f69e57b84809c8847534a2ffa897f6422d9a356bc32f0779"
+  },
+  {
+    "case": "shape",
+    "verdict": "cannot_determine",
+    "observations": [],
+    "missing": [
+      "Разложи деталь без растяжения лицевой стороной вверх. Сними сверху без наклона. Оставь края открытыми, убери руки из кадра.",
+      "Покажи всю полосу на спице и крупно один хорошо освещённый столбик от набора до спицы, чтобы различались все ряды.",
+      "Линейка не нужна. Если детали не различимы на общем виде, добавь крупный снимок указанного участка."
+    ],
+    "provider_status": "completed",
+    "usage": "{\"cache_write_tokens\":1924,\"cached_input_tokens\":0,\"input_tokens\":1927,\"output_tokens\":905,\"reasoning_tokens\":132,\"total_tokens\":2832}",
+    "estimated_usd": "0.015676",
+    "image_sha256": "d757aabd3e8efcc322dc0a978b6488d26025a1abd4ba78d786e63abd90616fc8"
+  },
+  {
+    "case": "other",
+    "verdict": "cannot_determine",
+    "observations": [
+      {
+        "check": "overall_step_state",
+        "finding": "Состояние резинки оценить нельзя: детали спинки в кадре нет.",
+        "photo_sha256": "cf520bff621776e68835abeb5ab3ce33ce629dc8abb63237c81635427caa9621",
+        "reliability": "not_reliably_visible"
+      },
+      {
+        "check": "construction_detail",
+        "finding": "Рисунок резинки 1×1, прямоугольность полосы и отсутствие расширений/сужений не видны.",
+        "photo_sha256": "cf520bff621776e68835abeb5ab3ce33ce629dc8abb63237c81635427caa9621",
+        "reliability": "not_reliably_visible"
+      },
+      {
+        "check": "row_count",
+        "finding": "Полный участок от наборного края до спицы не показан, поэтому число провязанных рядов не проверяется.",
+        "photo_sha256": "cf520bff621776e68835abeb5ab3ce33ce629dc8abb63237c81635427caa9621",
+        "reliability": "not_reliably_visible"
+      }
+    ],
+    "missing": [
+      "Сделайте верхнее фото всей полосы резинки без растяжения, лицевой стороной вверх: должны быть видны оба открытых края, наборный край и спица.",
+      "Добавьте крупный, хорошо освещённый снимок одного столбика от наборного края до спицы, чтобы можно было различить и пересчитать все ряды. Уберите руки из кадра."
+    ],
+    "provider_status": "completed",
+    "usage": "{\"cache_write_tokens\":1916,\"cached_input_tokens\":0,\"input_tokens\":1919,\"output_tokens\":633,\"reasoning_tokens\":39,\"total_tokens\":2552}",
+    "estimated_usd": "0.012392",
+    "image_sha256": "cf520bff621776e68835abeb5ab3ce33ce629dc8abb63237c81635427caa9621"
+  }
+]

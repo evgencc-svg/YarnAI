@@ -36,7 +36,8 @@ from yarnai.pattern_content_extraction import (
     PdfExtractionError,
     extract_pdf_text,
 )
-from yarnai.vision_review import VisionGatewaySettings, VisionReviewGateway, VisionReviewHttpApi
+from yarnai.polo_vision_runtime import configured_gateway
+from yarnai.vision_review import VisionReviewGateway, VisionReviewHttpApi
 from yarnai.garment_reference import (
     GARMENT_ANALYSIS_ROUTE,
     MAX_GARMENT_ANALYSIS_REQUEST_BODY_BYTES,
@@ -175,6 +176,8 @@ class RequestBodyLimitMiddleware:
         route = scope.get("path")
         if route == "/api/v1/pattern-content-extraction/pdf":
             request_limit = MAX_PDF_BYTES
+        elif route == "/api/v1/vision-reviews":
+            request_limit = 12 * 1024 * 1024
         elif route in {GARMENT_ANALYSIS_ROUTE, YARN_RECOMMENDATION_ROUTE}:
             request_limit = MAX_GARMENT_ANALYSIS_REQUEST_BODY_BYTES
         else:
@@ -1430,7 +1433,7 @@ def create_app(
         )
     routes.extend(
         VisionReviewHttpApi(
-            vision_gateway or VisionReviewGateway(VisionGatewaySettings()),
+            vision_gateway or configured_gateway(),
         ).routes()
     )
     routes.extend(
