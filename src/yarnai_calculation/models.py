@@ -531,7 +531,7 @@ class GaugeAssessment:
     quality: str
     context_matches: bool | None
     context_differences: tuple[str, ...]
-    swatch_context: SwatchContext
+    swatch_context: SwatchContext | None
     canonical: bool
 
 

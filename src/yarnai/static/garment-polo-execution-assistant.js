@@ -25,6 +25,7 @@
     byId("current").hidden=true;byId("finished").hidden=true;byId("start-panel").hidden=true;byId("restart-panel").hidden=true;byId("rewind-panel").hidden=true;
     if(inspected.problem){error(inspected.problem);try{planner.build(inspected.design,[]);byId("restart-panel").hidden=!inspected.state;}catch(_){} }
     const plan=inspected.plan;
+    byId("gauge-source").hidden = !plan || inspected.design?.intake?.artifact?.gauge?.source !== "manufacturer";
     if(!plan)return;
     byId("outline").replaceChildren(...plan.steps.map((step,index)=>{const item=document.createElement("li"),button=document.createElement("button");button.type="button";button.textContent=`${index< (inspected.state?.stepIndex||0)?"✓ ":""}${step.title}`;button.className=index===inspected.state?.stepIndex?"current":"";button.addEventListener("click",()=>preview(step));item.append(button);return item;}));
     byId("guides").replaceChildren(...plan.guides.map(guide=>{const link=document.createElement("a"),line=document.createElement("p");link.href=guide.url;link.target="_blank";link.rel="noreferrer";link.textContent=guide.title;line.append(link);return line;}));

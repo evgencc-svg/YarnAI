@@ -195,13 +195,13 @@
               <div id="yarn-target-confirmation" class="target-confirmation" hidden>
                 <h4>Подтверди выбранный ориентир</h4>
                 <p id="yarn-target-selected-summary"></p>
-                <p><strong>Этот вариант станет целевой характеристикой будущей пряжи. Конкретную пряжу и фактическую плотность образца нужно будет указать отдельно.</strong></p>
+                <p><strong>Этот вариант станет целевой характеристикой будущей пряжи. Конкретную пряжу и источник плотности нужно будет указать отдельно.</strong></p>
                 <button id="confirm-yarn-target" class="button" type="button">Подтвердить целевой профиль</button>
               </div>
               <div id="yarn-target-confirmed" class="target-confirmed" hidden>
                 <h4>Целевой профиль подтверждён</h4>
                 <p id="yarn-target-confirmed-summary"></p>
-                <p>Следующий отдельный шаг — ввести фактическую пряжу. Образец плотности понадобится позже, до расчёта.</p>
+                <p>Следующий отдельный шаг — ввести фактическую пряжу. Далее выбери плотность с этикетки или по образцу.</p>
               </div>
             </section>
             <div class="recommendation-notes">
@@ -209,7 +209,7 @@
               <article><h3>Гладкость, ворс и начёс</h3><ul id="yarn-recommendation-surface"></ul></article>
               <article><h3>Что нельзя установить</h3><ul id="yarn-recommendation-limitations"></ul></article>
             </div>
-            <aside class="swatch-warning"><h3>Обязательная проверка образцом</h3><p id="yarn-recommendation-swatch"></p></aside>
+            <aside class="swatch-warning"><h3>Проверка пряжи по образцу</h3><p id="yarn-recommendation-swatch"></p></aside>
             <p class="muted">Больше метров на 100 г обычно означает более тонкую нить, меньше — более толстую. Но одинаковый метраж у разных составов не гарантирует одинаковое полотно.</p>
           </div>
         </section>
@@ -330,7 +330,7 @@
               <label class="wide">Заметка о пряже <textarea id="yarn-note" maxlength="2000" rows="3"></textarea></label>
             </div>
             <button id="use-one-strand" class="button secondary" type="button">Буду вязать одной нитью</button>
-            <p>Для первого расчёта нужны название именно твоей пряжи и число нитей. Состав, метраж и запас можно добавить позже с этикетки. Толщину отдельным числом вводить не нужно: петли и ряды рассчитываются по твоему образцу.</p>
+            <p>Для первого расчёта нужны название именно твоей пряжи и число нитей. Состав, метраж и запас можно добавить позже с этикетки. Толщину отдельным числом вводить не нужно: петли и ряды рассчитываются по выбранной плотности.</p>
             <p><a href="#photos-title">Сохранить фото этикетки</a>. Оно останется в проекте; автоматического чтения текста этикетки пока нет.</p>
           </section>
 
@@ -346,7 +346,23 @@
           </section>
 
           <section class="panel form-section" aria-labelledby="gauge-title">
-            <p class="eyebrow">Контрольный образец</p><h2 id="gauge-title">Фактическое измерение — не обязательно 10×10 см</h2>
+            <h2 id="gauge-title">Плотность основного полотна</h2>
+            <label>Источник плотности
+              <select id="gauge-source">
+                <option value="measured">Измеренная плотность контрольного образца</option>
+                <option value="manufacturer">Плотность производителя</option>
+              </select>
+            </label>
+            <div id="manufacturer-gauge" hidden>
+              <p>Перенеси данные для лицевой глади с этикетки или из описания этой пряжи. Если ряды не указаны, найди число рядов на 10 см у производителя. По числу петель его определить нельзя.</p>
+              <div class="field-grid">
+                <label>Петли на 10 см <input id="label-stitches" type="number" min="0.01" step="any"></label>
+                <label>Ряды на 10 см <input id="label-rows" type="number" min="0.01" step="any"></label>
+                <label>Рекомендованные спицы для этой плотности, мм <input id="label-needle" type="number" min="0.01" max="30" step="any"></label>
+              </div>
+              <p>Фактически выбранные спицы укажи в разделе «Спицы». Твоё натяжение нити может отличаться от плотности на этикетке.</p>
+            </div>
+            <div id="measured-gauge">
             <div id="intake-swatch-instructions">
               <p>Образец показывает, сколько места занимают петли и ряды именно из твоей пряжи на твоих спицах. Без него размер поло получится случайным. Если образец ещё не готов, сохрани черновик и вернись после сушки.</p>
               <ol>
@@ -369,6 +385,7 @@
             </div>
             <button id="copy-swatch-needles" class="button secondary" type="button">Образец связан основными спицами</button>
             <output id="normalized-gauge" class="normalized-gauge">Нормализация на 10 см появится только после четырёх фактических чисел.</output>
+            </div>
           </section>
 
           <section class="panel form-section" aria-labelledby="photos-title">
@@ -447,17 +464,17 @@
           </div>
         </section>
         <section id="polo-finishing" class="panel form-section" hidden aria-labelledby="polo-finishing-title">
-          <p class="eyebrow">Та же пряжа · отдельный образец отделки</p>
+          <p class="eyebrow">Та же пряжа · отделка поло</p>
           <h2 id="polo-finishing-title">Резинки, застёжка, воротник и запас пряжи</h2>
-          <p>Предложение для этого поло: резинка 1×1 на нижнем крае, манжетах, двух перекрывающихся планках и отложном воротнике. Это чередование одной лицевой и одной изнаночной петли. Измерь отдельный обработанный образец в спокойном состоянии, без растяжения, из той же пряжи и в то же число нитей.</p>
-          <p>Проверь отверстие на настоящей пуговице: закрой выбранное число петель в одном ряду, в следующем набери столько же. Пуговица должна проходить и удерживаться после обработки образца. Здесь вводится проверенное число, а не догадка по диаметру.</p>
+          <p>Предложение для этого поло: резинка 1×1 на нижнем крае, манжетах, двух перекрывающихся планках и отложном воротнике. Это чередование одной лицевой и одной изнаночной петли. <span id="measured-rib-help">Измерь отдельный обработанный образец в спокойном состоянии, без растяжения, из той же пряжи и в то же число нитей.</span></p>
+          <p id="measured-hole-help">Проверь отверстие на настоящей пуговице: закрой выбранное число петель в одном ряду, в следующем набери столько же. Пуговица должна проходить и удерживаться после обработки образца. Здесь вводится проверенное число, а не догадка по диаметру.</p>
           <div id="polo-finishing-fields"></div>
           <button id="polo-finishing-calculate" class="button secondary" type="button">Рассчитать и сохранить отделку</button>
           <p id="polo-finishing-status" role="status"></p>
           <div id="polo-finishing-result" hidden>
             <div id="polo-finishing-numbers"></div>
             <ul id="polo-finishing-limitations"></ul>
-            <label id="polo-finishing-consent-label"><input id="polo-finishing-consent" type="checkbox"> Проверила данные образцов, расчёт отделки и оценку запаса. Принимаю показанные размеры для составления плана.</label>
+            <label id="polo-finishing-consent-label"><input id="polo-finishing-consent" type="checkbox"> Проверила источник плотности и расчёт отделки. Принимаю показанные размеры для составления плана.</label>
             <button id="polo-finishing-confirm" class="button" type="button" disabled>Подтвердить расчёт отделки</button>
             <a id="polo-finishing-plan" class="button" href="#" hidden>Открыть план и продолжить вязание</a>
           </div>

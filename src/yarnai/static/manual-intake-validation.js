@@ -230,11 +230,12 @@
   }
 
   function validateGauge(artifact, normalizedInputs, addCheck, addIssue) {
-    const gauge = artifact?.gauge?.sourceMeasurement || {};
-    const refs = ["intake.gauge.sourceMeasurement"];
+    const manufacturer = artifact?.gauge?.source === "manufacturer";
+    const gauge = requireIntakeDomain().gaugeBasis(artifact?.gauge);
+    const refs = [manufacturer ? "intake.gauge.label" : "intake.gauge.sourceMeasurement"];
     const fields = [
-      ["stitches", "число петель", true], ["widthCm", "ширина образца", false],
-      ["rows", "число рядов", true], ["heightCm", "высота образца", false],
+      ["stitches", manufacturer ? "петли на 10 см по этикетке" : "число петель", !manufacturer], ["widthCm", "ширина образца", false],
+      ["rows", manufacturer ? "ряды на 10 см по этикетке" : "число рядов", !manufacturer], ["heightCm", "высота образца", false],
     ];
     let valid = true;
     const reasonCodes = [];
@@ -243,37 +244,42 @@
       if (value === null || value === undefined) {
         valid = false;
         reasonCodes.push("GAUGE_MISSING");
-        addIssue(issue("GAUGE_MISSING", "critical", "missing", `gauge.${field}`, `Не заполнено: ${label}`, "Для плотности нужны петли, ряды и размеры образца в сантиметрах.", refs, "Заполнить поле плотности.", true));
+        addIssue(issue("GAUGE_MISSING", "critical", "missing", `gauge.${field}`, `Не заполнено: ${label}`, manufacturer ? "Введи значение производителя для 10 см. Петли и ряды нужны отдельно." : "Для плотности нужны петли, ряды и размеры образца в сантиметрах.", refs, "Заполнить поле плотности.", true));
       } else if (!Number.isFinite(value) || value <= 0 || (integer && !Number.isInteger(value))) {
         valid = false;
         reasonCodes.push("INVALID_NUMERIC_VALUE");
         addIssue(issue("INVALID_NUMERIC_VALUE", "critical", "invalid", `gauge.${field}`, `Недопустимое значение: ${label}`, integer ? "Число должно быть положительным целым." : "Число должно быть положительным.", refs, "Исправить значение.", true));
       }
     });
-    if (gauge.afterTreatment !== "yes") {
+    if (!manufacturer && gauge.afterTreatment !== "yes") {
       valid = false;
       reasonCodes.push("GAUGE_NOT_PROCESSED");
       addIssue(issue("GAUGE_NOT_PROCESSED", "critical", "invalid", "gauge.afterTreatment", "Образец не подтверждён после обработки", "Плотность должна быть измерена после стирки и сушки тем способом, который будет применён к изделию.", refs, "Обработать образец и выбрать «Да».", true));
     }
-    if (valid) normalizedInputs.gauge = { stitchesPer10Cm: round(gauge.stitches * 10 / gauge.widthCm, 4), rowsPer10Cm: round(gauge.rows * 10 / gauge.heightCm, 4), unit: "10_cm", sourceUnit: "cm" };
-    addCheck({ checkId: "required:gauge", level: "required", field: "gauge", title: "Контрольный образец плотности", status: valid ? "passed" : "failed", reasonCodes: unique(reasonCodes), sourceReferences: refs, normalizedValue: normalizedInputs.gauge });
+    if (manufacturer) addIssue(issue("MANUFACTURER_GAUGE", "warning", "recommended", "gauge", "Расчёт по плотности производителя", "Твоё натяжение нити и выбранные спицы могут изменить размеры поло.", refs, "Сверь ширину детали в процессе вязания.", false));
+    if (valid) normalizedInputs.gauge = { ...(manufacturer ? {source: "manufacturer"} : {}), stitchesPer10Cm: round(gauge.stitches * 10 / gauge.widthCm, 4), rowsPer10Cm: round(gauge.rows * 10 / gauge.heightCm, 4), unit: "10_cm", sourceUnit: "cm" };
+    addCheck({ checkId: "required:gauge", level: "required", field: "gauge", title: manufacturer ? "Плотность производителя" : "Контрольный образец плотности", status: valid ? "passed" : "failed", reasonCodes: unique(reasonCodes), sourceReferences: refs, normalizedValue: normalizedInputs.gauge });
   }
 
   function validateNeedles(artifact, normalizedInputs, addCheck, addIssue) {
     const primary = artifact?.needles?.primaryMm;
-    const gaugeNeedle = artifact?.gauge?.sourceMeasurement?.needleSizeMm;
-    const refs = ["intake.needles.primaryMm", "intake.gauge.sourceMeasurement.needleSizeMm"];
+    const manufacturer = artifact?.gauge?.source === "manufacturer";
+    const gaugeNeedle = requireIntakeDomain().gaugeBasis(artifact?.gauge).needleSizeMm;
+    const refs = ["intake.needles.primaryMm", manufacturer ? "intake.gauge.label.recommendedNeedleMm" : "intake.gauge.sourceMeasurement.needleSizeMm"];
     let valid = true;
     const reasonCodes = [];
     if (!Number.isFinite(primary) || primary <= 0) { valid = false; reasonCodes.push("NEEDLE_MISSING"); addIssue(issue("NEEDLE_MISSING", "critical", "missing", "needles.primaryMm", "Не выбран основной размер спиц", "Нужен положительный размер основных спиц в миллиметрах.", refs, "Выбрать основные спицы.", true)); }
-    if (!Number.isFinite(gaugeNeedle) || gaugeNeedle <= 0) { valid = false; reasonCodes.push("GAUGE_NEEDLE_MISSING"); addIssue(issue("GAUGE_NEEDLE_MISSING", "critical", "missing", "gauge.needleSizeMm", "Не указан размер спиц образца", "Плотность без размера спиц нельзя связать с выбранным инструментом.", refs, "Указать размер спиц образца.", true)); }
-    if (Number.isFinite(primary) && Number.isFinite(gaugeNeedle) && Math.abs(primary - gaugeNeedle) > CM_TOLERANCE) {
+    if (!Number.isFinite(gaugeNeedle) || gaugeNeedle <= 0) { valid = false; reasonCodes.push("GAUGE_NEEDLE_MISSING"); addIssue(issue("GAUGE_NEEDLE_MISSING", "critical", "missing", "gauge.needleSizeMm", manufacturer ? "Не указаны рекомендованные производителем спицы" : "Не указан размер спиц образца", "Плотность без размера спиц нельзя связать с выбранным инструментом.", refs, manufacturer ? "Указать спицы с этикетки." : "Указать размер спиц образца.", true)); }
+    if (manufacturer && Number.isFinite(primary) && Number.isFinite(gaugeNeedle) && primary !== gaugeNeedle) {
+      addIssue(issue("LABEL_NEEDLE_DIFFERENCE", "warning", "recommended", "needles.primaryMm", "Выбраны другие спицы", `На этикетке ${gaugeNeedle} мм, выбрано ${primary} мм. Расчёт использует исходную плотность этикетки.`, refs, "Проверь размеры первой детали.", false));
+    }
+    if (!manufacturer && Number.isFinite(primary) && Number.isFinite(gaugeNeedle) && Math.abs(primary - gaugeNeedle) > CM_TOLERANCE) {
       valid = false;
       reasonCodes.push("GAUGE_NEEDLE_CONFLICT");
       addIssue(issue("GAUGE_NEEDLE_CONFLICT", "critical", "conflict", "needles.primaryMm", "Основные спицы не совпадают со спицами образца", `Основные спицы: ${primary} мм; образец: ${gaugeNeedle} мм.`, refs, "Выбрать совпадающий размер или связать новый образец.", true));
     }
     if (valid) normalizedInputs.needles = { primaryMm: primary, gaugeNeedleMm: gaugeNeedle, additionalMm: copy(artifact.needles.additionalMm || []) };
-    addCheck({ checkId: "required:needles", level: "required", field: "needles", title: "Основные спицы и спицы образца согласованы", status: valid ? "passed" : "failed", reasonCodes: unique(reasonCodes), sourceReferences: refs, normalizedValue: normalizedInputs.needles });
+    addCheck({ checkId: "required:needles", level: "required", field: "needles", title: manufacturer ? "Рекомендованные и выбранные спицы" : "Основные спицы и спицы образца согласованы", status: valid ? "passed" : "failed", reasonCodes: unique(reasonCodes), sourceReferences: refs, normalizedValue: normalizedInputs.needles });
   }
 
   function validateYarn(artifact, context, normalizedInputs, addCheck, addIssue) {

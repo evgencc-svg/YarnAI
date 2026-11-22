@@ -138,6 +138,9 @@ def _validate_gauge(gauge: GaugeInput | None, axis: Axis, errors: list[Diagnosti
                 integer=True,
             )
     _enum(errors, GaugeSource, gauge.source, "gauge.source", axis)
+    # A published ready value has no personal swatch. Numeric and source checks above still apply.
+    if gauge.context is None and method is GaugeMethod.READY_VALUE and enum_value(GaugeSource, gauge.source) is GaugeSource.LABEL:
+        return
     if gauge.context is None or gauge.context.fabric is None:
         errors.append(diagnostic("ОШ-15", axis=axis, field="gauge.context", stage=3))
         return

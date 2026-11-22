@@ -142,7 +142,7 @@
       await mutate(async () => {
         inspected = await domain.ensureForProject(repository, projectId);
         validationInspected = await validationDomain.validateForProject(repository, projectId, { contractContext: validationContext() });
-      }, "Не удалось открыть данные после выбора пряжи.", "Пряжа сохранена. Теперь заполни мерки, спицы и обработанный образец.");
+      }, "Не удалось открыть данные после выбора пряжи.", "Пряжа сохранена. Теперь заполни мерки, спицы и плотность.");
     });
   }
 
@@ -438,7 +438,8 @@
     try {
       const preview = globalObject.YarnAIGarmentCalculationPreview.build(state, inspected.artifact);
       byId("calculation-preview-status").textContent = "Базовые числа рассчитаны. Для прямого поло из отдельных деталей подтверди ниже форму и отделку, затем открой пошаговый план. Эти числа сами по себе не инструкция.";
-      byId("calculation-preview-source").textContent = "Источник — подтверждённые мерки и обработанный образец выбранной пряжи на указанных выше спицах. После открытия проекта расчёт воспроизводится из тех же сохранённых данных.";
+      byId("calculation-preview-title").textContent = preview.gaugeStatus || "Расчёт по подтверждённому образцу";
+      byId("calculation-preview-source").textContent = preview.gaugeStatus ? "Петли и ряды рассчитаны по этикетке. Фактический размер зависит от натяжения нити и выбранных спиц." : "Источник — подтверждённые мерки и обработанный образец выбранной пряжи на указанных выше спицах. После открытия проекта расчёт воспроизводится из тех же сохранённых данных.";
       const format = (value) => new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 3 }).format(value);
       for (const row of preview.rows) {
         const section = document.createElement("section");
@@ -491,6 +492,10 @@
       hem_finish: ui.hemFinish, cuff_finish: ui.cuffFinish,
       "needles.primaryMm": ui.needlesPrimary, "gauge.needleSizeMm": ui.gaugeNeedle, "gauge.afterTreatment": ui.gaugeTreated, "yarn.name": ui.yarnName, "yarn.strandCount": ui.yarnStrandCount,
     };
+    if (byId("gauge-source").value === "manufacturer") {
+      const labelField = {"gauge.stitches": "label-stitches", "gauge.rows": "label-rows", "gauge.needleSizeMm": "label-needle"}[field];
+      if (labelField) return byId(labelField);
+    }
     if (exact[field]) return exact[field];
     if (field?.startsWith("gauge.stitches")) return ui.gaugeStitches;
     if (field?.startsWith("gauge.widthCm")) return ui.gaugeWidth;
@@ -531,8 +536,13 @@
     setValue(ui.yarnName, artifact.yarn.name); setValue(ui.yarnStrandCount, artifact.yarn.strandCount); setValue(ui.yarnComposition, artifact.yarn.composition); setValue(ui.yarnLength, artifact.yarn.lengthMeters); setValue(ui.yarnMass, artifact.yarn.skeinMassGrams); setValue(ui.yarnQuantity, artifact.yarn.quantityAvailable); setValue(ui.yarnNote, artifact.yarn.note);
     ui.needlesStatus.value = artifact.needles.selectionStatus;
     setValue(ui.needlesPrimary, artifact.needles.primaryMm); setValue(ui.needlesAdditional, artifact.needles.additionalMm.join(", "));
-    const gauge = artifact.gauge.sourceMeasurement;
-    setValue(ui.gaugeStitches, gauge.stitches); setValue(ui.gaugeWidth, gauge.widthCm); setValue(ui.gaugeRows, gauge.rows); setValue(ui.gaugeHeight, gauge.heightCm); setValue(ui.gaugeNeedle, gauge.needleSizeMm); ui.gaugeTreated.value = gauge.afterTreatment;
+    const label = artifact.gauge.label || {};
+    byId("gauge-source").value = artifact.gauge.source || "measured";
+    setValue(byId("label-stitches"), label.stitchesPer10Cm);
+    setValue(byId("label-rows"), label.rowsPer10Cm);
+    setValue(byId("label-needle"), label.recommendedNeedleMm);
+    const gauge = artifact.gauge.sourceMeasurement || {};
+    setValue(ui.gaugeStitches, gauge.stitches); setValue(ui.gaugeWidth, gauge.widthCm); setValue(ui.gaugeRows, gauge.rows); setValue(ui.gaugeHeight, gauge.heightCm); setValue(ui.gaugeNeedle, gauge.needleSizeMm); ui.gaugeTreated.value = gauge.afterTreatment || "unknown";
     setValue(ui.notes, artifact.notes);
   }
 
@@ -548,13 +558,17 @@
       constructionInputs: { hem_finish: ui.hemFinish.value, cuff_finish: ui.cuffFinish.value },
       yarn: { selectionStatus: ui.yarnStatus.value, name: ui.yarnName.value, strandCount: ui.yarnStrandCount.value, composition: ui.yarnComposition.value, lengthMeters: ui.yarnLength.value, skeinMassGrams: ui.yarnMass.value, quantityAvailable: ui.yarnQuantity.value, note: ui.yarnNote.value },
       needles: { selectionStatus: ui.needlesStatus.value, primaryMm: ui.needlesPrimary.value, additionalMm: ui.needlesAdditional.value },
-      gauge: { sourceMeasurement: { stitches: ui.gaugeStitches.value, widthCm: ui.gaugeWidth.value, rows: ui.gaugeRows.value, heightCm: ui.gaugeHeight.value, needleSizeMm: ui.gaugeNeedle.value, afterTreatment: ui.gaugeTreated.value } },
+      gauge: {
+        source: byId("gauge-source").value,
+        label: { stitchesPer10Cm: byId("label-stitches").value, rowsPer10Cm: byId("label-rows").value, recommendedNeedleMm: byId("label-needle").value },
+        sourceMeasurement: { stitches: ui.gaugeStitches.value, widthCm: ui.gaugeWidth.value, rows: ui.gaugeRows.value, heightCm: ui.gaugeHeight.value, needleSizeMm: ui.gaugeNeedle.value, afterTreatment: ui.gaugeTreated.value },
+      },
       notes: ui.notes.value,
     };
   }
 
   function renderSectionStatus(status) {
-    const labels = { targetSizing: "Мерки и параметры изделия", yarn: "Пряжа", needles: "Спицы", gauge: "Контрольный образец", additionalPhotos: "Дополнительные фотографии", notes: "Заметки" };
+    const labels = { targetSizing: "Мерки и параметры изделия", yarn: "Пряжа", needles: "Спицы", gauge: "Плотность полотна", additionalPhotos: "Дополнительные фотографии", notes: "Заметки" };
     ui.sectionStatus.replaceChildren(...Object.entries(labels).map(([key, label]) => {
       const item = document.createElement("li");
       item.className = status[key] ? "filled" : "empty";
@@ -602,6 +616,9 @@
     if (!profile) return;
     const setIn = profile.constructionIdentity === "seamed_set_in_sleeve";
     byId("polo-design-proposal").hidden = !setIn;
+    const manufacturer = byId("gauge-source").value === "manufacturer";
+    byId("manufacturer-gauge").hidden = !manufacturer;
+    byId("measured-gauge").hidden = manufacturer;
     byId("intake-swatch-instructions").hidden = !setIn;
     // Retain every existing value, including optional legacy data. Only empty,
     // irrelevant fields are omitted from the immediate questionnaire.
@@ -664,7 +681,7 @@
     const evaluation = yarnRequirementsDomain.evaluateProfile(profile, artifact);
     ui.yarnRequirementsStatus.textContent = evaluation.selected
       ? (evaluation.blockers.length ? `Пряжа выбрана, но обязательных незаполненных значений: ${evaluation.blockers.length}.` : "Обязательные сведения о выбранной пряже заполнены.")
-      : "Укажи свою пряжу: нужны название и число нитей, которыми будешь вязать образец.";
+      : "Укажи свою пряжу: нужны название и число нитей, которыми будешь вязать поло.";
     ui.yarnRequirementsFirstAction.textContent = evaluation.firstAction || "По пряже обязательных действий больше нет.";
     const itemsById = new Map(evaluation.items.map((entry) => [entry.requirementId, entry]));
     ui.yarnRequirementsList.replaceChildren(...profile.requirements.map((requirement) => {

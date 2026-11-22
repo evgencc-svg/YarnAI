@@ -58,6 +58,16 @@ def assess_gauge(
         count = gauge.source_measurement_count
 
     context = gauge.context
+    if context is None and source is GaugeSource.LABEL and method is GaugeMethod.READY_VALUE:
+        assessment = GaugeAssessment(
+            method=method, source=source, original_measurements=(), normalized_measurements=(),
+            ready_count=ready_count, base_length_cm=base_length_cm, densities=densities,
+            density_per_cm=density, minimum=minimum, maximum=maximum, relative_spread_percent=spread,
+            measurement_count=count, quality="preliminary", context_matches=None,
+            context_differences=(), swatch_context=None, canonical=False,
+        )
+        warnings.extend(diagnostic(code, axis=axis, field="gauge.source", stage=9) for code in ("ПР-08", "ПР-09"))
+        return assessment, warnings, False
     assert context is not None and context.fabric is not None
     if enum_value(TriState, context.off_needles) is not TriState.YES:
         warnings.append(diagnostic("ПР-03", axis=axis, field="gauge.context.off_needles", stage=9))

@@ -135,7 +135,7 @@
     }
     const design = normalizeDesign(designInput);
     const m = key => inputs.measurements[key].valueCm;
-    const sourceGauge = artifact.gauge.sourceMeasurement;
+    const sourceGauge = root.YarnAIManualCalculationIntake.gaugeBasis(artifact.gauge);
     const gauge = { stitchesPerCm: sourceGauge.stitches / sourceGauge.widthCm, rowsPerCm: sourceGauge.rows / sourceGauge.heightCm };
     const width = cm => even(cm * gauge.stitchesPerCm);
     const height = cm => even(cm * gauge.rowsPerCm);

@@ -110,7 +110,7 @@
     if(live!==g.sleeve.cap.finalBindOff)fail("PLAN_CAP_BALANCE","Окат не заканчивается расчётным числом петель.");
     return rows;
   }
-  function bandForLength(f,lengthCm){
+  function bandForLength(f,lengthCm,provisional=false){
     if(!Number.isFinite(lengthCm)||lengthCm<=0)fail("PLAN_EDGE_MEASUREMENT","Нужна измеренная длина края планки.");
     const gs=f.rib.stitchesPerCm,stitches=even(lengthCm*gs)+2,length=(stitches-2)/gs,i=f.input;
     const holes=Array.from({length:i.buttonCount},(_,n)=>{
@@ -119,9 +119,9 @@
       return {first,last,count:i.buttonholeStitches,centerCm:((first+last)/2-1.5)/gs};
     });
     if(holes.some((h,n)=>h.first<3||h.last>stitches-2||(n&&(h.first<=holes[n-1].last+1||h.centerCm-holes[n-1].centerCm<=i.buttonDiameterCm))))fail("PLAN_BUTTON_EDGE_CONFLICT","Измеренный край не вмещает выбранные пуговицы и отверстия. Нужен пересмотр застёжки.");
-    return{...f.band,stitches,lengthCm:length,measuredEdgeCm:lengthCm,holes};
+    return{...f.band,stitches,lengthCm:length,...(provisional ? {targetEdgeCm:lengthCm, provisional:true} : {measuredEdgeCm:lengthCm}),holes};
   }
-  function bandRows(b,withHoles){
+  function bandRows(b,withHoles,manufacturer = false){
     let live=b.stitches;const rows=[];
     for(let row=1;row<=b.rows;row++){
       const before=live,side=row%2?"изнаночная":"лицевая";
@@ -134,7 +134,7 @@
         live-=holes.reduce((n,h)=>n+h.count,0);text=`Отверстия. ${actions.join("; ")}. После каждого закрытия рабочая петля уже провязана. Останется ${live} п.`;
       }else if(withHoles&&row===b.recastRow){
         const actions=[];let position=0;
-        for(const h of holes){actions.push(`провяжи ${h.first-1-position} п. по рисунку, над разрывом набери ${h.count} новых петель тем же способом, что в пробной петле`);position=h.last;}
+        for(const h of holes){actions.push(`провяжи ${h.first-1-position} п. по рисунку, над разрывом набери ${h.count} новых петель ${manufacturer ? "кабельным набором" : "тем же способом, что в пробной петле"}`);position=h.last;}
         if(position<b.stitches)actions.push(`провяжи оставшиеся ${b.stitches-position} п. по рисунку`);
         live=b.stitches;text=`Восстановление отверстий. ${actions.join("; ")}. На спице снова ${live} п. В следующих рядах продолжи рисунок 1×1 и на новых петлях.`;
       }
@@ -150,25 +150,27 @@
     if(!inspected.current||inspected.state?.status!=="confirmed"||!inspected.finishing||inspected.state.finishing?.status!=="confirmed")fail("PLAN_SOURCES_REQUIRED","Сначала подтверди актуальную форму поло и расчёт отделки.");
     const g=inspected.geometry,f=inspected.finishing,a=inspected.intake.artifact;
     if(f.geometryFingerprint!==g.fingerprint)fail("PLAN_SOURCES_STALE","Отделка относится к другой форме поло.");
+    const manufacturer = a.gauge.source === "manufacturer";
+    const stock = manufacturer ? "Точный расход пряжи не определён." : `По оценке нужно ${f.yarn.requiredGrams} г с запасом, доступно ${f.yarn.availableGrams} г.`;
     const evidence=Object.fromEntries(records.map(r=>[r.stepId,r.input]));
     const back=bodyRows(g,f,false),front=bodyRows(g,f,true),sleeve=sleeveRows(g,f);
     const steps=[];
     const add=(id,title,text,fields=[],rows=null,extra={})=>steps.push({id,title,text:Array.isArray(text)?text:[text],fields,rows,...extra});
     const worked=yes("done","Этот шаг действительно выполнен; это моя отметка, а не автоматическая проверка изделия");
     add("prepare","Подготовь материалы и прочитай обозначения",[
-      `Пряжа: ${a.yarn.name}; число нитей ${a.yarn.strandCount}. Основные спицы ${a.needles.primaryMm} мм, для резинки ${f.rib.needleMm} мм. По оценке нужно ${f.yarn.requiredGrams} г с запасом, доступно ${f.yarn.availableGrams} г. Подготовь ${f.input.buttonCount} проверенных пуговицы диаметром ${fmt(f.input.buttonDiameterCm)} см, иглу для пряжи, держатель петель, маркеры и сантиметр.`,
+      `Пряжа: ${a.yarn.name}; число нитей ${a.yarn.strandCount}. Основные спицы ${a.needles.primaryMm} мм, для резинки ${f.rib.needleMm} мм. ${stock} Подготовь ${f.input.buttonCount} ${manufacturer ? "пуговиц" : "проверенных пуговицы"} диаметром ${fmt(f.input.buttonDiameterCm)} см, иглу для пряжи, держатель петель, маркеры и сантиметр.`,
       "Все детали вяжутся плоско, с поворотом. Набор не считается рядом. Половина А — справа на столе при взгляде на лицевую сторону детали; половина Б — слева. С лицевой стороны работаем А→Б, с изнаночной Б→А. Это обозначения на столе, а не стороны тела.",
       "Основное полотно — лицевая гладь. Первую и последнюю кромочные провязывай лицевыми в каждом ряду, кроме прямо описанного закрытия. После разреза у каждой половины свой клубок. В коротких плечевых рядах без оставшегося полотна закрывай все петли.",
       "Закрытия у горловины разведены по доступным краям: отдельные действия отличаются от геометрического ориентира на один ряд. Это нормальная последовательность работы поворотными рядами; окончательные размеры проверяются после обработки деталей.",
-      "Этот план — кандидат на проверку вязанием. Остановись при несоответствии счёта, размеров или посадки; отметка в приложении не исправляет полотно. Перед вязанием всей вещи убедись, что основной образец и пробная петля действительно проверены.",
+      manufacturer ? "Расчёт по плотности производителя. Сверь ширину первой детали с расчётом, прежде чем вязать дальше. Примерь настоящую пуговицу при выполнении верхней планки." : "Этот план — кандидат на проверку вязанием. Остановись при несоответствии счёта, размеров или посадки; отметка в приложении не исправляет полотно. Перед вязанием всей вещи убедись, что основной образец и пробная петля действительно проверены.",
     ],[{key:"upperBand",label:"На какой половине будет верхняя планка с отверстиями?",type:"select",options:[{value:"A",label:"А — справа при взгляде на перед снаружи"},{value:"B",label:"Б — слева при взгляде на перед снаружи"}]},worked],null,{stockRequired:true});
     const panelMeasure=(name,frontPanel)=>{
       const fields=[measure("widthCm","Ширина детали между будущими боковыми швами, см",g.body.achievedWidthCm),measure("lengthCm","Длина от низа до высшей точки плеча, см",f.body.achievedLengthCm),measure("armA","Длина проймы А вдоль линии шва, см",g.body.armhole.perimeterCm/2,Math.max(1,g.body.armhole.perimeterCm*0.05)),measure("armB","Длина проймы Б вдоль линии шва, см",g.body.armhole.perimeterCm/2,Math.max(1,g.body.armhole.perimeterCm*0.05))];
       if(frontPanel)fields.push(measure("slitA","Длина края разреза А, см",g.body.placket.rows/g.gauge.rowsPerCm),measure("slitB","Длина края разреза Б, см",g.body.placket.rows/g.gauge.rowsPerCm));
-      add(`${name}_measure`,`${frontPanel?"Перед":"Спинка"}: обработай и измерь`,"Обработай деталь так же, как образец, по указаниям на этикетке пряжи; высуши горизонтально без растяжения ради расчётного размера. Измерь ширину без кромочных, длину и каждую пройму гибкой лентой по будущей линии шва. Это контроль размеров, а не гарантия посадки.",fields);
+      add(`${name}_measure`,`${frontPanel?"Перед":"Спинка"}: обработай и измерь`, (manufacturer ? "Обработай деталь " : "Обработай деталь так же, как образец, ") + "по указаниям на этикетке пряжи; высуши горизонтально без растяжения ради расчётного размера. Измерь ширину без кромочных, длину и каждую пройму гибкой лентой по будущей линии шва. Это контроль размеров, а не гарантия посадки.",fields);
     };
     for(const [name,label,table] of [["back","Спинка",back],["front","Перед",front]]){
-      add(`${name}_cast`,`${label}: набери петли`,`На спицы ${f.rib.needleMm} мм набери ${f.hem.stitches} п. удобным проверенным на образце способом. Не соединяй в круг. Отметь лицевую сторону маркером.`,[count(f.hem.stitches)]);
+      add(`${name}_cast`,`${label}: набери петли`,`На спицы ${f.rib.needleMm} мм набери ${f.hem.stitches} п. ${manufacturer ? "эластичным способом" : "удобным проверенным на образце способом"}. Не соединяй в круг. Отметь лицевую сторону маркером.`,[count(f.hem.stitches)]);
       add(`${name}_rib`,`${label}: резинка низа`,`Свяжи ${f.hem.rows} р. резинки 1×1. Высота после обработки около ${fmt(f.hem.heightCm)} см.`,[count(f.hem.stitches)],ribRows(f.hem.stitches,f.hem.rows));
       add(`${name}_main`,`${label}: основное полотно и формирование`,["Нумерация здесь начинается с первого ряда глади после резинки. Счётчик общего ряда включает резинку. Делай все действия текущего ряда, включая одновременное формирование плеча и горловины.","При закрытии середины сначала провязана первая петля будущего закрытия; затем закрывается указанное число петель. Последняя рабочая петля относится к следующей половине и уже провязана — не считай её второй раз. После разделения вяжи обе половины в указанном порядке, каждую своим клубком."],[count(0)],table.rows,{adjustments:table.adjustments});
       panelMeasure(name,name==="front");
@@ -178,24 +180,25 @@
       add(`sleeve${n}_rib`,`Рукав ${n}: манжета`,`Свяжи ${f.cuff.rows} р. резинки 1×1.`,[count(f.cuff.stitches)],ribRows(f.cuff.stitches,f.cuff.rows));
       add(`sleeve${n}_main`,`Рукав ${n}: расширение и окат`,`Перейди к глади. Окат начинается в ряду ${f.sleeve.beforeCapRows+1} основного полотна; его длина уже входит в полную длину рукава.`,[count(g.sleeve.cap.finalBindOff)],sleeve);
       add(`sleeve${n}_close`,`Рукав ${n}: закрой верх оката`,`Закрой все оставшиеся ${g.sleeve.cap.finalBindOff} п. без стягивания; протяни хвост через последнюю петлю. Оставь хвост для закрепления.`,[worked]);
-      add(`sleeve${n}_measure`,`Рукав ${n}: обработай и измерь`,"Обработай и высуши как образец. Полная длина измеряется от нижнего края манжеты до вершины оката. Ширина под окатом между будущими швами станет обхватом рукава; измерь её на плоской детали, не удваивай. Длину края оката измерь гибкой лентой вдоль линии вшивания, включая его верх.",[measure("lengthCm","Полная длина рукава, см",f.sleeve.achievedLengthCm),measure("upperCm","Ширина под окатом без кромочных, см",(g.sleeve.upperStitches-2)/g.gauge.stitchesPerCm),measure("capCm","Длина всего края оката по линии шва, см",g.sleeve.cap.perimeterCm,Math.max(1,g.sleeve.cap.perimeterCm*0.05))]);
+      add(`sleeve${n}_measure`,`Рукав ${n}: обработай и измерь`,(manufacturer ? "Обработай и высуши по этикетке пряжи. " : "Обработай и высуши как образец. ") + "Полная длина измеряется от нижнего края манжеты до вершины оката. Ширина под окатом между будущими швами станет обхватом рукава; измерь её на плоской детали, не удваивай. Длину края оката измерь гибкой лентой вдоль линии вшивания, включая его верх.",[measure("lengthCm","Полная длина рукава, см",f.sleeve.achievedLengthCm),measure("upperCm","Ширина под окатом без кромочных, см",(g.sleeve.upperStitches-2)/g.gauge.stitchesPerCm),measure("capCm","Длина всего края оката по линии шва, см",g.sleeve.cap.perimeterCm,Math.max(1,g.sleeve.cap.perimeterCm*0.05))]);
     }
     add("shoulders","Соедини плечи",["Разложи перед и спинку лицевой стороной вверх, плечевыми краями друг к другу. Плечо А переда соответствует плечу Б спинки, и наоборот. Совмести внешний край, ступеньки плечевого скоса и край горловины.",`Соедини по ${g.body.shoulder.stitchesEach} закрытых петель каждого плеча горизонтальным трикотажным швом: иглой попеременно подхватывай обе дужки петли под закрытым краем одной и другой детали. Сохраняй размер стежка; не стягивай. Хвосты пока не обрезай коротко.`],[worked]);
     add("neck_measure","Измерь соединённую горловину","Измерь будущую линию набора от верхнего конца разреза А вокруг спинки до верхнего конца разреза Б. Верхи планок пока не включай: их ещё нет. Не растягивай край.",[measure("neckCm","Длина края горловины без верхов планок, см",f.collar.neckEdgeCm-2*f.band.widthCm,Math.max(1,(f.collar.neckEdgeCm-2*f.band.widthCm)*0.1))]);
     const upper=evidence.prepare?.upperBand;
     const bandData=side=>evidence.front_measure?bandForLength(f,evidence.front_measure[`slit${side}`]):null;
     for(const which of ["lower","upper"]){
-      const side=upper?(which==="upper"?upper:upper==="A"?"B":"A"):null,b=side?bandData(side):null,label=which==="upper"?"Верхняя планка с отверстиями":"Нижняя планка";
-      add(`${which}_pickup`,`${label}: подними петли`,b?`На половине ${side} подними ${b.stitches} п. по измеренному краю ${fmt(b.measuredEdgeCm)} см на спицы ${f.rib.needleMm} мм, начиная снизу и заканчивая у горловины, с лицевой стороны. Раздели край и число петель на четыре части маркерами; поднимай равномерно, не делая двойных наборов из одного отверстия подряд. Для каждой петли вводи спицу под кромочную, захватывай рабочую нить и вытягивай петлю.`:"Точное число будет рассчитано после выбора верхней планки и измерения обработанного разреза.",b?[count(b.stitches)]:[],null,{requires:["prepare","front_measure"],derived:b});
-      add(`${which}_rib`,`${label}: свяжи резинку`,b?`Первый ряд после поднятия петель — изнаночный, от горловины к низу. ${which==="upper"?"Отверстия выполняются по проверенному образцу. Их положения в таблице учитывают направление текущего ряда.":"Отверстий в этой планке нет."}`:"Расписание появится после измерения края.",b?[count(b.stitches)]:[],b?bandRows(b,which==="upper"):null,{requires:["prepare","front_measure"]});
-      add(`${which}_close`,`${label}: закрой край`,"Закрой все петли по рисунку резинки без стягивания, тем же способом и натяжением, что на образце; хвост закрепи позже.",[worked]);
+      const side=upper?(which==="upper"?upper:upper==="A"?"B":"A"):null,actualBand=side?bandData(side):null,
+        b=actualBand || (manufacturer ? bandForLength(f,g.body.placket.rows/g.gauge.rowsPerCm,true) : null),label=which==="upper"?"Верхняя планка с отверстиями":"Нижняя планка";
+      add(`${which}_pickup`,`${label}: подними петли`,b?`${actualBand ? "На половине " + side : "Предварительный набор до измерения разреза: на выбранной половине"} подними ${b.stitches} п. по ${actualBand ? "измеренному" : "расчётному"} краю ${fmt(b.measuredEdgeCm ?? b.targetEdgeCm)} см на спицы ${f.rib.needleMm} мм, начиная снизу и заканчивая у горловины, с лицевой стороны. Раздели край и число петель на четыре части маркерами; поднимай равномерно, не делая двойных наборов из одного отверстия подряд. Для каждой петли вводи спицу под кромочную, захватывай рабочую нить и вытягивай петлю.`:"Точное число будет рассчитано после выбора верхней планки и измерения обработанного разреза.",b?[count(b.stitches)]:[],null,{requires:["prepare","front_measure"],derived:b});
+      add(`${which}_rib`,`${label}: свяжи резинку`,b?`Первый ряд после поднятия петель — изнаночный, от горловины к низу. ${which==="upper"?(manufacturer ? "Размер отверстия рассчитан по диаметру пуговицы и заданной плотности резинки. После восстановления петель примерь пуговицу: она должна проходить и держаться. При необходимости перевяжи отверстие до закрытия планки." : "Отверстия выполняются по проверенному образцу. Их положения в таблице учитывают направление текущего ряда."):"Отверстий в этой планке нет."}`:"Расписание появится после измерения края.",b?[count(b.stitches)]:[],b?bandRows(b,which==="upper",manufacturer):null,{requires:["prepare","front_measure"]});
+      add(`${which}_close`,`${label}: закрой край`,manufacturer ? "Закрой все петли по рисунку без стягивания, хвост закрепи позже." : "Закрой все петли по рисунку резинки без стягивания, тем же способом и натяжением, что на образце; хвост закрепи позже.",[worked]);
     }
-    add("bands_measure","Закрепи планки и проверь застёжку",["Наложи верхнюю планку с отверстиями поверх нижней на всю ширину. Нижние торцы обеих планок пришей к закрытым петлям основания разреза. Расправь без перекоса.","Обработай края как образец. Измерь ширину каждой планки и проверь настоящую пуговицу во всех отверстиях. Пуговицы пока можно не пришивать."],[measure("upperWidthCm","Ширина верхней планки, см",f.band.widthCm),measure("lowerWidthCm","Ширина нижней планки, см",f.band.widthCm),yes("buttonFit","Пуговица проходит во все отверстия и удерживается; планки лежат ровно")]);
+    add("bands_measure","Закрепи планки и проверь застёжку",["Наложи верхнюю планку с отверстиями поверх нижней на всю ширину. Нижние торцы обеих планок пришей к закрытым петлям основания разреза. Расправь без перекоса.",(manufacturer ? "Обработай края по этикетке пряжи. " : "Обработай края как образец. ") + "Измерь ширину каждой планки и проверь настоящую пуговицу во всех отверстиях. Пуговицы пока можно не пришивать."],[measure("upperWidthCm","Ширина верхней планки, см",f.band.widthCm),measure("lowerWidthCm","Ширина нижней планки, см",f.band.widthCm),yes("buttonFit","Пуговица проходит во все отверстия и удерживается; планки лежат ровно")]);
     const neckCm=evidence.neck_measure?.neckCm,bands=evidence.bands_measure;
-    const collar=neckCm&&bands?{stitches:even((neckCm+bands.upperWidthCm+bands.lowerWidthCm)*f.rib.stitchesPerCm)+2,rows:f.collar.rows,edgeCm:neckCm+bands.upperWidthCm+bands.lowerWidthCm}:null;
-    add("collar_pickup","Подними петли воротника",collar?`С изнаночной стороны подними ${collar.stitches} п. на спицы ${f.rib.needleMm} мм по краю длиной ${fmt(collar.edgeCm)} см: от свободного края верхней планки по её верху, вокруг горловины и по верху нижней планки до свободного края. Распредели петли равномерно по отмеченным четвертям края. Воротник будет отворачиваться наружу.`:"Число будет уточнено по измеренной горловине и двум обработанным планкам.",collar?[count(collar.stitches)]:[],null,{requires:["neck_measure","bands_measure"],derived:collar});
+    const collar=neckCm&&bands?{stitches:even((neckCm+bands.upperWidthCm+bands.lowerWidthCm)*f.rib.stitchesPerCm)+2,rows:f.collar.rows,edgeCm:neckCm+bands.upperWidthCm+bands.lowerWidthCm}:manufacturer ? {stitches:f.collar.stitches,rows:f.collar.rows,edgeCm:f.collar.neckEdgeCm,provisional:true} : null;
+    add("collar_pickup","Подними петли воротника",collar?`${collar.provisional ? "Предварительный набор. Уточни его по измеренным краям перед вязанием. " : ""}С изнаночной стороны подними ${collar.stitches} п. на спицы ${f.rib.needleMm} мм по краю длиной ${fmt(collar.edgeCm)} см: от свободного края верхней планки по её верху, вокруг горловины и по верху нижней планки до свободного края. Распредели петли равномерно по отмеченным четвертям края. Воротник будет отворачиваться наружу.`:"Число будет уточнено по измеренной горловине и двум обработанным планкам.",collar?[count(collar.stitches)]:[],null,{requires:["neck_measure","bands_measure"],derived:collar});
     add("collar_rib","Свяжи воротник",`Свяжи ${f.collar.rows} р. резинки 1×1, около ${fmt(f.collar.heightCm)} см. Не соединяй в круг.`,collar?[count(collar.stitches)]:[],collar?ribRows(collar.stitches,collar.rows):null,{requires:["neck_measure","bands_measure"]});
-    add("collar_close","Закрой и отверни воротник","Закрой все петли по рисунку свободно. Обработай как образец, высуши, отверни воротник наружу. Не фиксируй горячим утюгом без разрешения этикетки пряжи.",[measure("heightCm","Высота воротника после обработки, см",f.collar.heightCm),yes("liesFlat","Воротник лежит ровно, его край не стягивает горловину")]);
+    add("collar_close","Закрой и отверни воротник",`Закрой все петли по рисунку свободно. Обработай ${manufacturer ? "по этикетке пряжи" : "как образец"}, высуши, отверни воротник наружу. Не фиксируй горячим утюгом без разрешения этикетки пряжи.`,[measure("heightCm","Высота воротника после обработки, см",f.collar.heightCm),yes("liesFlat","Воротник лежит ровно, его край не стягивает горловину")]);
     const fit=[];
     if(evidence.front_measure&&evidence.back_measure&&evidence.sleeve1_measure&&evidence.sleeve2_measure){
       for(const [n,frontSide,backSide] of [[1,"A","B"],[2,"B","A"]]){
@@ -212,7 +215,7 @@
     const plan={version:VERSION,status:"candidate",physicalFitProven:false,source:{geometryFingerprint:g.fingerprint,finishingFingerprint:f.fingerprint},steps,
       guides:[{title:"Горизонтальный шов плеч — фото (английский)",url:"https://www.purlsoho.com/create/seaming-stockinette-stitch-stitches-to-stitches/"},{title:"Матрасный шов — фото (английский)",url:"https://www.purlsoho.com/create/mattress-stitch/"},{title:"Пробная петля закрытием и набором — фото (английский)",url:"https://www.norichanknits.com/tutorials/2024/3/6/bind-off-buttonhole"}]};
     // Version pins the dynamic measurement policies; row templates pin the compiled shape.
-    plan.fingerprint=fingerprint({version:VERSION,source:plan.source,back:back.rows,front:front.rows,sleeve,band:bandRows(bandForLength(f,f.band.lengthCm),true),stepIds:steps.map(s=>s.id)});
+    plan.fingerprint=fingerprint({version:VERSION,source:plan.source,back:back.rows,front:front.rows,sleeve,band:bandRows(bandForLength(f,f.band.lengthCm),true,manufacturer),stepIds:steps.map(s=>s.id)});
     return plan;
   }
   function validateCompletion(inspected,plan,step,raw,completedRows){

@@ -284,7 +284,20 @@
     };
   }
 
+  // Old drafts have no explicit source and keep their measured-swatch representation.
+  function gaugeBasis(gauge) {
+    if (gauge?.source !== "manufacturer") return gauge?.sourceMeasurement || {};
+    const label = gauge.label || {};
+    return { stitches: label.stitchesPer10Cm, rows: label.rowsPer10Cm, widthCm: 10, heightCm: 10, needleSizeMm: label.recommendedNeedleMm };
+  }
+
   function normalizeGauge(value) {
+    const labelInput = value.label || {};
+    const label = {
+      stitchesPer10Cm: optionalNumber(labelInput.stitchesPer10Cm, { maximum: 10000 }),
+      rowsPer10Cm: optionalNumber(labelInput.rowsPer10Cm, { maximum: 10000 }),
+      recommendedNeedleMm: optionalNumber(labelInput.recommendedNeedleMm, { maximum: 30 }),
+    };
     const source = value.sourceMeasurement && typeof value.sourceMeasurement === "object" ? value.sourceMeasurement : value;
     const sourceMeasurement = {
       stitches: optionalNumber(source.stitches, { maximum: 10000 }),
@@ -294,9 +307,20 @@
       needleSizeMm: optionalNumber(source.needleSizeMm, { maximum: 30 }),
       afterTreatment: ["yes", "no", "unknown"].includes(source.afterTreatment) ? source.afterTreatment : "unknown",
     };
+    if (value.source === "manufacturer") {
+      const hasMeasurement = Object.entries(sourceMeasurement).some(([key, entry]) =>
+        key === "afterTreatment" ? entry !== "unknown" : entry !== null);
+      const { stitchesPer10Cm, rowsPer10Cm } = label;
+      return {
+        source: "manufacturer", label,
+        ...(hasMeasurement ? { sourceMeasurement } : {}),
+        normalizedPer10Cm: stitchesPer10Cm && rowsPer10Cm ? { stitchesPer10Cm, rowsPer10Cm, unit: "10_cm", derivation: "manufacturer_label" } : null,
+      };
+    }
     const complete = [sourceMeasurement.stitches, sourceMeasurement.widthCm, sourceMeasurement.rows, sourceMeasurement.heightCm].every((entry) => entry !== null);
     return {
       sourceMeasurement,
+      ...(Object.values(label).some(entry => entry !== null) ? { label } : {}),
       normalizedPer10Cm: complete ? {
         stitchesPer10Cm: round(sourceMeasurement.stitches * 10 / sourceMeasurement.widthCm, 4),
         rowsPer10Cm: round(sourceMeasurement.rows * 10 / sourceMeasurement.heightCm, 4),
@@ -650,7 +674,7 @@
     MANUAL_OPTION_NAMES, INDUSTRIAL_OPTION_NAME, INDUSTRIAL_MESSAGE, PHOTO_ROLES,
     BODY_MEASUREMENTS, GARMENT_MEASUREMENTS, EASE_MEASUREMENTS, FIT_PREFERENCES, CONSTRUCTION_INPUTS, ManualCalculationIntakeError,
     classifyTechnologyHandoff, createInitialState, updateDraft, attachPhoto, reconcileState,
-    appendCurrentDraft, normalizeTargetSizing, normalizeChoiceValues, normalizeYarn, normalizeNeedles, normalizeGauge,
+    appendCurrentDraft, normalizeTargetSizing, normalizeChoiceValues, normalizeYarn, normalizeNeedles, normalizeGauge, gaugeBasis,
     calculateSectionStatus, sourceBinding, profileForHandoff, yarnProfileForHandoff, bindRequirementsProfile, requireValidState, stateFingerprint, artifactFingerprint,
     ensureForProject, saveDraftForProject, addPhotoForProject, reconcileForProject,
   });

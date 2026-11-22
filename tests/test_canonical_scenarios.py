@@ -296,6 +296,25 @@ def test_us_16_ready_label_gauge_is_preliminary(
     assert result.axes[Axis.WIDTH].selected_candidate.working_count == 100
 
 
+def test_label_gauge_without_swatch_calculates_both_axes(request_factory, width_request, height_request):
+    stitch_gauge = GaugeInput(method=GaugeMethod.READY_VALUE, source=GaugeSource.LABEL, ready_count=20, base_length=10)
+    row_gauge = replace(stitch_gauge, ready_count=28)
+    result = calculate(request_factory(
+        axes=(Axis.WIDTH, Axis.HEIGHT),
+        width=width_request(value=54, gauge=stitch_gauge),
+        height=height_request(value=60, gauge=row_gauge),
+    ))
+    assert result.status is ResultStatus.READY_WITH_WARNINGS
+    assert result.final is False
+    assert result.axes[Axis.WIDTH].selected_candidate.working_count == 108
+    assert result.axes[Axis.HEIGHT].selected_candidate.working_count == 168
+    for assessment in result.gauges.values():
+        assert assessment.quality == "preliminary"
+        assert assessment.swatch_context is None
+        assert assessment.context_matches is None
+    assert {"ПР-08", "ПР-09"} <= codes(result)
+
+
 def test_us_17_compatible_constraints(request_factory, width_request):
     component = FixedComponent("central stitch", 1, 1, TriState.YES)
     constraints = StructuralConstraints(

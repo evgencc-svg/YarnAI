@@ -6,7 +6,7 @@
   function fail(code, message) { throw Object.assign(new Error(message), { code, userMessage: message }); }
   async function inspectForProject(repository, projectId) {
     const checked = await root.YarnAIManualIntakeValidation.reconcileForProject(repository, projectId);
-    if (!checked) fail("DESIGN_INPUT_REQUIRED", "Сначала подтверди мерки, пряжу и обработанный образец.");
+    if (!checked) fail("DESIGN_INPUT_REQUIRED", "Сначала подтверди мерки, пряжу и источник плотности.");
     const intake = await root.YarnAIManualCalculationIntake.ensureForProject(repository, projectId);
     const aggregate = await repository.getProject(projectId);
     const progress = aggregate.progress.find(p => p.kind === KIND && p.calculation_id === checked.state.calculationId && p.epoch === 1) || null;

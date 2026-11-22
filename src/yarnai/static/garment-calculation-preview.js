@@ -20,10 +20,11 @@
     }
     const construction = snapshot.contractContextSnapshot.garmentRequirementsProfile?.constructionIdentity;
     if (!["seamed_set_in_sleeve", "top_down_raglan"].includes(construction)) fail("Для этой конструкции расчёт ещё не поддержан.");
-    const gauge = artifact.gauge.sourceMeasurement;
+    const manufacturer = artifact.gauge.source === "manufacturer";
+    const gauge = root.YarnAIManualCalculationIntake.gaugeBasis(artifact.gauge);
     const stitchRate = positive(gauge.stitches, "петли образца") / positive(gauge.widthCm, "ширина образца");
     const rowRate = positive(gauge.rows, "ряды образца") / positive(gauge.heightCm, "высота образца");
-    if (gauge.afterTreatment !== "yes") fail("Нужна плотность после стирки и сушки образца.");
+    if (!manufacturer && gauge.afterTreatment !== "yes") fail("Нужна плотность после стирки и сушки образца.");
     const inputs = snapshot.normalizedInputs;
     const m = (key) => positive(inputs.measurements[key]?.valueCm, key);
     const rows = [];
@@ -37,7 +38,7 @@
         resultingCm: rounded / rate, deviationCm: rounded / rate - cm,
         formula: `${m(key)}${divisor === 1 ? "" : ` ÷ ${divisor}`} × ${unit === "п." ? gauge.stitches : gauge.rows} ÷ ${unit === "п." ? gauge.widthCm : gauge.heightCm}`,
         rounding: factor === 2 ? "До ближайшего чётного; ровно посередине — вверх" : "До ближайшего целого; ровно посередине — вверх",
-        sources: [`confirmedSnapshot.normalizedInputs.measurements.${key}`, `intake.gauge.sourceMeasurement.${unit === "п." ? "stitches/widthCm" : "rows/heightCm"}`] });
+        sources: [`confirmedSnapshot.normalizedInputs.measurements.${key}`, manufacturer ? `intake.gauge.label.${unit === "п." ? "stitchesPer10Cm" : "rowsPer10Cm"}` : `intake.gauge.sourceMeasurement.${unit === "п." ? "stitches/widthCm" : "rows/heightCm"}`] });
     }
     if (m("finished_neck_width") >= m("finished_bust_circumference") / 2) fail("Ширина горловины должна быть меньше ширины детали корпуса.");
     if (m("finished_cuff_circumference") > m("finished_upper_arm_circumference")) fail("Обхват манжеты больше обхвата верха рукава: нужна отдельная конструкция рукава.");
@@ -55,7 +56,7 @@
     count("finished_cuff_circumference", "Обхват манжеты в пересчёте на основное полотно", 1, "п.", 2);
     count("finished_neck_width", "Ширина горловины в основном полотне", 1, "п.", 2);
     count("finished_front_neck_depth", "Глубина передней горловины в рядах основного полотна", 1, "р.");
-    return Object.freeze({ version: VERSION, status: "PARTIAL", executable: false,
+    return Object.freeze({ version: VERSION, status: "PARTIAL", ...(manufacturer ? { gaugeStatus: "Расчёт по плотности производителя" } : {}), executable: false,
       sourceFingerprint: snapshot.fingerprint, intakeFingerprint: artifact.fingerprint,
       construction, yarn: inputs.yarn, needles: inputs.needles, rows,
       limitations: [

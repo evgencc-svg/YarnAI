@@ -87,7 +87,7 @@ function codes(result) { return result.blockers.map((entry) => entry.reasonCode)
 function ready(source = completeSource()) { return validation.validateSources(source, validation.syntheticFixtureContext()); }
 
 async function repository() { const value = new system.ProjectRepository(); repositories.push(value); await value.initialize(); return value; }
-async function seed(optionId = "option:raglan", polo = false) {
+async function seed(optionId = "option:raglan", polo = false, label = null) {
   const repo = await repository();
   const project = await repo.createProject({ title: "TEST ONLY — manual validation", draft_input: { workflow_intent: { version: 1, kind: "garment_reference" } } });
   let inspected = await garment.addPhotosForProject(repo, project.project_id, [new Blob([Buffer.from("front")], { type: "image/png" })]);
@@ -98,13 +98,13 @@ async function seed(optionId = "option:raglan", polo = false) {
   await intake.saveDraftForProject(repo, project.project_id, {
     targetSizing: {
       bodyMeasurements: { bust_circumference: 96, body_shoulder_width: 42, body_back_width: 38 },
-      finishedGarmentMeasurements: { finished_bust_circumference: 108, finished_body_length: 62, finished_sleeve_length: 58, finished_upper_arm_circumference: 34, finished_cuff_circumference: 18, finished_neck_width: 18, finished_front_neck_depth: 8, finished_yoke_depth: 24, finished_armhole_depth: 24 },
+      finishedGarmentMeasurements: { finished_bust_circumference: 108, finished_body_length: label ? 60 : 62, finished_sleeve_length: 58, finished_upper_arm_circumference: 34, finished_cuff_circumference: 18, finished_neck_width: 18, finished_front_neck_depth: 8, finished_yoke_depth: 24, finished_armhole_depth: 24 },
       ease: { bust_ease: 12 },
       fitPreferences: { body_shaping_preference: "straight", neckline_style: polo ? "polo_collar_with_placket" : "round_neck", closure_style: polo ? "short_front_placket" : "none" },
     },
     constructionInputs: { hem_finish: "rib", cuff_finish: "rib" },
     yarn: { selectionStatus: "selected", name: "TEST ONLY yarn", strandCount: 1, composition: "шерсть", lengthMeters: 200, skeinMassGrams: 100, quantityAvailable: 6 },
-    needles: { selectionStatus: "selected", primaryMm: 4.5 }, gauge: { sourceMeasurement: { stitches: 23, widthCm: 12.5, rows: 31, heightCm: 14, needleSizeMm: 4.5, afterTreatment: "yes" } },
+    needles: { selectionStatus: "selected", primaryMm: 4.5 }, gauge: label ? { source: "manufacturer", label } : { sourceMeasurement: { stitches: 23, widthCm: 12.5, rows: 31, heightCm: 14, needleSizeMm: 4.5, afterTreatment: "yes" } },
   });
   return { repo, project };
 }
@@ -518,4 +518,71 @@ test('51 actual seam mismatch, absent choice and wrong measurement are not accep
   const records=[['prepare',{upperBand:'A'}],['front_measure',{armA:26,armB:26,slitA:12,slitB:12}],['back_measure',{armA:26,armB:26}],['sleeve1_measure',{capCm:54}],['sleeve2_measure',{capCm:52.5}]].map(([stepId,input])=>({stepId,input}));
   const actual=poloPlan.build(finished,records),fit=actual.steps.find(s=>s.id==='sleeve_fit');
   assert.throws(()=>poloPlan.validateCompletion(finished,actual,fit,{done:true},0),{code:'PLAN_SEAM_MISMATCH'});
+});
+
+test("manufacturer label requires both axes and distinguishes recommended needles", () => {
+  const source = completeSource();
+  const label = { stitchesPer10Cm: 20.5, recommendedNeedleMm: 4 };
+  source.intake.artifact.gauge = intake.normalizeGauge({source: "manufacturer", label});
+  const incomplete = ready(source);
+  assert.ok(incomplete.blockers.some(item => item.field === "gauge.rows"));
+  assert.ok(!codes(incomplete).includes("GAUGE_NOT_PROCESSED"));
+  source.intake.artifact.gauge = intake.normalizeGauge({source: "manufacturer", label: {...label, rowsPer10Cm: 28}});
+  const valid = ready(source);
+  assert.equal(valid.readyForConfirmation, true);
+  assert.equal(valid.normalizedInputs.gauge.stitchesPer10Cm, 20.5);
+  assert.ok(valid.warnings.some(item => item.reasonCode === "LABEL_NEEDLE_DIFFERENCE"));
+});
+
+test("manufacturer polo saves, reopens and compiles all sections without swatch facts", async () => {
+  const label = {stitchesPer10Cm: 20, rowsPer10Cm: 28, recommendedNeedleMm: 4.5};
+  const {repo, project} = await seed("option:set-in", true, label);
+  const id = project.project_id;
+  await validation.validateForProject(repo, id);
+  const confirmed = await validation.confirmForProject(repo, id);
+  const {artifact} = await intake.ensureForProject(repo, id);
+  assert.equal(artifact.gauge.sourceMeasurement, undefined);
+  const base = preview.build(confirmed.state, artifact);
+  assert.equal(base.gaugeStatus, "Расчёт по плотности производителя");
+  assert.equal(base.rows.find(row => row.key === "finished_bust_circumference").value, 108);
+  assert.equal(base.rows.find(row => row.key === "finished_body_length").value, 168);
+  const shape = await designDomain.saveForProject(repo, id, geometry.proposals(confirmed.state.confirmedSnapshot), 0);
+  const accepted = await designDomain.confirmForProject(repo, id, shape.geometry.fingerprint, shape.progress.revision);
+  const input = {ribStitchesPer10Cm: 22, ribRowsPer10Cm: 30, ribNeedleMm: 4, hemHeightCm: 4,
+    cuffHeightCm: 4, collarHeightCm: 7, buttonCount: 3, buttonDiameterCm: 1.5, buttonEndMarginCm: 1.5};
+  assert.throws(() => finishingDomain.build(accepted.geometry, artifact, {...input, ribRowsPer10Cm: null}), {code:"FINISH_INPUT_INVALID"});
+  const review = await designDomain.saveFinishingForProject(repo, id, input, accepted.progress.revision);
+  const final = await designDomain.confirmFinishingForProject(repo, id, review.finishing.fingerprint, review.progress.revision);
+  const plan = poloPlan.build(final);
+  assert.equal(final.finishing.yarn.status, "unknown");
+  assert.equal(final.finishing.rib.source, "design_target");
+  assert.equal(final.finishing.input.ribTreated, undefined);
+  assert.equal(final.finishing.input.buttonholeStitches, 3);
+  assert.equal(plan.physicalFitProven, false);
+  const step = id => plan.steps.find(s => s.id === id);
+  assert.match(step("prepare").text.join(" "), /Точный расход пряжи не определён/);
+  assert.equal(plan.steps.length, 36);
+  assert.match(step("upper_rib").text.join(" "), /примерь пуговицу/);
+  for (const id of ["upper_rib", "lower_rib", "collar_rib"]) assert.ok(step(id).rows.length > 0);
+  assert.equal(step("upper_rib").rows.at(-1).afterStitches, final.finishing.band.stitches);
+  assert.equal(final.finishing.sleeve.increaseRows.length * 2, final.geometry.sleeve.upperStitches - final.geometry.sleeve.cuffStitchesAtMainGauge);
+  assert.ok(step("attach_sleeves") && step("side_seams") && step("buttons") && step("final"));
+  await repo.close();
+  const reopened = await designDomain.inspectForProject(await repository(), id);
+  assert.deepEqual(reopened.intake.artifact.gauge.label, label);
+  assert.equal(reopened.intake.artifact.gauge.source, "manufacturer");
+  assert.deepEqual(poloPlan.build(reopened), plan);
+});
+
+test("switching gauge source preserves entered values without mixing them", () => {
+  const sourceMeasurement = {stitches: 24, rows: 32, widthCm: 12, heightCm: 12, needleSizeMm: 4, afterTreatment: "no"};
+  const label = {stitchesPer10Cm: 19, rowsPer10Cm: 27, recommendedNeedleMm: 4.5};
+  const manufacturer = intake.normalizeGauge({source: "manufacturer", label, sourceMeasurement});
+  assert.deepEqual(intake.gaugeBasis(manufacturer), {stitches:19, rows:27, widthCm:10, heightCm:10, needleSizeMm:4.5});
+  const measured = intake.normalizeGauge({...manufacturer, source:"measured"});
+  assert.deepEqual(measured.sourceMeasurement, sourceMeasurement);
+  assert.deepEqual(measured.label, label);
+  const source = completeSource();
+  source.intake.artifact.gauge = measured;
+  assert.ok(codes(ready(source)).includes("GAUGE_NOT_PROCESSED"));
 });
