@@ -205,7 +205,39 @@
       detail.append(summary, paragraph);
       return detail;
     }));
+    const replay = globalObject.YarnAIPatternSourceInstructionEvidence.readTwoPhaseRaglan(reading);
+    const gauge = analysis.gauge.entries.filter((g) => g.unit === "cm" && g.stitches > 0 && g.rows > 0);
+    renderSourceReplay(replay, gauge.length === 1 ? gauge[0] : null);
     panel.hidden = false;
+  }
+
+  function renderSourceReplay(replay, gauge) {
+    const status = get("#graded-source-check");
+    const steps = get("#graded-source-steps");
+    steps.replaceChildren();
+    if (!replay?.valid || !gauge) {
+      status.textContent = "Баланс авторских операций пока не подтверждён.";
+      return;
+    }
+    const f = replay.facts;
+    const cm = (stitches) => (stitches * gauge.per / gauge.stitches).toFixed(1);
+    const rows = (length) => Math.round(length * gauge.rows / gauge.per);
+    status.textContent = `Баланс авторских операций проверен. Плотность лицевой глади — ${gauge.stitches} п. × ${gauge.rows} р. на ${gauge.per} см. Число кругов по длине приблизительное. При вязании ориентируйся на сантиметры.`;
+    const lines = [
+      `Горловина. Набери ${f.castOn} п. на спицы ${f.ribNeedle} мм и свяжи резинкой 1 × 1 ${f.neckCm} см. Отметь середину переда после ${f.midFrontMarker}-й петли. Отсюда измеряется высота кокетки.`,
+      `Кокетка. Перейди на ${f.mainNeedle} мм. Выдели ${f.markers} петли реглана. Между ними по кругу — ${f.firstSleeve}, ${f.firstFront}, ${f.secondSleeve} и ${f.firstBack} п. Начало круга у правого плеча со стороны спинки.`,
+      `В каждом втором круге прибавь по ${f.fullDelta} п., всего ${f.fullRepeats} раз. Получится ${f.midYoke} п. Затем прибавляй только на переде и спинке по ${f.bodyDelta} п. через круг ${f.bodyRepeats} раз. Получится ${f.endYoke} п. Вяжи до ${f.yokeCm} см от маркера середины переда, ориентир — ${rows(f.yokeCm)} кругов от маркера.`,
+      `Разделение. Первая петля относится к спинке. Отложи ${f.leftHeld} п. рукава, набери ${f.leftUnderarm} п. подреза, провяжи ${f.front} п. переда. Отложи ${f.rightHeld} п. второго рукава, набери ${f.rightUnderarm} п. подреза и провяжи оставшиеся ${f.backRemainder} п. спинки. Корпус — ${f.bodyStart} п., около ${cm(f.bodyStart)} см по груди.`,
+      `Через ${f.firstDecreaseCm} см после разделения убавь по петле с каждой стороны обоих боковых маркеров. Всего ${f.bodyDecreaseTimes} таких кругов с интервалом ${f.bodyIntervalCm} см. Останется ${f.preHem} п. Вяжи до ${f.hemStartCm} см от маркера переда.`,
+      `Низ. На спицах ${f.hemNeedle} мм равномерно прибавь ${f.hemGain} п. в первом круге резинки. На ${f.hem} п. вяжи резинку 1 × 1 высотой ${f.hemCm} см и закрой по рисунку. Длина — ${f.frontLength} см от маркера или около ${f.shoulderLength} см от плеча.`,
+      `Каждый рукав. На спицах ${f.sleeveNeedle} мм верни ${f.heldPickup} п. и подними ${f.pickup} п. из подреза. Начни круг в середине подреза. Всего ${f.sleeveStart} п. После ${f.sleevePlain} круга начни убавления. Убавь по ${f.fastLoss} п. через круг ${f.fastRepeats} раз, затем по ${f.slowLoss} п. каждые ${f.slowCm} см ${f.slowRepeats} раз. Останется ${f.preCuff} п.`,
+      `На длине ${f.cuffStartCm} см от подреза перейди на ${f.cuffNeedle} мм. Равномерно прибавь ${f.cuffGain} п. в первом круге. Свяжи ${f.cuffCm} см резинкой 1 × 1 на ${f.cuff} п. и закрой по рисунку. Рукав от подреза — около ${f.sleeveLength} см.`,
+    ];
+    for (const line of lines) {
+      const item = document.createElement("li");
+      item.textContent = line;
+      steps.append(item);
+    }
   }
 
   function renderSummary(model) {

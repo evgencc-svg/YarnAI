@@ -207,6 +207,56 @@
     return { selectedSize, sections, order: order.labels, attribution };
   }
 
+  // Read the two distinct raglan runs and their declared results before using any counts.
+  function readTwoPhaseRaglan(reading) {
+    if (!reading || reading.sections.some((s) => s.vectors.some((v) => v.selectionStatus !== "selected"))) return null;
+    const parts = new Map(reading.sections.map((s) => [s.heading, normalizeText(s.projected)]));
+    if (parts.size !== 5 || parts.size !== reading.sections.length) return null;
+    const facts = {};
+    const missing = [];
+    function capture(section, rule, fields) {
+      const match = rule.exec(parts.get(section) || "");
+      if (!match) { missing.push(...fields); return; }
+      fields.forEach((field, i) => { facts[field] = Number(match[i + 1].replace("½", ".5")); });
+    }
+    const neck = "NECK EDGE", yoke = "YOKE", split = "DIVIDING FOR BODY AND SLEEVES", body = "BODY", sleeve = "SLEEVES";
+    capture(neck, /Cast on (\d+) stitches on circular needle size ([\d.]+) mm/i, ["castOn", "ribNeedle"]);
+    capture(neck, /knit 1 and purl 1\) for ([\d.½]+) cm/i, ["neckCm"]);
+    capture(neck, /after the first (\d+) stitches/i, ["midFrontMarker"]);
+    capture(yoke, /needle size ([\d.]+) mm.*?Insert (\d+) markers/i, ["mainNeedle", "markers"]);
+    capture(yoke, /count (\d+) stitches \(= sleeve\).*?count (\d+) stitches \(= front piece\).*?count (\d+) stitches \(= sleeve\).*?(\d+) stitches remain after last marker/i, ["firstSleeve", "firstFront", "secondSleeve", "firstBack"]);
+    capture(yoke, /every other round[^.]+?(\d+) times in total = (\d+) stitches \(= (\d+) stitches increased/i, ["fullRepeats", "midYoke", "fullDelta"]);
+    capture(yoke, /on front piece and back piece on every other round (\d+) more times \(= (\d+) stitches increased[^)]+\) = (\d+) stitches/i, ["bodyRepeats", "bodyDelta", "endYoke"]);
+    capture(yoke, /without increase until piece measures ([\d.]+) cm from marker mid front/i, ["yokeCm"]);
+    capture(split, /Knit first stitch \(= belongs to back piece\).*?next (\d+) stitches on a thread.*?cast on (\d+) new stitches.*?work (\d+) stitches.*?next (\d+) stitches on a thread.*?cast on (\d+) new stitches.*?last (\d+) stitches/i, ["leftHeld", "leftUnderarm", "front", "rightHeld", "rightUnderarm", "backRemainder"]);
+    capture(body, /^= (\d+) stitches/i, ["bodyStart"]);
+    capture(body, /piece measures ([\d.]+) cm from division.*?both marker threads.*?= (\d+) stitches decreased.*?every ([\d.]+) cm (\d+) times in total = (\d+) stitches/i, ["firstDecreaseCm", "bodyLoss", "bodyIntervalCm", "bodyDecreaseTimes", "preHem"]);
+    capture(body, /until piece measures ([\d.]+) cm from marker mid front/i, ["hemStartCm"]);
+    const ribRule = /needles size ([\d.]+) mm.*?knit 1 and purl 1.*?increasing (\d+) stitches evenly on 1st round.*?= (\d+) stitches.*?rib measures ([\d.]+) cm, cast off/i;
+    capture(body, ribRule, ["hemNeedle", "hemGain", "hem", "hemCm"]);
+    capture(body, /measures ([\d.]+) cm from marker mid front and approx. ([\d.]+) cm from the top of shoulder/i, ["frontLength", "shoulderLength"]);
+    capture(sleeve, /Slip (\d+) sleeve stitches.*?size ([\d.]+) mm.*?1 stitch in each of the (\d+) stitches.*?= (\d+) stitches/i, ["heldPickup", "sleeveNeedle", "pickup", "sleeveStart"]);
+    capture(sleeve, /when (\d+) round has been worked after division.*?Decrease (\d+) stitches (\d+) times on every other round, then decrease (\d+) stitches (\d+) times every ([\d.½]+) cm = (\d+) stitches/i, ["sleevePlain", "fastLoss", "fastRepeats", "slowLoss", "slowRepeats", "slowCm", "preCuff"]);
+    capture(sleeve, /until sleeve measures ([\d.]+) cm from division/i, ["cuffStartCm"]);
+    capture(sleeve, ribRule, ["cuffNeedle", "cuffGain", "cuff", "cuffCm"]);
+    capture(sleeve, /Sleeve measures approx. ([\d.]+) cm from division/i, ["sleeveLength"]);
+    if (missing.length) return { facts, missing, checks: [], valid: false };
+    const f = facts;
+    const checks = [
+      ["Расстановка маркеров", f.firstFront === f.firstBack && f.firstSleeve === f.secondSleeve && f.markers === 4 && f.castOn === f.firstFront + f.firstBack + f.firstSleeve + f.secondSleeve + f.markers],
+      ["Первая серия реглана", f.fullDelta === 8 && f.castOn + f.fullDelta * f.fullRepeats === f.midYoke],
+      ["Вторая серия реглана", f.bodyDelta === 4 && f.midYoke + f.bodyDelta * f.bodyRepeats === f.endYoke],
+      ["Распределение кокетки", f.front === f.firstFront + 2 * (f.fullRepeats + f.bodyRepeats) + 2 && f.leftHeld === f.firstSleeve + 2 * f.fullRepeats && f.leftHeld === f.rightHeld && f.front === f.backRemainder + 1 && f.endYoke === 2 * f.front + 2 * f.leftHeld],
+      ["Подрезы корпуса", f.leftUnderarm === f.rightUnderarm && f.bodyStart === 2 * (f.front + f.leftUnderarm)],
+      ["Корпус и резинка", f.bodyLoss === 4 && f.preHem === f.bodyStart - f.bodyDecreaseTimes * f.bodyLoss && f.hem === f.preHem + f.hemGain],
+      ["Начало рукава", f.heldPickup === f.leftHeld && f.pickup === f.leftUnderarm && f.sleeveStart === f.heldPickup + f.pickup],
+      ["Обе серии убавок рукава", f.fastLoss === 2 && f.slowLoss === 2 && f.preCuff === f.sleeveStart - f.fastRepeats * f.fastLoss - f.slowRepeats * f.slowLoss],
+      ["Манжета и кратность резинок 1 × 1", f.cuff === f.preCuff + f.cuffGain && [f.castOn, f.hem, f.cuff].every((n) => n % 2 === 0)],
+      ["Длины и спицы", f.hemStartCm + f.hemCm === f.frontLength && f.cuffStartCm + f.cuffCm === f.sleeveLength && f.hemStartCm > f.yokeCm && f.shoulderLength >= f.frontLength && f.sleeveNeedle === f.mainNeedle && f.hemNeedle === f.ribNeedle && f.cuffNeedle === f.ribNeedle],
+    ];
+    return { facts, missing, checks, valid: checks.every(([, ok]) => ok) && Object.values(f).every((n) => Number.isFinite(n) && n >= 0) };
+  }
+
   function conditionalSizeScope(prefix, canonicalOrder, selectedSize) {
     const matches = [...String(prefix || "").matchAll(/([A-Za-z0-9/-]+)\s*\(([^()]*)\)\s*(?:only)?\s*:/gi)];
     const match = matches.at(-1);
@@ -772,7 +822,7 @@
     SourceInstructionEvidenceError, canonicalize, fingerprint, parseCanonicalSizeOrder, representationTree, parseMultiSizeVector, conditionalSizeScope, vectorCandidates,
     sourceChunks, blockSpans, classifyInstruction, createEvidenceUnits, createReviewQuestions, coverageFor, blockerResolutionMap, buildProjection, readGradedSource,
     buildEvidenceResult, resultFingerprint, createInitialState, beginExtraction, completeExtraction, setReviewDecision, unresolvedIssues, canConfirm,
-    confirmEvidence, rebuildFromSource, markStale, currentBindingFromAggregate, inspectAggregate, ensureForProject, buildForProject, decideForProject,
+    readTwoPhaseRaglan, confirmEvidence, rebuildFromSource, markStale, currentBindingFromAggregate, inspectAggregate, ensureForProject, buildForProject, decideForProject,
     confirmForProject, validateConfirmedEvidence,
   };
   globalObject.YarnAIPatternSourceInstructionEvidence = Object.freeze(api);
