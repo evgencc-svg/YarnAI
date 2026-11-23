@@ -161,6 +161,7 @@
     ui.content.hidden = model.state !== "ready";
     if (model.state === "loading") return;
     renderSummary(model);
+    renderGradedSource();
     renderFacts(ui.confirmed, ui.confirmedEmpty, model.confirmed, false);
     renderFacts(ui.assumed, ui.assumedEmpty, model.assumed, true);
     renderMissing(model.missing);
@@ -171,6 +172,40 @@
     ui.continueButton.disabled = !model.continueAction.enabled || busy;
     ui.continueButton.textContent = model.continueAction.label;
     ui.continueCopy.textContent = model.continueAction.enabled ? "Понимание достаточно для следующего шага." : "Ответь на обязательный вопрос или устрани противоречие, чтобы продолжить.";
+  }
+
+  function renderGradedSource() {
+    const panel = get("#graded-source");
+    panel.hidden = true;
+    const analysis = context?.semantic?.result;
+    const selectedSize = analysis?.sizing?.selectedSize;
+    if (!selectedSize || !["completed", "partial"].includes(context.analysisState)) return;
+    const extraction = extractionApi.inspectAggregate(context.aggregate).extraction;
+    const sourceIds = analysis.evidenceDomains?.sourcePatternFileIds || [];
+    const sources = (extraction?.result?.files || []).filter((file) => sourceIds.includes(file.sourceFileId) && file.extractionStatus === "extracted" && file.text);
+    if (sources.length !== 1) return;
+    const source = sources[0];
+    const reading = globalObject.YarnAIPatternSourceInstructionEvidence.readGradedSource(source.text, selectedSize);
+    if (!reading) return;
+    const labels = { "NECK EDGE": "Горловина", YOKE: "Кокетка и реглан", "DIVIDING FOR BODY AND SLEEVES": "Разделение корпуса и рукавов", BODY: "Корпус и нижняя резинка", SLEEVES: "Рукава и манжеты" };
+    get("#graded-source-title").textContent = `Авторские операции · ${selectedSize}`;
+    const credit = reading.attribution;
+    get("#graded-source-file").textContent = credit ? `${credit.title} · ${credit.author} · ${credit.number} · ${source.name}` : source.name;
+    const uncertain = reading.sections.flatMap((section) => section.vectors).some((vector) => vector.selectionStatus !== "selected");
+    get("#graded-source-status").textContent = uncertain
+      ? "Число значений в некоторых группах отличается от числа размеров. Сверь эти группы с оригиналом."
+      : `Показан столбец ${reading.order.indexOf(selectedSize) + 1} из ${reading.order.length}. Длины, общие числа и формулировки взяты из файла. Посадка и арифметика требуют отдельной проверки.`;
+    get("#graded-source-sections").replaceChildren(...reading.sections.map((section) => {
+      const detail = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = labels[section.heading] || section.heading;
+      const paragraph = document.createElement("p");
+      paragraph.style.whiteSpace = "pre-line";
+      paragraph.textContent = section.projected;
+      detail.append(summary, paragraph);
+      return detail;
+    }));
+    panel.hidden = false;
   }
 
   function renderSummary(model) {

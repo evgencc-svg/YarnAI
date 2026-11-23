@@ -14,8 +14,8 @@
   const activeProjects = new Set();
 
   const SECTION_PATTERNS = Object.freeze([
-    { component: "sleeve_body_separation", expression: /(?:separate|separation of)\s+(?:the\s+)?(?:sleeves?\s+and\s+body|body\s+and\s+sleeves?)\s*:/gi },
-    { component: "neckline", expression: /(?:neckline|collar)\s*:/gi },
+    { component: "sleeve_body_separation", expression: /(?:separate|separation of|dividing for)\s+(?:the\s+)?(?:sleeves?\s+and\s+body|body\s+and\s+sleeves?)\s*:/gi },
+    { component: "neckline", expression: /(?:neckline|neck edge|collar)\s*:/gi },
     { component: "yoke", expression: /yoke\s*:/gi },
     { component: "body", expression: /body\s*:/gi },
     { component: "sleeves", expression: /(?<!short\s)(?<!long\s)(?<!3\/4\s)sleeves?\s*:/gi },
@@ -55,6 +55,11 @@
   function normalizeSizeLabel(value) { return normalizeText(value).replace(/^Adult\s+/i, "").trim(); }
 
   function parseCanonicalSizeOrder(textValue) {
+    const header = /^\s*sizes?\s*:\s*((?:(?:X{0,3}[SL]|M|\dXL)\s*[-–—]\s*){2,}(?:X{0,3}[SL]|M|\dXL))(?=\s*$)/im.exec(textValue);
+    if (header) {
+      const labels = header[1].split(/\s*[-–—]\s*/).map((label) => label.toUpperCase());
+      if (new Set(labels).size === labels.length) return { labels, raw: header[1], status: "parsed" };
+    }
     const text = normalizeText(textValue);
     const match = /sizing\s*:\s*([\s\S]{1,700}?)\.\s*Sizes\s+listed\s+in\s+this\s+order/i.exec(text);
     if (!match) return { labels: [], raw: null, status: "missing" };
@@ -91,6 +96,13 @@
   }
 
   function numericTokens(raw) {
+    // Dashes separate unsigned quantities in a graded series.
+    if (/^\d+(?:\.\d+|½)?(?:\s*[-–—]\s*\d+(?:\.\d+|½)?){2,}$/.test(raw)) {
+      return [...raw.matchAll(/\d+(?:\.\d+|½)?/g)].map((match) => ({
+        raw: match[0], value: Number(match[0].replace("½", ".5")),
+        start: match.index, end: match.index + match[0].length,
+      }));
+    }
     return [...String(raw || "").matchAll(/-?\d+(?:\.\d+)?/g)].map((match) => ({ raw: match[0], value: Number(match[0]), start: match.index, end: match.index + match[0].length }));
   }
 
@@ -122,9 +134,20 @@
   function vectorCandidates(textValue, order, selectedSize, inheritedConditionalScope = null) {
     const text = String(textValue || "");
     const candidates = [];
+    const series = /(?<![\w.\-–—])\d+(?:\.\d+|½)?(?:\s*[-–—]\s*\d+(?:\.\d+|½)?){2,}(?![\w\-–—])/g;
+    for (const match of text.matchAll(series)) {
+      const start = match.index;
+      const end = start + match[0].length;
+      const unit = /^\s*(stitches?|sts?\b|rows?|rounds?|times|cm|mm)\b/i.exec(text.slice(end));
+      candidates.push({
+        ...parseMultiSizeVector(match[0], order, selectedSize, { unit: normalizeUnit(unit?.[1]) }),
+        start, end, context: normalizeText(text.slice(Math.max(0, start - 52), end + 52)),
+      });
+    }
     const starts = [...text.matchAll(/-?\d+(?:\.\d+)?\s*\(/g)];
     for (const startMatch of starts) {
       const start = startMatch.index;
+      if (candidates.some((entry) => start >= entry.start && start < entry.end)) continue;
       const opening = text.indexOf("(", start);
       let depth = 0;
       let end = -1;
@@ -155,6 +178,33 @@
       candidates.push({ ...parsed, start, end, context: normalizeText(text.slice(Math.max(0, start - 52), Math.min(text.length, end + 52))) });
     }
     return deduplicateVectors(candidates);
+  }
+
+  function readGradedSource(text, selectedSize) {
+    const order = parseCanonicalSizeOrder(text);
+    if (!order.labels.includes(selectedSize)) return null;
+    const start = /^\s*(?:START THE PIECE HERE|NECK EDGE)\s*:/im.exec(text);
+    if (!start) return null;
+    const heading = /^\s*(NECK EDGE|YOKE|DIVIDING FOR BODY AND SLEEVES|BODY|SLEEVES|DIAGRAM)\s*:\s*$/gim;
+    const body = text.slice(start.index);
+    const headings = [...body.matchAll(heading)];
+    const sections = [];
+    for (const [index, match] of headings.entries()) {
+      if (match[1].toUpperCase() === "DIAGRAM") break;
+      const passage = body.slice(match.index + match[0].length, headings[index + 1]?.index).trim();
+      const vectors = vectorCandidates(passage, order.labels, selectedSize).filter((entry) => /[-–—]/.test(entry.rawSizeVector) && !entry.rawSizeVector.includes("("));
+      let projected = passage;
+      for (const vector of [...vectors].reverse()) {
+        if (vector.selectionStatus === "selected") {
+          projected = projected.slice(0, vector.start) + vector.selectedRawValue + projected.slice(vector.end);
+        }
+      }
+      sections.push({ heading: match[1].toUpperCase(), projected, vectors });
+    }
+    if (!sections.some((section) => section.vectors.length)) return null;
+    const header = /^([^\n]{1,120})\n(DROPS Design)\s*\n(DROPS \d+-\d+)\b/im.exec(text.slice(0, start.index));
+    const attribution = header ? { title: header[1].trim(), author: header[2], number: header[3] } : null;
+    return { selectedSize, sections, order: order.labels, attribution };
   }
 
   function conditionalSizeScope(prefix, canonicalOrder, selectedSize) {
@@ -720,7 +770,7 @@
   const api = {
     PROGRESS_KIND, SCHEMA_ID, CONTRACT_VERSION, RESULT_VERSION, ALGORITHM_VERSION, SIZE_SELECTION_ALGORITHM, STATUSES, CONSTRUCTION_SEQUENCE,
     SourceInstructionEvidenceError, canonicalize, fingerprint, parseCanonicalSizeOrder, representationTree, parseMultiSizeVector, conditionalSizeScope, vectorCandidates,
-    sourceChunks, blockSpans, classifyInstruction, createEvidenceUnits, createReviewQuestions, coverageFor, blockerResolutionMap, buildProjection,
+    sourceChunks, blockSpans, classifyInstruction, createEvidenceUnits, createReviewQuestions, coverageFor, blockerResolutionMap, buildProjection, readGradedSource,
     buildEvidenceResult, resultFingerprint, createInitialState, beginExtraction, completeExtraction, setReviewDecision, unresolvedIssues, canConfirm,
     confirmEvidence, rebuildFromSource, markStale, currentBindingFromAggregate, inspectAggregate, ensureForProject, buildForProject, decideForProject,
     confirmForProject, validateConfirmedEvidence,

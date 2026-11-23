@@ -3,7 +3,7 @@
 (function exposePatternSemanticAnalysis(globalObject) {
   const rules = globalObject.YarnAIPatternSemanticRules || (typeof require === "function" ? require("./pattern-semantic-rules.js") : null);
   const VERSION = 1;
-  const ANALYZER_VERSION = 3;
+  const ANALYZER_VERSION = 4;
   const PROGRESS_KIND = "PATTERN_SEMANTIC_ANALYSIS";
   const STATUSES = Object.freeze(["waiting", "analyzing", "completed", "partial", "failed"]);
   const activeRuns = new Set();

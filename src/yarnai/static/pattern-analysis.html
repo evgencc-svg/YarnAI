@@ -15,6 +15,7 @@
     <script src="/static/pattern-semantic-analysis.js" defer></script>
     <script src="/static/pattern-analysis-review.js" defer></script>
     <script src="/static/material-understanding-experience.js" defer></script>
+    <script src="/static/pattern-source-instruction-evidence.js" defer></script>
     <script src="/static/material-understanding-experience-assistant.js" defer></script>
   </head>
   <body>
@@ -32,6 +33,12 @@
         <section class="understanding-intro" aria-labelledby="understanding-title"><p class="understanding-eyebrow">Разбор проекта</p><h1 id="understanding-title">Вот что YarnAI понял</h1><p id="understanding-lead" class="understanding-lead">Проверь описание. Если что-то неверно, это можно исправить.</p><a id="understanding-materials-top" class="inline-link" href="/import-pattern">← Изменить материалы</a></section>
         <section id="understanding-loading" class="understanding-loading" aria-live="polite" hidden><span class="loading-mark" aria-hidden="true"></span><div><h2>Разбираем материалы</h2><p id="understanding-loading-copy">Читаем только сохранённые материалы проекта.</p></div></section>
         <section id="understanding-content" class="understanding-content" hidden>
+          <section id="graded-source" class="summary-card" hidden>
+            <h2 id="graded-source-title">Операции авторского размера</h2>
+            <p id="graded-source-file"></p>
+            <p id="graded-source-status"></p>
+            <div id="graded-source-sections"></div>
+          </section>
           <section class="summary-card" aria-labelledby="understanding-summary-heading"><div class="section-heading-row"><div><p class="section-kicker">Кратко</p><h2 id="understanding-summary-heading">Что это за вещь?</h2></div><span id="understanding-summary-trust" class="trust-badge">Пока неизвестно</span></div><p id="understanding-summary-title" class="summary-title">Пока не удалось точно определить изделие</p><p id="understanding-summary-description" class="summary-description"></p><button id="understanding-correction-open" class="text-button" type="button">Исправить</button>
             <form id="understanding-correction-form" class="correction-form" hidden><h3>Исправить понимание</h3><label for="understanding-correction-field">Что исправить</label><select id="understanding-correction-field" name="field"></select><label for="understanding-correction-value">Как будет верно</label><textarea id="understanding-correction-value" name="value" rows="3" maxlength="500" required></textarea><p id="understanding-correction-error" class="form-error" role="alert"></p><div class="button-row"><button id="understanding-correction-save" class="button button-primary" type="submit">Сохранить исправление</button><button id="understanding-correction-cancel" class="button button-secondary" type="button">Отмена</button></div></form>
           </section>
