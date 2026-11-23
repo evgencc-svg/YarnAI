@@ -1043,7 +1043,78 @@
     return { chestCm, ease: input.finishedChest - input.chest, bodyRounds, options };
   }
 
+  function solveTwoPhaseRaglan(input, binding) {
+    const replay = input.twoPhaseReplay;
+    const source = input.sourceGauge;
+    const target = input.adaptationGauge;
+    if (!replay?.valid || !binding || source?.unit !== "cm" || target?.unit !== "cm" || !rowGaugePerCm(target) || !rowGaugePerCm(source) || !gaugePerCm(source) || !gaugePerCm(target)) return null;
+    const f = replay.facts;
+    const ratio = gaugePerCm(target) / gaugePerCm(source);
+    const near = (n) => {
+      const center = calculateAdaptedCount(n, source, target, "NEAREST_INTEGER_HALF_UP", binding).value;
+      return [center - 2, center - 1, center, center + 1, center + 2].filter((v) => v > 0);
+    };
+    const roundsAt = (cm) => Math.round(cm * rowGaugePerCm(target));
+    const yokeRows = roundsAt(f.yokeCm);
+    const err = (actual, original) => (actual - original * ratio) ** 2;
+    const even = (n) => 2 * Math.round(n * ratio / 2);
+    let best = null;
+    for (const sleeve of near(f.firstSleeve)) for (const panel of near(f.firstFront)) {
+      const neck = 2 * (sleeve + panel) + f.markers;
+      for (const full of near(f.fullRepeats)) for (const bodyOnly of near(f.bodyRepeats)) {
+        if ((full + bodyOnly) * 2 - 1 > yokeRows) continue;
+        const held = sleeve + 2 * full;
+        const front = panel + 2 * (full + bodyOnly) + 2;
+        const midpoint = neck + f.fullDelta * full;
+        const total = midpoint + f.bodyDelta * bodyOnly;
+        if (total !== 2 * (held + front)) continue;
+        for (const underarm of near(f.leftUnderarm)) {
+          const body = 2 * (front + underarm);
+          const arm = held + underarm;
+          const score = err(neck, f.castOn) + err(sleeve, f.firstSleeve) + err(panel, f.firstFront)
+            + err(held, f.leftHeld) + err(front, f.front) + err(body, f.bodyStart)
+            + err(arm, f.sleeveStart) + err(underarm, f.leftUnderarm) + err(total, f.endYoke)
+            + err(midpoint, f.midYoke) + err(full, f.fullRepeats) + err(bodyOnly, f.bodyRepeats);
+          if (!best || score < best.score) best = { score, sleeve, panel, neck, full, bodyOnly, held, front, midpoint, total, underarm, body, arm };
+        }
+      }
+    }
+    if (!best) return null;
+    // Preserve the two different sleeve rhythms; both reductions remove a pair.
+    const sleeveRows = roundsAt(f.cuffStartCm);
+    let armChoice = null;
+    for (const fast of near(f.fastRepeats)) for (const slow of near(f.slowRepeats)) {
+      const beforeCuff = best.arm - f.fastLoss * fast - f.slowLoss * slow;
+      const lastFast = f.sleevePlain + 1 + 2 * (fast - 1);
+      const lastSlow = lastFast + roundsAt(slow * f.slowCm);
+      if (beforeCuff <= 0 || lastSlow > sleeveRows || roundsAt(f.slowCm) < 2) continue;
+      const score = err(beforeCuff, f.preCuff) + err(fast, f.fastRepeats) + err(slow, f.slowRepeats);
+      if (!armChoice || score < armChoice.score) armChoice = { score, fast, slow, beforeCuff, lastFast, lastSlow };
+    }
+    if (!armChoice) return null;
+    const plain = best.body - f.bodyLoss * f.bodyDecreaseTimes;
+    const hem = even(f.hem);
+    const cuff = even(f.cuff);
+    const bodyRows = roundsAt(f.hemStartCm - f.yokeCm);
+    const bodyDecreaseRows = Array.from({ length: f.bodyDecreaseTimes }, (_, i) => roundsAt(f.firstDecreaseCm + i * f.bodyIntervalCm));
+    if (plain <= 0 || hem < plain || cuff < armChoice.beforeCuff || bodyDecreaseRows.at(-1) > bodyRows) return null;
+    const sleeveDecreaseRows = [
+      ...Array.from({ length: armChoice.fast }, (_, i) => f.sleevePlain + 1 + 2 * i),
+      ...Array.from({ length: armChoice.slow }, (_, i) => armChoice.lastFast + roundsAt((i + 1) * f.slowCm)),
+    ];
+    return { ...best, ...armChoice, yokeScore: best.score, sleeveScore: armChoice.score, score: best.score + armChoice.score, plain, hem, cuff, bodyRows, bodyDecreaseRows, sleeveRows, sleeveDecreaseRows, yokeRows,
+      lastIncrease: (best.full + best.bodyOnly) * 2 - 1,
+      midFrontMarker: 2 + best.sleeve + Math.floor(best.panel / 2),
+      chestCm: best.body / gaugePerCm(target), armCm: best.arm / gaugePerCm(target),
+      sourceChestCm: f.bodyStart / gaugePerCm(source), sourceArmCm: f.sleeveStart / gaugePerCm(source),
+    };
+  }
+
   function calculateConstraintAwareTopDownCounts(input, evidenceBinding = null) {
+    if (input?.twoPhaseReplay) {
+      const solution = solveTwoPhaseRaglan(input, evidenceBinding);
+      return { status: solution ? "calculated" : "unresolved", algorithmId: "two-phase-raglan", chosenCandidate: solution };
+    }
     const source = object(input?.sourceCounts) || {};
     const required = ["castOn", "yokeStart", "yokeFinal", "front", "sleeveHeld", "underarm", "body", "sleeveStart", "cuff", "yokeRepeats"];
     const missingFields = required.filter((field) => !positiveInteger(source[field]));

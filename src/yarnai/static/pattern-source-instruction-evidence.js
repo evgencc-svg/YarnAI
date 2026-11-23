@@ -211,7 +211,8 @@
   function readTwoPhaseRaglan(reading) {
     if (!reading || reading.sections.some((s) => s.vectors.some((v) => v.selectionStatus !== "selected"))) return null;
     const parts = new Map(reading.sections.map((s) => [s.heading, normalizeText(s.projected)]));
-    if (parts.size !== 5 || parts.size !== reading.sections.length) return null;
+    const expectedOrder = ["NECK EDGE", "YOKE", "DIVIDING FOR BODY AND SLEEVES", "BODY", "SLEEVES"];
+    if (reading.sections.length !== expectedOrder.length || reading.sections.some((s, i) => s.heading !== expectedOrder[i])) return null;
     const facts = {};
     const missing = [];
     function capture(section, rule, fields) {
@@ -254,7 +255,8 @@
       ["Манжета и кратность резинок 1 × 1", f.cuff === f.preCuff + f.cuffGain && [f.castOn, f.hem, f.cuff].every((n) => n % 2 === 0)],
       ["Длины и спицы", f.hemStartCm + f.hemCm === f.frontLength && f.cuffStartCm + f.cuffCm === f.sleeveLength && f.hemStartCm > f.yokeCm && f.shoulderLength >= f.frontLength && f.sleeveNeedle === f.mainNeedle && f.hemNeedle === f.ribNeedle && f.cuffNeedle === f.ribNeedle],
     ];
-    return { facts, missing, checks, valid: checks.every(([, ok]) => ok) && Object.values(f).every((n) => Number.isFinite(n) && n >= 0) };
+    const bounded = Object.values(f).every((n) => Number.isFinite(n) && n > 0 && n <= 10000);
+    return { facts, missing, checks, valid: bounded && checks.every(([, ok]) => ok) };
   }
 
   function conditionalSizeScope(prefix, canonicalOrder, selectedSize) {

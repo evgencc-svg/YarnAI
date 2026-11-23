@@ -5,6 +5,30 @@ const { test } = require("node:test");
 const reader = require("../src/yarnai/static/pattern-source-instruction-evidence.js");
 const review = require("../src/yarnai/static/pattern-technology-review.js");
 
+test("two-phase solver preserves the source geometry at equal gauge, including odd sleeve counts", () => {
+  const facts = {
+    firstSleeve: 11, firstFront: 21, markers: 4, castOn: 68, fullRepeats: 10, fullDelta: 8,
+    midYoke: 148, bodyRepeats: 3, bodyDelta: 4, endYoke: 160, yokeCm: 13,
+    leftHeld: 31, front: 49, leftUnderarm: 10, bodyStart: 118, sleeveStart: 41,
+    fastRepeats: 2, slowRepeats: 3, fastLoss: 2, slowLoss: 2, preCuff: 31, cuff: 34,
+    sleevePlain: 1, slowCm: 3, cuffStartCm: 25, bodyLoss: 4, bodyDecreaseTimes: 1,
+    firstDecreaseCm: 5, bodyIntervalCm: 5, hem: 134, hemStartCm: 40,
+  };
+  const g = { stitches: 20, rows: 24, per: 10, unit: "cm" };
+  const solve = (target) => review.calculateConstraintAwareTopDownCounts({ twoPhaseReplay: { valid: true, facts }, sourceGauge: g, adaptationGauge: target }, { size: "test" }).chosenCandidate;
+  const same = solve(g);
+  assert.deepEqual([same.neck, same.total, same.body, same.arm, same.plain, same.cuff], [68, 160, 118, 41, 114, 34]);
+  const changed = solve({ ...g, stitches: 19 });
+  assert.equal(changed.total, changed.neck + 8 * changed.full + 4 * changed.bodyOnly);
+  assert.equal(changed.total, 2 * (changed.front + changed.held));
+  assert.equal(changed.body, 2 * (changed.front + changed.underarm));
+  assert.equal(changed.arm, changed.held + changed.underarm);
+  assert.equal(changed.beforeCuff, changed.arm - 2 * changed.sleeveDecreaseRows.length);
+  assert.ok(changed.lastIncrease <= changed.yokeRows && changed.lastSlow <= changed.sleeveRows);
+  assert.ok([changed.neck, changed.hem, changed.cuff].every((n) => n % 2 === 0));
+  assert.equal(solve({ ...g, rows: 1 }), null);
+});
+
 test("taper uses paired side decreases, keeps the chest and leaves a plain final round", () => {
   const source = { valid: true, facts: { bodyStart: 200, bodyLoss: 4, preHem: 196, hem: 220, yokeCm: 20, hemStartCm: 50, firstDecreaseCm: 5 } };
   const gauge = { stitches: 20, rows: 25, per: 10, unit: "cm" };

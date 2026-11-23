@@ -200,7 +200,7 @@
     const uncertain = reading.sections.flatMap((section) => section.vectors).some((vector) => vector.selectionStatus !== "selected");
     get("#graded-source-status").textContent = uncertain
       ? "Число значений в некоторых группах отличается от числа размеров. Сверь эти группы с оригиналом."
-      : `Показан столбец ${reading.order.indexOf(selectedSize) + 1} из ${reading.order.length}. Длины, общие числа и формулировки взяты из файла. Посадка и арифметика требуют отдельной проверки.`;
+      : `Показан столбец ${reading.order.indexOf(selectedSize) + 1} из ${reading.order.length}. Длины и общие для всех размеров числа взяты из файла.`;
     get("#graded-source-sections").replaceChildren(...reading.sections.map((section) => {
       const detail = document.createElement("details");
       const summary = document.createElement("summary");
@@ -215,7 +215,32 @@
     const gauge = analysis.gauge.entries.filter((g) => g.unit === "cm" && g.stitches > 0 && g.rows > 0);
     renderSourceReplay(replay, gauge.length === 1 ? gauge[0] : null);
     showFit(replay, gauge.length === 1 ? gauge[0] : null);
+    renderGaugeTrial(replay, gauge.length === 1 ? gauge[0] : null);
     panel.hidden = false;
+  }
+
+  function renderGaugeTrial(replay, gauge) {
+    const trial = get("#graded-gauge-trial");
+    trial.hidden = !replay?.valid || !gauge;
+    if (trial.hidden) return;
+    const target = { stitches: 20, rows: 28, per: 10, unit: "cm" };
+    const result = globalObject.YarnAIPatternTechnologyReview.calculateConstraintAwareTopDownCounts(
+      { twoPhaseReplay: replay, sourceGauge: gauge, adaptationGauge: target },
+      { fingerprint: context.semantic.sourceFingerprint, size: context.semantic.result.sizing.selectedSize },
+    );
+    const panel = get("#graded-gauge-result");
+    panel.replaceChildren();
+    const add = (text) => { const p = document.createElement("p"); p.textContent = text; panel.append(p); };
+    add("Искусственный математический тест исходного размера: 20 петель и 28 рядов на 10 см глади. Плотность реальной пряжи и индивидуальный проект сохраняются отдельно.");
+    const c = result.chosenCandidate;
+    if (!c) { add("Подходящего сочетания петель и кругов не найдено."); return; }
+    const f = replay.facts;
+    add(`Набор ${c.neck} п., резинка 1 × 1 до ${f.neckCm} см. Маркер середины переда после ${c.midFrontMarker}-й петли. Выдели 4 петли реглана, между ними ${c.sleeve}, ${c.panel}, ${c.sleeve}, ${c.panel} п.`);
+    add(`Кокетка: от первого круга глади через круг ${c.full} прибавок по 8 до ${c.midpoint} п., затем ${c.bodyOnly} прибавок по 4 только на переде и спинке до ${c.total} п. Последняя прибавка в круге ${c.lastIncrease}. Остальные круги вяжи прямо до ${c.yokeRows}-го включительно (${f.yokeCm} см).`);
+    add(`Разделение: перед и спинка по ${c.front} п. (первая петля круга относится к спинке), каждый рукав по ${c.held} п. и каждый подрез по ${c.underarm} п. Корпус ${c.body} п. даёт ${c.chestCm.toFixed(1)} см вместо ${c.sourceChestCm.toFixed(1)} см, рукав ${c.arm} п. даёт ${c.armCm.toFixed(1)} см вместо ${c.sourceArmCm.toFixed(1)} см.`);
+    add(`Корпус: в кругах ${c.bodyDecreaseRows.join(", ")} после разделения убавь по ${f.bodyLoss} п., останется ${c.plain}. Остальные круги вяжи прямо, всего ${c.bodyRows} кругов до резинки. На меньших спицах прибавь ${c.hem - c.plain} п. равномерно в первом круге резинки до ${c.hem} п., вяжи ${f.hemCm} см и закрой. Ориентир длины от плеча ${f.shoulderLength} см.`);
+    add(`Рукав: ${c.held} + ${c.underarm} = ${c.arm} п. Первые ${c.fast} убавок выполняются через круг, ещё ${c.slow} — с промежутками около ${f.slowCm} см. Все круги убавок: ${c.sleeveDecreaseRows.join(", ")}. Каждый раз убавляй по 2 п. В остальных кругах вяжи прямо до ${c.sleeveRows}-го включительно. На ${c.beforeCuff} п. перейди к манжете, прибавь ${c.cuff - c.beforeCuff} п. равномерно до ${c.cuff}. Резинка 1 × 1 — ${f.cuffCm} см, затем закрой. Длина от подреза ${f.sleeveLength} см.`);
+    add("Резинки рассчитаны при допущении, что их горизонтальная плотность меняется в той же пропорции, что и у глади. Для точной ширины и числа кругов резинки нужен отдельный образец. На изделии длины проверяют сантиметром.");
   }
 
   function renderSourceReplay(replay, gauge) {
@@ -235,7 +260,7 @@
       `Кокетка. Перейди на ${f.mainNeedle} мм. Выдели ${f.markers} петли реглана. Между ними по кругу — ${f.firstSleeve}, ${f.firstFront}, ${f.secondSleeve} и ${f.firstBack} п. Начало круга у правого плеча со стороны спинки.`,
       `В каждом втором круге прибавь по ${f.fullDelta} п., всего ${f.fullRepeats} раз. Получится ${f.midYoke} п. Затем прибавляй только на переде и спинке по ${f.bodyDelta} п. через круг ${f.bodyRepeats} раз. Получится ${f.endYoke} п. Вяжи до ${f.yokeCm} см от маркера середины переда, ориентир — ${rows(f.yokeCm)} кругов от маркера.`,
       `Разделение. Первая петля относится к спинке. Отложи ${f.leftHeld} п. рукава, набери ${f.leftUnderarm} п. подреза, провяжи ${f.front} п. переда. Отложи ${f.rightHeld} п. второго рукава, набери ${f.rightUnderarm} п. подреза и провяжи оставшиеся ${f.backRemainder} п. спинки. Корпус — ${f.bodyStart} п., около ${cm(f.bodyStart)} см по груди.`,
-      `Через ${f.firstDecreaseCm} см после разделения убавь по петле с каждой стороны обоих боковых маркеров. Всего ${f.bodyDecreaseTimes} таких кругов с интервалом ${f.bodyIntervalCm} см. Останется ${f.preHem} п. Вяжи до ${f.hemStartCm} см от маркера переда.`,
+      `Через ${f.firstDecreaseCm} см после разделения убавь по петле с каждой стороны обоих боковых маркеров. Число кругов с убавками — ${f.bodyDecreaseTimes}.${f.bodyDecreaseTimes > 1 ? ` Интервал — ${f.bodyIntervalCm} см.` : ""} Останется ${f.preHem} п. Вяжи до ${f.hemStartCm} см от маркера переда.`,
       `Низ. На спицах ${f.hemNeedle} мм равномерно прибавь ${f.hemGain} п. в первом круге резинки. На ${f.hem} п. вяжи резинку 1 × 1 высотой ${f.hemCm} см и закрой по рисунку. Длина — ${f.frontLength} см от маркера или около ${f.shoulderLength} см от плеча.`,
       `Каждый рукав. На спицах ${f.sleeveNeedle} мм верни ${f.heldPickup} п. и подними ${f.pickup} п. из подреза. Начни круг в середине подреза. Всего ${f.sleeveStart} п. После ${f.sleevePlain} круга начни убавления. Убавь по ${f.fastLoss} п. через круг ${f.fastRepeats} раз, затем по ${f.slowLoss} п. каждые ${f.slowCm} см ${f.slowRepeats} раз. Останется ${f.preCuff} п.`,
       `На длине ${f.cuffStartCm} см от подреза перейди на ${f.cuffNeedle} мм. Равномерно прибавь ${f.cuffGain} п. в первом круге. Свяжи ${f.cuffCm} см резинкой 1 × 1 на ${f.cuff} п. и закрой по рисунку. Рукав от подреза — около ${f.sleeveLength} см.`,
@@ -312,9 +337,10 @@
     if (!plan?.options.length) return;
     const add = (tag, text) => { const item = document.createElement(tag); item.textContent = text; panel.append(item); };
     add("h3", "Предварительная инструкция");
+    add("p", `Авторский размер: грудь около ${plan.chestCm.toFixed(1)} см, корпус перед нижней резинкой около ${(f.preHem * gauge.per / gauge.stitches).toFixed(1)} см по плотности глади, длина от плеча около ${f.shoulderLength} см.`);
     add("p", `Мерки тела: грудь ${input.chest} см, уровень ремня ${input.belt} см, бёдра ${input.hips} см. Предложение: грудь ${input.finishedChest} см (прибавка ${plan.ease} см), низ ${input.minHem}–${input.maxHem} см.`);
     if (input.notes) add("p", input.notes);
-    add("p", `Выполни горловину, обе серии реглана, разделение и оба рукава по авторским шагам выше. Начни корпус на ${f.bodyStart} петлях. Пример ниже использует авторскую длину ${f.shoulderLength} см от плеча и ${plan.bodyRounds} кругов глади от разделения до резинки. Первый круг после разделительного считай № 1.`);
+    add("p", `Выполни горловину, обе серии реглана, разделение и оба рукава по авторским шагам выше. Начни корпус на ${f.bodyStart} петлях. Пример ниже использует авторскую длину ${f.shoulderLength} см от плеча. Число кругов глади от разделения до резинки — ${plan.bodyRounds}. Первый круг после разделительного считай № 1.`);
     for (const option of plan.options) {
       add("p", `Вариант ${option.width.toFixed(1)} см по глади перед резинкой. В кругах ${option.rounds.join(", ")} убавляй по одной петле с каждой стороны двух боковых маркеров (минус ${f.bodyLoss} п.). В остальных кругах вяжи прямо до круга ${plan.bodyRounds} включительно. Всего убавлено ${option.totalRemoved} п., на ${option.extraRemoved} больше авторского. Остаток ${option.plain} п. вместо ${f.preHem}. На спицах ${f.hemNeedle} мм равномерно прибавь ${option.gain} п. в первом круге резинки 1 × 1: ${option.rib} п. вместо ${f.hem}. Довяжи до ${f.hemCm} см и закрой по рисунку.`);
     }
@@ -340,7 +366,7 @@
     empty.hidden = items.length > 0;
   }
 
-  function assumptionText(value) { return /^похоже|^возможно/i.test(value) ? value : `Похоже, ${lowerFirst(value)}`; }
+  function assumptionText(value) { return /^похоже|^возможно/i.test(value) ? value : `Похоже, ${/^[A-ZА-ЯЁ]{2}/.test(value) ? value : lowerFirst(value)}`; }
 
   function renderMissing(items) {
     ui.missing.replaceChildren(...items.map((item) => { const row = document.createElement("li"); row.textContent = item.label; return row; }));
