@@ -17,6 +17,7 @@
     <script src="/static/material-understanding-experience.js" defer></script>
     <script src="/static/pattern-source-instruction-evidence.js" defer></script>
     <script src="/static/pattern-technology-review.js" defer></script>
+    <script src="/static/graded-raglan-instruction.js" defer></script>
     <script src="/static/material-understanding-experience-assistant.js" defer></script>
   </head>
   <body>
@@ -68,9 +69,26 @@
                 <label>Выбранный обхват готовой резинки, см (оставь пустым, пока выбираешь) <input name="targetRib" type="number" min="1" max="400" step="0.1"></label>
               </fieldset>
               <label>Посадка, длина и особенности измерения <textarea name="notes" maxlength="500"></textarea></label>
-              <button class="button button-primary" type="submit">Сохранить предварительный расчёт</button>
+              <details id="graded-instruction-fields"><summary>Мерки и выбор для полной инструкции</summary>
+                <p>Для версии с авторским верхом сверь горизонтальную плотность глади с исходной. Измерь выстиранные образцы своей пряжи. Расчёт использует одну плотность резинки на одинаковых спицах для горловины, низа и манжет.</p>
+                <label>Какие данные используешь? <select name="basis"><option value="">Выбери</option><option value="measured">Реальные мерки и образцы</option><option value="synthetic">Тестовый проект с искусственными данными</option></select></label>
+                <label>Пряжа для образцов и изделия <input name="yarn" maxlength="160"></label>
+                <label>Петли глади в 10 см по горизонтали <input type="number" name="stockSt" min="0.1" max="400" step="0.1"></label>
+                <label>Круги глади в 10 см по вертикали <input type="number" name="stockRows" min="0.1" max="400" step="0.1"></label>
+                <label>Ширина плеч между плечевыми точками, см <input type="number" name="shoulderWidth" min="0.1" max="400" step="0.1"></label>
+                <label>Обхват верхней части руки, см <input type="number" name="upperArm" min="0.1" max="400" step="0.1"></label>
+                <label>Наибольший обхват живота, см <input type="number" name="belly" min="0.1" max="400" step="0.1"></label>
+                <label>Обхват тела на высоте будущего края, см <input type="number" name="atHem" min="0.1" max="400" step="0.1"></label>
+                <label>Желаемая длина свитера от верхней точки плеча до края, см <input type="number" name="totalLength" min="0.1" max="400" step="0.1"></label>
+                <label>Желаемая длина рукава от подмышки до края манжеты, см <input type="number" name="armLength" min="0.1" max="400" step="0.1"></label>
+                <label>Глубина кокетки от основания горловины по центру переда до уровня подмышки, см <input type="number" name="depth" min="0.1" max="400" step="0.1"></label>
+                <label>Вариант корпуса перед резинкой <select name="plainChoice"><option value="">Выбери вариант</option></select></label>
+              </details>
+              <button class="button button-primary" type="submit">Сохранить расчёт</button>
             </form>
             <p id="graded-fit-message" role="status"></p>
+            <p id="graded-instruction-status"></p>
+            <a id="graded-instruction-print" class="button button-primary" hidden>Открыть полную инструкцию и сохранить PDF</a>
             <div id="graded-fit-result"></div>
           </section>
           <section class="summary-card" aria-labelledby="understanding-summary-heading"><div class="section-heading-row"><div><p class="section-kicker">Кратко</p><h2 id="understanding-summary-heading">Что это за вещь?</h2></div><span id="understanding-summary-trust" class="trust-badge">Пока неизвестно</span></div><p id="understanding-summary-title" class="summary-title">Пока не удалось точно определить изделие</p><p id="understanding-summary-description" class="summary-description"></p><button id="understanding-correction-open" class="text-button" type="button">Исправить</button>

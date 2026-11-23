@@ -57,6 +57,9 @@
   function bindEvents() {
     get("#graded-fit-form").addEventListener("submit", saveFit);
     get("#graded-fit-form").addEventListener("input", () => {
+      get("#graded-instruction-print").hidden = true;
+      get("#graded-instruction-status").textContent = "";
+      refreshBodyChoices();
       get("#graded-fit-result").replaceChildren();
       get("#graded-fit-message").textContent = "После изменения мерок сохрани расчёт снова.";
     });
@@ -214,7 +217,7 @@
     const replay = globalObject.YarnAIPatternSourceInstructionEvidence.readTwoPhaseRaglan(reading);
     const gauge = analysis.gauge.entries.filter((g) => g.unit === "cm" && g.stitches > 0 && g.rows > 0);
     renderSourceReplay(replay, gauge.length === 1 ? gauge[0] : null);
-    showFit(replay, gauge.length === 1 ? gauge[0] : null);
+    showFit(replay, gauge.length === 1 ? gauge[0] : null, { ...credit, size: selectedSize });
     renderGaugeTrial(replay, gauge.length === 1 ? gauge[0] : null);
     panel.hidden = false;
   }
@@ -274,26 +277,65 @@
 
   let fitBinding = null;
 
-  function showFit(replay, gauge) {
+  function showFit(replay, gauge, source) {
     const fit = get("#graded-fit");
     fitBinding = null;
     fit.hidden = !replay?.valid || !gauge;
     if (fit.hidden) return;
     const semantic = context.semantic;
     const key = JSON.stringify([semantic.sourceFingerprint, semantic.sourceExtractionRevision, semantic.result.sizing.selectedSize]);
-    fitBinding = { key, replay, gauge, revision: context.project.revision };
+    fitBinding = { key, replay, gauge, source, revision: context.project.revision };
     const saved = context.project.draft_input?.graded_body_fit;
     const form = get("#graded-fit-form");
     form.reset();
+    get("#graded-instruction-print").hidden = true;
+    get("#graded-instruction-status").textContent = "";
     get("#graded-fit-result").replaceChildren();
     get("#graded-fit-message").textContent = "";
     if (saved?.source === key) {
       for (const [name, value] of Object.entries(saved.input)) {
         if (form.elements.namedItem(name)) form.elements.namedItem(name).value = value;
       }
-      renderFitResult(saved.input);
+      refreshBodyChoices(saved.input.plainChoice);
+      showSavedFit(saved);
     } else if (saved) {
       get("#graded-fit-message").textContent = "Источник или выбранный размер изменился. Проверь мерки и сохрани новый расчёт.";
+    }
+  }
+
+  function fitInput(form) {
+    const input = {};
+    for (const el of form.elements) {
+      if (el.name && (el.type !== "number" || el.value !== "")) {
+        input[el.name] = el.type === "number" ? el.valueAsNumber : el.value.trim();
+      }
+    }
+    return input;
+  }
+
+  function refreshBodyChoices(previous) {
+    if (!fitBinding) return;
+    const form = get("#graded-fit-form");
+    const select = form.elements.plainChoice;
+    const choice = previous ?? select.value;
+    const plan = globalObject.YarnAIPatternTechnologyReview.planTwoPhaseBodyTaper(fitBinding.replay, fitBinding.gauge, fitInput(form));
+    select.replaceChildren(new Option("Выбери вариант", ""));
+    for (const o of plan?.options || []) select.add(new Option(`${o.width.toFixed(1)} см по глади (${o.plain} п.)`, String(o.plain)));
+    select.value = choice || "";
+  }
+
+  function showSavedFit(saved) {
+    const full = saved.instruction ? globalObject.YarnAIGradedInstruction.inspectSaved(context.aggregate) :
+      globalObject.YarnAIGradedInstruction.build(fitBinding.replay, fitBinding.gauge, saved.input, fitBinding.source);
+    const link = get("#graded-instruction-print");
+    link.hidden = !saved.instruction || full.state !== "ready";
+    if (!link.hidden) {
+      link.href = `/pattern-execution-print?project=${encodeURIComponent(projectId)}&instruction=graded`;
+      get("#graded-fit-result").replaceChildren();
+      get("#graded-instruction-status").textContent = `${full.model.purpose}. Сохранено шагов: ${full.model.stepCount}.`;
+    } else {
+      renderFitResult(saved.input);
+      get("#graded-instruction-status").textContent = full.message || "Сохрани расчёт для подготовки полной инструкции.";
     }
   }
 
@@ -301,12 +343,7 @@
     event.preventDefault();
     if (!fitBinding || busy) return;
     const form = event.currentTarget;
-    const input = {};
-    for (const el of form.elements) {
-      if (el.name && (el.type !== "number" || el.value !== "")) {
-        input[el.name] = el.type === "number" ? el.valueAsNumber : el.value.trim();
-      }
-    }
+    const input = fitInput(form);
     const result = globalObject.YarnAIPatternTechnologyReview.planTwoPhaseBodyTaper(fitBinding.replay, fitBinding.gauge, input);
     const message = get("#graded-fit-message");
     if (!result?.options.length) {
@@ -316,17 +353,21 @@
     }
     const button = form.querySelector("button");
     button.disabled = true;
+    form.inert = true;
     try {
       const saved = { source: fitBinding.key, input };
+      const full = globalObject.YarnAIGradedInstruction.build(fitBinding.replay, fitBinding.gauge, input, fitBinding.source);
+      if (full.state === "ready") saved.instruction = full.model;
       await repository.updateProject(projectId, { draft_input: { ...context.project.draft_input, graded_body_fit: saved } }, { baseRevision: fitBinding.revision });
       await loadContext();
       fitBinding.revision = context.project.revision;
-      renderFitResult(input);
-      message.textContent = "Предварительный расчёт сохранён в этом проекте.";
+      showSavedFit(saved);
+      message.textContent = saved.instruction ? "Полная инструкция сохранена." : "Предварительный расчёт сохранён в этом проекте.";
     } catch (error) {
       message.textContent = error?.userMessage || "Сохранить расчёт не удалось. Открой актуальную версию проекта.";
     } finally {
       button.disabled = false;
+      form.inert = false;
     }
   }
 

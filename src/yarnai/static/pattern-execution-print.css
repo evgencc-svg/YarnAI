@@ -1,4 +1,10 @@
 @page { size: A4; margin: 16mm 15mm 18mm; }
+@page graded {
+  size: A4;
+  margin: 16mm 15mm 18mm;
+  @bottom-left { content: "YarnAI  ·  Barley Field"; font: 9pt Arial, sans-serif; color: #565149; }
+  @bottom-right { content: counter(page) " / " counter(pages); font: 9pt Arial, sans-serif; color: #565149; }
+}
 
 body { background: #f4f1eb; color: #211f1b; }
 .print-shell { width: min(100% - 2rem, 54rem); margin: 0 auto; padding: 1rem 0 3rem; }
@@ -68,4 +74,12 @@ body { background: #f4f1eb; color: #211f1b; }
   .print-phase { break-before: auto; page-break-before: auto; }
   .print-phase > h3, .step-body h4 { orphans: 3; widows: 3; }
   a { color: inherit; text-decoration: none; }
+  html:has(.graded-document), body:has(.graded-document) { width: auto; min-height: 0; }
+  body:has(.graded-document) { page: graded; }
+  .graded-document .instruction-section { break-before: page; }
+  .graded-document .print-phase:nth-of-type(2),
+  .graded-document .print-phase:nth-of-type(3),
+  .graded-document .print-phase:nth-of-type(4) { break-before: page; }
+  .graded-document .print-phase { margin-top: 3mm; }
+  .graded-document .print-step { padding: 3mm 0; font-size: 11pt; }
 }

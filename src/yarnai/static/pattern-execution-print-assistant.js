@@ -15,8 +15,11 @@
   initialize().catch((error) => showBlocked(error?.userMessage || "Не удалось открыть печатную инструкцию."));
 
   async function initialize() {
-    const projectId = new URLSearchParams(globalObject.location.search).get("project");
-    const back = projectId && system?.isUuidv7(projectId) ? `/pattern-execution-plan?project=${encodeURIComponent(projectId)}` : "/saved-projects";
+    const params = new URLSearchParams(globalObject.location.search);
+    const projectId = params.get("project");
+    const graded = params.get("instruction") === "graded";
+    const backRoute = graded ? "/pattern-analysis" : "/pattern-execution-plan";
+    const back = projectId && system?.isUuidv7(projectId) ? `${backRoute}?project=${encodeURIComponent(projectId)}` : "/saved-projects";
     ui.back.href = back;
     ui.blockedBack.href = back;
     if (!projectId || !system?.isUuidv7(projectId) || !exportApi) return showBlocked("Откройте экспорт из готового плана сохранённого проекта.");
@@ -24,10 +27,27 @@
     try {
       await repository.initialize();
       const aggregate = await repository.getProject(projectId);
-      const inspected = exportApi.inspectAggregate(aggregate);
+      const inspected = graded ? globalObject.YarnAIGradedInstruction.inspectSaved(aggregate) : exportApi.inspectAggregate(aggregate);
       if (inspected.state !== "ready") return showBlocked(inspected.message);
       render(inspected.model);
-      ui.print.addEventListener("click", () => globalObject.print());
+      if (graded) {
+        ui.document.classList.add("graded-document");
+        document.title = `${inspected.model.title} — ${inspected.model.purpose}`;
+        ui.print.addEventListener("click", async () => {
+          const currentRepository = new system.ProjectRepository();
+          try {
+            await currentRepository.initialize();
+            const latest = globalObject.YarnAIGradedInstruction.inspectSaved(await currentRepository.getProject(projectId));
+            if (latest.state !== "ready") return showBlocked(latest.message);
+            render(latest.model);
+            globalObject.print();
+          } catch {
+            showBlocked("Не удалось проверить сохранённую версию перед печатью. Открой проект снова.");
+          } finally {
+            await currentRepository.close();
+          }
+        });
+      } else ui.print.addEventListener("click", () => globalObject.print());
     } finally {
       await repository.close();
     }
