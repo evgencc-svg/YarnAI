@@ -55,6 +55,11 @@
   }
 
   function bindEvents() {
+    get("#graded-fit-form").addEventListener("submit", saveFit);
+    get("#graded-fit-form").addEventListener("input", () => {
+      get("#graded-fit-result").replaceChildren();
+      get("#graded-fit-message").textContent = "После изменения мерок сохрани расчёт снова.";
+    });
     ui.questionForm.addEventListener("submit", saveAnswer);
     ui.correctionOpen.addEventListener("click", openCorrection);
     ui.correctionCancel.addEventListener("click", cancelCorrection);
@@ -175,6 +180,7 @@
   }
 
   function renderGradedSource() {
+    get("#graded-fit").hidden = true;
     const panel = get("#graded-source");
     panel.hidden = true;
     const analysis = context?.semantic?.result;
@@ -208,6 +214,7 @@
     const replay = globalObject.YarnAIPatternSourceInstructionEvidence.readTwoPhaseRaglan(reading);
     const gauge = analysis.gauge.entries.filter((g) => g.unit === "cm" && g.stitches > 0 && g.rows > 0);
     renderSourceReplay(replay, gauge.length === 1 ? gauge[0] : null);
+    showFit(replay, gauge.length === 1 ? gauge[0] : null);
     panel.hidden = false;
   }
 
@@ -238,6 +245,81 @@
       item.textContent = line;
       steps.append(item);
     }
+  }
+
+  let fitBinding = null;
+
+  function showFit(replay, gauge) {
+    const fit = get("#graded-fit");
+    fitBinding = null;
+    fit.hidden = !replay?.valid || !gauge;
+    if (fit.hidden) return;
+    const semantic = context.semantic;
+    const key = JSON.stringify([semantic.sourceFingerprint, semantic.sourceExtractionRevision, semantic.result.sizing.selectedSize]);
+    fitBinding = { key, replay, gauge, revision: context.project.revision };
+    const saved = context.project.draft_input?.graded_body_fit;
+    const form = get("#graded-fit-form");
+    form.reset();
+    get("#graded-fit-result").replaceChildren();
+    get("#graded-fit-message").textContent = "";
+    if (saved?.source === key) {
+      for (const [name, value] of Object.entries(saved.input)) {
+        if (form.elements.namedItem(name)) form.elements.namedItem(name).value = value;
+      }
+      renderFitResult(saved.input);
+    } else if (saved) {
+      get("#graded-fit-message").textContent = "Источник или выбранный размер изменился. Проверь мерки и сохрани новый расчёт.";
+    }
+  }
+
+  async function saveFit(event) {
+    event.preventDefault();
+    if (!fitBinding || busy) return;
+    const form = event.currentTarget;
+    const input = {};
+    for (const el of form.elements) {
+      if (el.name) input[el.name] = el.type === "number" ? el.valueAsNumber : el.value.trim();
+    }
+    const result = globalObject.YarnAIPatternTechnologyReview.planTwoPhaseBodyTaper(fitBinding.replay, fitBinding.gauge, input);
+    const message = get("#graded-fit-message");
+    if (!result?.options.length) {
+      message.textContent = "Для этих размеров вариант не найден. Проверь грудь относительно авторской ширины, границы низа и доступную высоту сужения.";
+      get("#graded-fit-result").replaceChildren();
+      return;
+    }
+    const button = form.querySelector("button");
+    button.disabled = true;
+    try {
+      const saved = { source: fitBinding.key, input };
+      await repository.updateProject(projectId, { draft_input: { ...context.project.draft_input, graded_body_fit: saved } }, { baseRevision: fitBinding.revision });
+      await loadContext();
+      fitBinding.revision = context.project.revision;
+      renderFitResult(input);
+      message.textContent = "Предварительный расчёт сохранён в этом проекте.";
+    } catch (error) {
+      message.textContent = error?.userMessage || "Сохранить расчёт не удалось. Открой актуальную версию проекта.";
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function renderFitResult(input) {
+    const { replay, gauge } = fitBinding;
+    const f = replay.facts;
+    const plan = globalObject.YarnAIPatternTechnologyReview.planTwoPhaseBodyTaper(replay, gauge, input);
+    const panel = get("#graded-fit-result");
+    panel.replaceChildren();
+    if (!plan?.options.length) return;
+    const add = (tag, text) => { const item = document.createElement(tag); item.textContent = text; panel.append(item); };
+    add("h3", "Предварительная инструкция");
+    add("p", `Мерки тела: грудь ${input.chest} см, уровень ремня ${input.belt} см, бёдра ${input.hips} см. Предложение: грудь ${input.finishedChest} см (прибавка ${plan.ease} см), низ ${input.minHem}–${input.maxHem} см.`);
+    if (input.notes) add("p", input.notes);
+    add("p", `Выполни горловину, обе серии реглана, разделение и оба рукава по авторским шагам выше. Начни корпус на ${f.bodyStart} петлях. Пример ниже использует авторскую длину ${f.shoulderLength} см от плеча и ${plan.bodyRounds} кругов глади от разделения до резинки. Первый круг после разделительного считай № 1.`);
+    for (const option of plan.options) {
+      add("p", `Вариант ${option.width.toFixed(1)} см по глади перед резинкой. В кругах ${option.rounds.join(", ")} убавляй по одной петле с каждой стороны двух боковых маркеров (минус ${f.bodyLoss} п.). В остальных кругах вяжи прямо до круга ${plan.bodyRounds} включительно. Всего убавлено ${option.totalRemoved} п., на ${option.extraRemoved} больше авторского. Остаток ${option.plain} п. вместо ${f.preHem}. На спицах ${f.hemNeedle} мм равномерно прибавь ${option.gain} п. в первом круге резинки 1 × 1: ${option.rib} п. вместо ${f.hem}. Довяжи до ${f.hemCm} см и закрой по рисунку.`);
+    }
+    add("p", "Число петель резинки рассчитано по авторскому отношению петель резинки к глади и округлено до чётного. Фактический обхват нижнего края зависит от пряжи и плотности резинки после стирки.");
+    add("p", "Для проверки посадки нужны ширина плеч, обхват верхней части руки, длина руки от подмышки и обхват живота в самом широком месте. Отметь желаемый край чуть ниже ремня, измерь обхват тела на этой высоте и расстояние до края от верхней точки плеча. Для проверки реглана измерь глубину до подмышки на удобном свитере. Нужны также измеренный образец глади и резинки и выбранная ширина низа. Схема сужения по высоте изменится, если изменится длина.");
   }
 
   function renderSummary(model) {

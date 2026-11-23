@@ -3,6 +3,23 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const reader = require("../src/yarnai/static/pattern-source-instruction-evidence.js");
+const review = require("../src/yarnai/static/pattern-technology-review.js");
+
+test("taper uses paired side decreases, keeps the chest and leaves a plain final round", () => {
+  const source = { valid: true, facts: { bodyStart: 200, bodyLoss: 4, preHem: 196, hem: 220, yokeCm: 20, hemStartCm: 50, firstDecreaseCm: 5 } };
+  const gauge = { stitches: 20, rows: 25, per: 10, unit: "cm" };
+  const input = { chest: 88, belt: 78, hips: 80, finishedChest: 100, minHem: 89, maxHem: 93 };
+  const result = review.planTwoPhaseBodyTaper(source, gauge, input);
+  assert.deepEqual(result.options.map((o) => o.plain), [184, 180]);
+  for (const o of result.options) {
+    assert.equal(200 - o.rounds.length * 4, o.plain);
+    assert.equal(o.rib % 2, 0);
+    assert.equal(o.rounds.at(-1), result.bodyRounds - 1);
+    assert.ok(o.rounds.every((n, i) => !i || n - o.rounds[i-1] >= 2));
+  }
+  assert.equal(review.planTwoPhaseBodyTaper(source, gauge, { ...input, finishedChest: 120 }), null);
+  assert.equal(review.planTwoPhaseBodyTaper({ ...source, valid: false }, gauge, input), null);
+});
 
 test("size selection retains fractions, common counts and the section order", () => {
   const text = "SIZE:\nS - M - L\nNECK EDGE:\nCast on 60-64-68 stitches. Rib for 3½-4-4½ cm.\nBODY:\nDecrease 4 stitches every 3 cm.";

@@ -1018,6 +1018,31 @@
     return null;
   }
 
+  function planTwoPhaseBodyTaper(replay, gauge, input) {
+    if (!replay?.valid || gauge?.unit !== "cm" || !(gauge.stitches > 0 && gauge.rows > 0 && gauge.per > 0)) return null;
+    const fields = ["chest", "belt", "hips", "finishedChest", "minHem", "maxHem"];
+    if (fields.some((field) => !Number.isFinite(input?.[field]) || input[field] <= 0 || input[field] > 400)) return null;
+    const f = replay.facts;
+    const perCm = gauge.stitches / gauge.per;
+    const chestCm = f.bodyStart / perCm;
+    if (input.minHem > input.maxHem || Math.abs(chestCm - input.finishedChest) > 1 / perCm) return null;
+    const bodyRounds = Math.round((f.hemStartCm - f.yokeCm) * gauge.rows / gauge.per);
+    const first = Math.max(1, Math.round(f.firstDecreaseCm * gauge.rows / gauge.per));
+    const last = bodyRounds - 1;
+    const options = [];
+    for (let n = 1; n <= Math.floor((f.bodyStart - 1) / f.bodyLoss); n++) {
+      const plain = f.bodyStart - f.bodyLoss * n;
+      const width = plain / perCm;
+      if (width < input.minHem || width > input.maxHem || first > last) continue;
+      if (n > 1 && (last - first) / (n - 1) < 2) continue;
+      const rounds = Array.from({ length: n }, (_, i) => n === 1 ? first : first + Math.round((last - first) * i / (n - 1)));
+      const rib = 2 * Math.round(plain * f.hem / f.preHem / 2);
+      if (rib < plain || rib - plain > plain) continue;
+      options.push({ plain, width, rounds, rib, gain: rib - plain, totalRemoved: f.bodyStart - plain, extraRemoved: f.preHem - plain });
+    }
+    return { chestCm, ease: input.finishedChest - input.chest, bodyRounds, options };
+  }
+
   function calculateConstraintAwareTopDownCounts(input, evidenceBinding = null) {
     const source = object(input?.sourceCounts) || {};
     const required = ["castOn", "yokeStart", "yokeFinal", "front", "sleeveHeld", "underarm", "body", "sleeveStart", "cuff", "yokeRepeats"];
@@ -2072,6 +2097,7 @@
   function reviewError(code, message, details = {}) { return new PatternTechnologyReviewError(code, message, details); }
 
   const api = {
+    planTwoPhaseBodyTaper,
     VERSION, REVIEW_ALGORITHM_VERSION, EXECUTABLE_INPUT_SCHEMA_ID, EXECUTABLE_INPUT_VERSION, EXECUTABLE_INPUT_ALGORITHM_ID, LEGACY_EXECUTABLE_INPUT_EVIDENCE_ALGORITHM_ID, EXECUTABLE_INPUT_EVIDENCE_ALGORITHM_ID, NUMBER_PROVENANCE, ROUNDING_POLICIES, CAUSAL_DISPOSITIONS, CAUSAL_TRACE_SCHEMA_ID, CAUSAL_TRACE_ALGORITHM_ID, PROGRESS_KIND, STATUSES, DECISIONS, CORRECTION_TYPES, OPERATION_TYPES, VALID_UNITS, ERROR_CODES, AUDIT_LIMIT,
     PatternTechnologyReviewError, canonicalize, fingerprint, collectCriticalIssues, validateSourceDraft, createInitialState,
     stage20Binding, instructionEvidenceBinding, validateInstructionEvidence, executableProjectionFromInstructions, resolveSelectedInstructionBranches, filterProjectionByBranches, expandPhysicalShortRows, materializeAdaptedExecution, validateSequentialExecution, buildExecutableTechnologyPlanInput, validateExecutableTechnologyPlanInput, executableInputFingerprint, calculateAdaptedCount, calculateAdaptedRowCount, calculateConstraintAwareTopDownCounts, buildEvenIncreaseDistribution, buildAuthoritativeCausalTrace, validateAuthoritativeCausalTrace, causalTraceFingerprint, buildAdaptationExplanation, userOperationLabel,
