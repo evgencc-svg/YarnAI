@@ -45,6 +45,34 @@ test("taper uses paired side decreases, keeps the chest and leaves a plain final
   assert.equal(review.planTwoPhaseBodyTaper({ ...source, valid: false }, gauge, input), null);
 });
 
+test("dry rib sample controls the edge independently of stockinette", () => {
+  const source = { valid: true, facts: { bodyStart: 200, bodyLoss: 4, preHem: 196, hem: 220, hemCm: 7,
+    yokeCm: 20, hemStartCm: 50, firstDecreaseCm: 5 } };
+  const gauge = { stitches: 20, rows: 25, per: 10, unit: "cm" };
+  const input = { chest: 88, belt: 78, hips: 80, finishedChest: 100, minHem: 89, maxHem: 93 };
+  const plan = (fields) => review.planTwoPhaseBodyTaper(source, gauge, { ...input, ...fields });
+  assert.deepEqual(plan({}).options.map(o => [o.rib, o.ribCm]), [[206, null], [202, null]]);
+  assert.equal(plan({ targetRib: 90 }).useTarget, false);
+  assert.equal(plan({ ribRounds: 30, ribHeight: 10 }).ribRounds, 21);
+  const horizontal = plan({ ribStitches: 24, ribWidth: 10 });
+  assert.equal(horizontal.ribRounds, null);
+  assert.equal(horizontal.options[0].ribCm, 206 / 2.4);
+  for (const [stitches, expected, change] of [[24, 216, 32], [20, 180, -4], [20.5, 184, 0]]) {
+    const measured = plan({ ribStitches: stitches * 2, ribWidth: 20, targetRib: 90 });
+    const o = measured.options[0];
+    assert.equal(o.rib, expected);
+    assert.equal(o.gain, change);
+    assert.equal(o.plain + change, expected);
+    assert.ok(Math.abs(o.ribCm - 90) <= 10 / stitches);
+    assert.deepEqual(o.rounds, horizontal.options[0].rounds);
+  }
+  for (const bad of [{ ribWidth: 4 }, { ribStitches: 2.5, ribWidth: 4 }, { ribHeight: 0, ribRounds: 20 },
+    { ribStitches: 25, ribWidth: 10, targetRib: 399 }, { targetRib: Infinity }]) {
+    assert.ok(plan(bad).problem);
+    assert.equal(plan(bad).options.length, 0);
+  }
+});
+
 test("size selection retains fractions, common counts and the section order", () => {
   const text = "SIZE:\nS - M - L\nNECK EDGE:\nCast on 60-64-68 stitches. Rib for 3½-4-4½ cm.\nBODY:\nDecrease 4 stitches every 3 cm.";
   const reading = reader.readGradedSource(text, "L");

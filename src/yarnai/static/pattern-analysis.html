@@ -56,8 +56,16 @@
               </fieldset>
               <fieldset><legend>Предлагаемые обхваты изделия, см</legend>
                 <label>Грудь <input name="finishedChest" type="number" min="1" max="400" step="0.1" required></label>
-                <label>Низ, от <input name="minHem" type="number" min="1" max="400" step="0.1" required></label>
-                <label>Низ, до <input name="maxHem" type="number" min="1" max="400" step="0.1" required></label>
+                <label>Корпус перед резинкой, от <input name="minHem" type="number" min="1" max="400" step="0.1" required></label>
+                <label>Корпус перед резинкой, до <input name="maxHem" type="number" min="1" max="400" step="0.1" required></label>
+              </fieldset>
+              <fieldset><legend>Нижний край после стирки</legend>
+                <p>Свяжи по кругу резинку 1 × 1 (одна лицевая, одна изнаночная) из выбранной пряжи на спицах для низа. Выстирай и высуши образец так же, как свитер. Разложи без растяжения. В середине отсчитай петли и измерь ширину этого участка. Для высоты отсчитай круги и измерь их по вертикали.</p>
+                <label>Петель на измеренном участке <input name="ribStitches" type="number" min="1" max="1000" step="1"></label>
+                <label>Ширина этого участка, см <input name="ribWidth" type="number" min="0.1" max="400" step="0.1"></label>
+                <label>Кругов на измеренном участке <input name="ribRounds" type="number" min="1" max="1000" step="1"></label>
+                <label>Высота этого участка, см <input name="ribHeight" type="number" min="0.1" max="400" step="0.1"></label>
+                <label>Выбранный обхват готовой резинки, см (оставь пустым, пока выбираешь) <input name="targetRib" type="number" min="1" max="400" step="0.1"></label>
               </fieldset>
               <label>Посадка, длина и особенности измерения <textarea name="notes" maxlength="500"></textarea></label>
               <button class="button button-primary" type="submit">Сохранить предварительный расчёт</button>

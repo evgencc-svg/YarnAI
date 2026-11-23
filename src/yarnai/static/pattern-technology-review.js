@@ -1026,6 +1026,21 @@
     const perCm = gauge.stitches / gauge.per;
     const chestCm = f.bodyStart / perCm;
     if (input.minHem > input.maxHem || Math.abs(chestCm - input.finishedChest) > 1 / perCm) return null;
+    const invalid = (problem) => ({ options: [], problem });
+    for (const [count, cm, label] of [["ribStitches", "ribWidth", "петли и ширину"], ["ribRounds", "ribHeight", "круги и высоту"]]) {
+      if (input[count] == null && input[cm] == null) continue;
+      if (!Number.isInteger(input[count]) || input[count] < 1 || input[count] > 1000 ||
+          !Number.isFinite(input[cm]) || input[cm] < 0.1 || input[cm] > 400) {
+        return invalid(`Для образца резинки введи вместе ${label} измеренного участка.`);
+      }
+    }
+    if (input.targetRib != null && (!Number.isFinite(input.targetRib) || input.targetRib < 1 || input.targetRib > 400)) {
+      return invalid("Проверь выбранный обхват резинки.");
+    }
+    const ribPerCm = input.ribStitches == null ? null : input.ribStitches / input.ribWidth;
+    const useTarget = ribPerCm !== null && input.targetRib != null;
+    const ribRounds = input.ribRounds == null ? null : Math.round(f.hemCm * input.ribRounds / input.ribHeight);
+    if (ribRounds !== null && !(ribRounds >= 1)) return invalid("По измеренной высоте не помещается даже один круг резинки. Проверь образец.");
     const bodyRounds = Math.round((f.hemStartCm - f.yokeCm) * gauge.rows / gauge.per);
     const first = Math.max(1, Math.round(f.firstDecreaseCm * gauge.rows / gauge.per));
     const last = bodyRounds - 1;
@@ -1036,11 +1051,15 @@
       if (width < input.minHem || width > input.maxHem || first > last) continue;
       if (n > 1 && (last - first) / (n - 1) < 2) continue;
       const rounds = Array.from({ length: n }, (_, i) => n === 1 ? first : first + Math.round((last - first) * i / (n - 1)));
-      const rib = 2 * Math.round(plain * f.hem / f.preHem / 2);
-      if (rib < plain || rib - plain > plain) continue;
-      options.push({ plain, width, rounds, rib, gain: rib - plain, totalRemoved: f.bodyStart - plain, extraRemoved: f.preHem - plain });
+      const exactRib = useTarget ? input.targetRib * ribPerCm : plain * f.hem / f.preHem;
+      const rib = 2 * Math.round(exactRib / 2);
+      // Each increase needs one original stitch; a decrease needs two.
+      if (rib < Math.ceil(plain / 2) || rib > 2 * plain) continue;
+      options.push({ plain, width, rounds, rib, gain: rib - plain, ribCm: ribPerCm ? rib / ribPerCm : null,
+        totalRemoved: f.bodyStart - plain, extraRemoved: f.preHem - plain });
     }
-    return { chestCm, ease: input.finishedChest - input.chest, bodyRounds, options };
+    if (useTarget && !options.length) return invalid("Корпус и выбранный край не дают допустимого перехода за один круг. Проверь размеры, высоту сужения и образец.");
+    return { chestCm, ease: input.finishedChest - input.chest, bodyRounds, options, useTarget, ribRounds };
   }
 
   function solveTwoPhaseRaglan(input, binding) {

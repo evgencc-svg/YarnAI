@@ -303,12 +303,14 @@
     const form = event.currentTarget;
     const input = {};
     for (const el of form.elements) {
-      if (el.name) input[el.name] = el.type === "number" ? el.valueAsNumber : el.value.trim();
+      if (el.name && (el.type !== "number" || el.value !== "")) {
+        input[el.name] = el.type === "number" ? el.valueAsNumber : el.value.trim();
+      }
     }
     const result = globalObject.YarnAIPatternTechnologyReview.planTwoPhaseBodyTaper(fitBinding.replay, fitBinding.gauge, input);
     const message = get("#graded-fit-message");
     if (!result?.options.length) {
-      message.textContent = "Для этих размеров вариант не найден. Проверь грудь относительно авторской ширины, границы низа и доступную высоту сужения.";
+      message.textContent = result?.problem || "Для этих размеров вариант не найден. Проверь грудь относительно авторской ширины, границы корпуса и доступную высоту сужения.";
       get("#graded-fit-result").replaceChildren();
       return;
     }
@@ -334,18 +336,32 @@
     const plan = globalObject.YarnAIPatternTechnologyReview.planTwoPhaseBodyTaper(replay, gauge, input);
     const panel = get("#graded-fit-result");
     panel.replaceChildren();
-    if (!plan?.options.length) return;
+    if (!plan?.options.length) {
+      get("#graded-fit-message").textContent = plan?.problem || "Проверь сохранённые мерки и исходную схему.";
+      return;
+    }
     const add = (tag, text) => { const item = document.createElement(tag); item.textContent = text; panel.append(item); };
     add("h3", "Предварительная инструкция");
     add("p", `Авторский размер: грудь около ${plan.chestCm.toFixed(1)} см, корпус перед нижней резинкой около ${(f.preHem * gauge.per / gauge.stitches).toFixed(1)} см по плотности глади, длина от плеча около ${f.shoulderLength} см.`);
-    add("p", `Мерки тела: грудь ${input.chest} см, уровень ремня ${input.belt} см, бёдра ${input.hips} см. Предложение: грудь ${input.finishedChest} см (прибавка ${plan.ease} см), низ ${input.minHem}–${input.maxHem} см.`);
+    add("p", `Мерки тела: грудь ${input.chest} см, уровень ремня ${input.belt} см, бёдра ${input.hips} см. Предложение для изделия: грудь ${input.finishedChest} см (прибавка ${plan.ease} см), корпус перед резинкой ${input.minHem}–${input.maxHem} см.`);
     if (input.notes) add("p", input.notes);
     add("p", `Выполни горловину, обе серии реглана, разделение и оба рукава по авторским шагам выше. Начни корпус на ${f.bodyStart} петлях. Пример ниже использует авторскую длину ${f.shoulderLength} см от плеча. Число кругов глади от разделения до резинки — ${plan.bodyRounds}. Первый круг после разделительного считай № 1.`);
     for (const option of plan.options) {
-      add("p", `Вариант ${option.width.toFixed(1)} см по глади перед резинкой. В кругах ${option.rounds.join(", ")} убавляй по одной петле с каждой стороны двух боковых маркеров (минус ${f.bodyLoss} п.). В остальных кругах вяжи прямо до круга ${plan.bodyRounds} включительно. Всего убавлено ${option.totalRemoved} п., на ${option.extraRemoved} больше авторского. Остаток ${option.plain} п. вместо ${f.preHem}. На спицах ${f.hemNeedle} мм равномерно прибавь ${option.gain} п. в первом круге резинки 1 × 1: ${option.rib} п. вместо ${f.hem}. Довяжи до ${f.hemCm} см и закрой по рисунку.`);
+      add("p", `Вариант ${option.width.toFixed(1)} см по глади перед резинкой. В кругах ${option.rounds.join(", ")} убавляй по одной петле с каждой стороны двух боковых маркеров (минус ${f.bodyLoss} п.). В остальных кругах вяжи прямо до круга ${plan.bodyRounds} включительно. Всего убавлено ${option.totalRemoved} п. Остаток ${option.plain} п. вместо ${f.preHem}.`);
+      const transition = option.gain > 0 ? `равномерно прибавь ${option.gain} п.` :
+        option.gain < 0 ? `равномерно убавь ${-option.gain} п., провязывая по две вместе` : "сохрани число петель";
+      add("p", `Перейди на спицы ${f.hemNeedle} мм. В первом круге резинки ${transition}. Получится ${option.rib} п. для чередования одной лицевой и одной изнаночной.`);
+      if (option.ribCm !== null) add("p", `Ожидаемый обхват высушенной резинки без растяжения около ${option.ribCm.toFixed(1)} см по твоему образцу.`);
     }
-    add("p", "Число петель резинки рассчитано по авторскому отношению петель резинки к глади и округлено до чётного. Фактический обхват нижнего края зависит от пряжи и плотности резинки после стирки.");
-    add("p", "Для проверки посадки нужны ширина плеч, обхват верхней части руки, длина руки от подмышки и обхват живота в самом широком месте. Отметь желаемый край чуть ниже ремня, измерь обхват тела на этой высоте и расстояние до края от верхней точки плеча. Для проверки реглана измерь глубину до подмышки на удобном свитере. Нужны также измеренный образец глади и резинки и выбранная ширина низа. Схема сужения по высоте изменится, если изменится длина.");
+    add("p", plan.useTarget ? `Число петель рассчитано на выбранные ${input.targetRib} см по ширине образца и округлено до ближайшего чётного.` :
+      "Предварительное число петель сохраняет авторское отношение петель резинки к глади с округлением до ближайшего чётного.");
+    if (input.ribStitches == null) {
+      add("p", "Обхват готовой резинки пока неизвестен. Введи число петель и ширину выстиранного образца без растяжения.");
+      if (input.targetRib != null) add("p", `Выбранные ${input.targetRib} см сохранены. Расчёт на этот обхват появится после ввода ширины образца и числа петель.`);
+    }
+    add("p", plan.ribRounds === null ? `Авторская высота резинки ${f.hemCm} см. Для расчёта кругов введи число кругов и высоту образца. Закрой петли по рисунку, сохраняя эластичность края.` :
+      `На высоту ${f.hemCm} см по образцу получается около ${plan.ribRounds} кругов, включая первый круг перехода. Проверь высоту и закрой петли по рисунку, сохраняя эластичность края.`);
+    add("p", "Для проверки посадки нужны ширина плеч, обхват верхней части руки, длина руки от подмышки и обхват живота в самом широком месте. Отметь желаемый край чуть ниже ремня, измерь обхват тела на этой высоте и расстояние до края от верхней точки плеча. Для проверки реглана измерь глубину до подмышки на удобном свитере. Сверь плотность глади с образцом своей пряжи. Схема сужения по высоте изменится, если изменится длина.");
   }
 
   function renderSummary(model) {
