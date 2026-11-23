@@ -78,6 +78,9 @@ def test_assets_and_scripts_are_connected_in_dependency_order() -> None:
         "/static/pattern-semantic-analysis.js",
         "/static/pattern-analysis-review.js",
         "/static/material-understanding-experience.js",
+        "/static/pattern-source-instruction-evidence.js",
+        "/static/pattern-technology-review.js",
+        "/static/graded-raglan-instruction.js",
         "/static/material-understanding-experience-assistant.js",
     ]
     client = TestClient(app)

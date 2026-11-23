@@ -23,7 +23,7 @@
     raglan: "реглан", set_in_sleeve: "втачной рукав",
     drop_shoulder: "спущенное плечо", circular_yoke: "круглая кокетка",
     yoke: "кокетка", saddle_shoulder: "плечо-погон", contiguous: "контiguous",
-    in_the_round: "по кругу", flat: "поворотными рядами",
+    seamed: "со швами", in_the_round: "по кругу", flat: "поворотными рядами",
   });
   const QUESTION_COPY = Object.freeze({
     garmentType: "Что именно ты хочешь связать?",
@@ -75,6 +75,14 @@
     const safety = progressSafety(source);
     if (!safety.safe) return failureModel(project, projectId, safety.reason, source);
 
+    const pdfProblems = (source.extraction?.result?.files || []).filter(file => file.mediaType === "application/pdf" && ["failed", "no_text_layer"].includes(file.extractionStatus));
+    const sourceFiles = source.semantic?.result?.evidenceDomains?.sourcePatternFileIds || [];
+    const readableSource = (source.extraction?.result?.files || []).some(file => file.extractionStatus === "extracted" &&
+      (file.mediaType === "application/pdf" || sourceFiles.includes(file.sourceFileId)));
+    if (pdfProblems.length && !readableSource) {
+      const message = pdfProblems.map(file => file.name + " — " + (file.extractionStatus === "no_text_layer" ? "нет текстового слоя. Петли, ряды и графика не прочитаны." : file.error?.code === "pdf_invalid" ? "повреждённый PDF. Инструкция не прочитана." : (file.error?.message || "текст не прочитан."))).join(" ");
+      return failureModel(project, projectId, "extraction", source, message);
+    }
     const semantic = normalizeSemantic(source.semantic || source.analysis);
     if (semantic.failed) return failureModel(project, projectId, "analysis", source);
     const review = normalizeReview(source.review);
@@ -90,7 +98,7 @@
     const missing = collectMissing(intent, readiness, semantic, saved, review, currentUserFields);
     const nextQuestion = selectNextQuestion({
       questions: source.questions,
-      missing,
+      missing: missing.filter(item => !["piece_calculation", "chart_without_textual_legend", "external_chart_reference"].includes(item.field)),
       answered: [...saved.answers, ...saved.corrections],
     });
     const corrupted = semantic.present && !semantic.valid;
@@ -150,7 +158,7 @@
     });
   }
 
-  function failureModel(project, projectId, reason, source) {
+  function failureModel(project, projectId, reason, source, detail = "") {
     const storage = reason === "storage";
     return freeze({
       version: VERSION, state: "error",
@@ -163,7 +171,7 @@
       readiness: { ready: false, reviewConfirmed: false, canConfirmReview: false },
       continueAction: { enabled: false, label: "Подтвердить и продолжить", href: "" },
       links: { materials: `/import-pattern?project=${encodeURIComponent(projectId)}`, workshop: "/" },
-      error: failureCopy(storage ? "Не удалось открыть результат разбора." : "Не удалось разобрать материалы", storage ? "Попробуй обновить страницу." : "Проверь загруженные материалы или попробуй изменить описание."),
+      error: failureCopy(storage ? "Не удалось открыть результат разбора." : "Не удалось разобрать материалы", detail || (storage ? "Попробуй обновить страницу." : "Проверь загруженные материалы или попробуй изменить описание.")),
     });
   }
 
@@ -389,6 +397,10 @@
         priority: Number.isFinite(Number(value.priority)) ? Number(value.priority) : fallbackIndex,
       });
     };
+    if (semantic.result?.analysisSummary?.missingCriticalFields?.includes("gauge") || semantic.result?.unsupportedContent?.some(item => item.code === "piece_calculation") && !semantic.result?.gauge?.entries?.length) add({ field: "gauge", label: "Плотность вязания", reason: "В схеме не найдены петли и ряды на измеренную длину.", required: false }, 20);
+    for (const item of semantic.result?.unsupportedContent || []) {
+      if (["chart_without_textual_legend", "external_chart_reference", "piece_calculation"].includes(item.code)) add({ field: item.code, label: item.message, required: false }, 25);
+    }
     intent.missingInformation.forEach(add);
     (readiness?.missingRequired || []).forEach((entry, index) => add({ ...entry, required: true }, 100 + index));
     blockingReviewFields(review).forEach((entry, index) => add({
@@ -398,7 +410,7 @@
       required: true,
       priority: 200 + index,
     }, 200 + index));
-    if (!values.length && semantic.present && semantic.valid && semantic.result?.garment?.type === "unknown") add({ field: "garmentType", label: "вид изделия", required: true }, 10);
+    if (semantic.present && semantic.valid && semantic.result?.garment?.type === "unknown" && !values.some(item => item.field === "garmentType")) add({ field: "garmentType", label: "вид изделия", required: true }, 10);
     const seen = new Set();
     return values.sort((a, b) => a.priority - b.priority || lexical(a.field, b.field)).filter((item) => !seen.has(item.field) && seen.add(item.field));
   }

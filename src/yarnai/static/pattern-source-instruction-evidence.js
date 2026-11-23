@@ -180,7 +180,57 @@
     return deduplicateVectors(candidates);
   }
 
+  function readMeasuredPieces(text, selectedSize) {
+    const rules = globalObject.YarnAIPatternSemanticRules || (typeof require === "function" && require("./pattern-semantic-rules.js"));
+    text = text.replace(/\r\n?/g, "\n");
+    const order = rules?.finishedChestSizes(text) || [];
+    if (!order.includes(selectedSize)) return null;
+    const headings = [...text.matchAll(/^[ \t]*(BACK|FRONT|SLEEVES?|FINISHING)[ \t]*:?[ \t]*$/gm)];
+    if (!headings.length) return null;
+    const credit = /^[ \t]*([^\n]{1,100}?)\s*\n[ \t]*Designed by[ \t]+([^\n]+)/im.exec(text);
+    const attribution = credit ? { title: credit[1].trim(), author: credit[2].trim() } : null;
+    const expected = ["BACK", "FRONT", "SLEEVES", "FINISHING"];
+    const sections = [];
+    const warnings = [];
+    function project(passage, vectors) {
+      const vector = /(?<![\w./])\d+(?:\.\d+|[¼½¾])?(?:\s*(?:th|st|nd|rd)\b)?\s*\(([^()\n]*(?:\n[^()\n]*){0,6})\)/gi;
+      return passage.replace(vector, (raw, inner) => {
+        if (!/^\s*(?:\d|[?–—-]\s*,)/.test(inner)) return raw;
+        const values = [raw.slice(0, raw.indexOf("(")), ...inner.split(",")].map(s => s.trim());
+        const valid = values.length === order.length && values.every(s => /^\d+(?:\.\d+|[¼½¾])?(?:\s*(?:st|nd|rd|th))?$/i.test(s));
+        const selectedRawValue = valid ? values[order.indexOf(selectedSize)] : null;
+        vectors.push({ rawSizeVector: raw, selectionStatus: valid ? "selected" : "ambiguous", selectedRawValue });
+        return selectedRawValue ?? raw;
+      });
+    }
+    const header = text.slice(0, headings[0].index);
+    const specifications = [];
+    const headerVectors = [];
+    const length = /^\s*Length[ \t]*[–—:-][ \t]*(\d[\d.¼½¾]*\s*\([\d.,\s¼½¾]+\)\s*(?:["″”]|cm\b))/im.exec(header);
+    if (length) specifications.push("Длина изделия — " + project(length[1], headerVectors).trim());
+    const balls = /^\s*(\d+\s*\([\d,\s]+\))\s+(?:balls|skeins)\b/im.exec(header);
+    if (balls) specifications.push("Количество мотков — " + project(balls[1], headerVectors));
+    for (const [i, heading] of headings.entries()) {
+      let passage = text.slice(heading.index + heading[0].length, headings[i + 1]?.index);
+      const name = heading[1] === "SLEEVE" ? "SLEEVES" : heading[1];
+      if (name === "FINISHING") {
+        passage = passage.split(/^\s*(?:standard abbreviations|schematic|\d+[¼½¾]?\s*["″])/im)[0];
+        if (attribution && passage.trimEnd().endsWith(attribution.title)) passage = passage.trimEnd().slice(0, -attribution.title.length);
+      }
+      const vectors = [];
+      const projected = project(passage, vectors);
+      if (new RegExp("\\bwork as for " + name.toLowerCase() + "\\b", "i").test(projected)) warnings.push("Раздел ссылается на самого себя. Сверь начало детали с поправками автора.");
+      sections.push({ heading: name, projected: projected.trim(), vectors });
+      if (name === "FINISHING") break;
+    }
+    for (const name of expected) if (!sections.some(s => s.heading === name)) warnings.push("Отсутствует раздел " + name + ".");
+    if (headerVectors.some(v => v.selectionStatus !== "selected")) warnings.push("Размерные значения в характеристиках требуют сверки.");
+    return { selectedSize, order, sections, attribution, specifications, warnings, measuredPieces: true };
+  }
+
   function readGradedSource(text, selectedSize) {
+    const pieces = readMeasuredPieces(text, selectedSize);
+    if (pieces) return pieces;
     const order = parseCanonicalSizeOrder(text);
     if (!order.labels.includes(selectedSize)) return null;
     const start = /^\s*(?:START THE PIECE HERE|NECK EDGE)\s*:/im.exec(text);

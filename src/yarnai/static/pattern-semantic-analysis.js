@@ -3,7 +3,7 @@
 (function exposePatternSemanticAnalysis(globalObject) {
   const rules = globalObject.YarnAIPatternSemanticRules || (typeof require === "function" ? require("./pattern-semantic-rules.js") : null);
   const VERSION = 1;
-  const ANALYZER_VERSION = 4;
+  const ANALYZER_VERSION = 5;
   const PROGRESS_KIND = "PATTERN_SEMANTIC_ANALYSIS";
   const STATUSES = Object.freeze(["waiting", "analyzing", "completed", "partial", "failed"]);
   const activeRuns = new Set();
@@ -62,7 +62,10 @@
     const extractionProgress = oneProgress(aggregate, "PATTERN_CONTENT_EXTRACTION", calculation.calculation_id); const analysisProgress = oneProgress(aggregate, PROGRESS_KIND, calculation.calculation_id); const extraction = extractionProgress?.state || null;
     if (!analysisProgress) return { state: "missing", project, calculation, extractionProgress, extraction, analysisProgress: null, analysis: null, diagnostic: null };
     try { requireValidState(analysisProgress.state); } catch (error) { return { state: "corrupted", project, calculation, extractionProgress, extraction, analysisProgress, analysis: null, diagnostic: diagnostic(error.code || "SEMANTIC_INTERNAL_ERROR", "error", error.userMessage || "Запись семантического анализа повреждена.") }; }
-    const analysis = copy(analysisProgress.state); const effectiveAnalyzerVersion = positiveInteger(analysis.analyzerVersion) || 1; if (effectiveAnalyzerVersion < ANALYZER_VERSION) return { state: "analyzer_stale", project, calculation, extractionProgress, extraction, analysisProgress, analysis, diagnostic: diagnostic("SEMANTIC_ANALYZER_VERSION_MISMATCH", "error", "Сохранённый семантический результат создан устаревшей версией анализатора.") }; const sourceProblem = validateSource(project, extractionProgress, extraction, analysis);
+    const analysis = copy(analysisProgress.state); const effectiveAnalyzerVersion = positiveInteger(analysis.analyzerVersion) || 1; // Version 4 snapshots remain usable for existing reviewed projects. Recheck
+    // circumference-graded PDFs because their old analysis omitted the size axis.
+    const needsMeasuredSizeReview = effectiveAnalyzerVersion === 4 && (extraction?.result?.files || []).some(file => rules.finishedChestSizes(file.text || "").length);
+    if (effectiveAnalyzerVersion < 4 || needsMeasuredSizeReview) return { state: "analyzer_stale", project, calculation, extractionProgress, extraction, analysisProgress, analysis, diagnostic: diagnostic("SEMANTIC_ANALYZER_VERSION_MISMATCH", "error", "Сохранённый семантический результат создан устаревшей версией анализатора.") }; const sourceProblem = validateSource(project, extractionProgress, extraction, analysis);
     if (sourceProblem) return { state: "stale", project, calculation, extractionProgress, extraction, analysisProgress, analysis, diagnostic: sourceProblem };
     return { state: analysis.status, project, calculation, extractionProgress, extraction, analysisProgress, analysis, diagnostic: null };
   }

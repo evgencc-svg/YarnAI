@@ -86,6 +86,7 @@
     const readiness = intent && readinessApi?.evaluateProjectReadiness ? readinessApi.evaluateProjectReadiness(intent) : null;
     context = {
       aggregate, project: aggregate.project, calculation, intent, readiness,
+      extraction: one("PATTERN_CONTENT_EXTRACTION")?.state,
       semantic: semanticInspection.analysis, review: reviewProgress?.state || null,
       importState: importProgress?.state || null, purposes: intake.purposes || {},
       saved: aggregate.project?.draft_input?.material_understanding || null,
@@ -95,7 +96,7 @@
 
   function needsFirstAnalysis() {
     if (!context?.importState || context.importState.status !== "completed") return false;
-    if (context.semantic) return false;
+    if (context.semantic || context.extraction?.status === "failed") return false;
     const base = (context.aggregate.progress || []).find((entry) => entry.kind === "PATTERN_ANALYSIS" && entry.calculation_id === context.calculation?.calculation_id && entry.epoch === 1);
     return Boolean(base?.state && ["waiting", "queued", "analyzing"].includes(base.state.status));
   }
@@ -196,10 +197,10 @@
     const source = sources[0];
     const reading = globalObject.YarnAIPatternSourceInstructionEvidence.readGradedSource(source.text, selectedSize);
     if (!reading) return;
-    const labels = { "NECK EDGE": "Горловина", YOKE: "Кокетка и реглан", "DIVIDING FOR BODY AND SLEEVES": "Разделение корпуса и рукавов", BODY: "Корпус и нижняя резинка", SLEEVES: "Рукава и манжеты" };
+    const labels = { BACK: "Спинка", FRONT: "Перед", FINISHING: "Сборка и отделка", "NECK EDGE": "Горловина", YOKE: "Кокетка и реглан", "DIVIDING FOR BODY AND SLEEVES": "Разделение корпуса и рукавов", BODY: "Корпус и нижняя резинка", SLEEVES: "Рукава и манжеты" };
     get("#graded-source-title").textContent = `Авторские операции · ${selectedSize}`;
     const credit = reading.attribution;
-    get("#graded-source-file").textContent = credit ? `${credit.title} · ${credit.author} · ${credit.number} · ${source.name}` : source.name;
+    get("#graded-source-file").textContent = credit ? [credit.title, credit.author, credit.number, source.name].filter(Boolean).join(" · ") : source.name;
     const uncertain = reading.sections.flatMap((section) => section.vectors).some((vector) => vector.selectionStatus !== "selected");
     get("#graded-source-status").textContent = uncertain
       ? "Число значений в некоторых группах отличается от числа размеров. Сверь эти группы с оригиналом."
@@ -214,6 +215,16 @@
       detail.append(summary, paragraph);
       return detail;
     }));
+    if (reading.measuredPieces) {
+      get("#graded-source-check").textContent = [
+        "Прочитан текст PDF. Полноценный расчёт этой конструкции пока не поддерживается. Чертёж и его размеры требуют визуальной сверки.",
+        ...reading.specifications, ...reading.warnings,
+      ].join(" ");
+      get("#graded-source-steps").replaceChildren();
+      get("#graded-gauge-trial").hidden = true;
+      panel.hidden = false;
+      return;
+    }
     const replay = globalObject.YarnAIPatternSourceInstructionEvidence.readTwoPhaseRaglan(reading);
     const gauge = analysis.gauge.entries.filter((g) => g.unit === "cm" && g.stitches > 0 && g.rows > 0);
     renderSourceReplay(replay, gauge.length === 1 ? gauge[0] : null);

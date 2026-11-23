@@ -91,22 +91,56 @@
   function bestRule(contexts, table, rulePrefix) { const candidates = []; for (const [value, terms] of Object.entries(table)) { const evidence = collectTermEvidence(contexts, terms, `${rulePrefix}.${value}`); if (evidence.length) candidates.push({ value, score: evidence.length, evidence }); } candidates.sort((a, b) => b.score - a.score || lexical(a.value, b.value)); return candidates; }
 
   function detectCraft(contexts) { const candidates = bestRule(contexts, CRAFT_RULES, "craft"); if (!candidates.length) return { value: "unknown", confidence: 0, evidence: [] }; const machine = candidates.find((item) => item.value === "machine_knitting"); const knitting = candidates.find((item) => item.value === "knitting"); const crochet = candidates.find((item) => item.value === "crochet"); if (machine && !crochet) return { value: "machine_knitting", confidence: round(Math.min(1, 0.6 + machine.score * 0.1)), evidence: machine.evidence }; if (knitting && crochet) return { value: "mixed", confidence: round(Math.min(1, (knitting.score + crochet.score) / 8)), evidence: [...knitting.evidence, ...crochet.evidence].sort(byEvidence) }; const best = candidates[0]; return { value: best.value, confidence: round(Math.min(1, best.score / 4)), evidence: best.evidence }; }
+  function finishedChestSizes(text) {
+    const lines = String(text).replaceAll("\r", "").split("\n");
+    let result = [];
+    for (const [index, line] of lines.entries()) {
+      if (line.trim().toLowerCase() !== "finished measurements") continue;
+      const next = (lines[index + 1] || "").trim();
+      const label = wordAfter(next, 0);
+      if (!["chest", "bust"].includes(label.value.toLowerCase())) continue;
+      let series = next.slice(label.end).trim();
+      if ("–—:-".includes(series[0])) series = series.slice(1).trim();
+      for (let i = index + 2; !series.includes(")") && i < Math.min(lines.length, index + 7); i++) series += " " + lines[i].trim();
+      const open = series.indexOf("("), close = series.indexOf(")");
+      if (open < 1 || close <= open || result.length) return [];
+      const unit = parsedUnitAfter(series, close + 1);
+      if (!["in", "cm"].includes(unit)) return [];
+      const values = [series.slice(0, open), ...series.slice(open + 1, close).split(",")].map(s => s.trim());
+      if (!values.every((v, i) => v.split(".").length <= 2 && v.split(".").every(allDigits) && Number(v) > 0 && (!i || Number(v) > Number(values[i - 1])))) return [];
+      result = values.map(value => value + " " + unit);
+    }
+    return result;
+  }
+
   function detectGarment(contexts) {
     // Preserve offsets when excluding directional and measurement uses of "top".
     const garmentContexts = contexts.map((context) => ({
       ...context,
       lower: ["top down", "top-down", "top of"].reduce(
         (value, phrase) => value.replaceAll(phrase, "   " + phrase.slice(3)),
-        context.lower.replaceAll("\n", " "),
+        context.lower.split("\nstandard abbreviations & terms\n")[0].replaceAll("\n", " "),
       ),
     }));
-    const candidates = bestRule(garmentContexts, GARMENT_RULES, "garment"); if (!candidates.length) return { type: "unknown", confidence: 0, evidence: [] }; const best = candidates[0]; return { type: best.value, confidence: round(best.score === 1 ? 0.65 : Math.min(1, 0.65 + best.score * 0.1)), evidence: best.evidence.slice(0, 10) }; }
+    const candidates = bestRule(garmentContexts, GARMENT_RULES, "garment");
+    if (!candidates.length && ["back", "front", "sleeves"].every(type => allLines(contexts).some(line => line.lower.trim() === type))) {
+      const evidence = collectTermEvidence(garmentContexts, ["bind off center", "sew in sleeves"], "garment.pullover_structure");
+      if (new Set(evidence.map(e => e.text.toLowerCase())).size === 2) return { type: "pullover", confidence: 0.65, evidence };
+    }
+    if (!candidates.length) return { type: "unknown", confidence: 0, evidence: [] }; const best = candidates[0]; return { type: best.value, confidence: round(best.score === 1 ? 0.65 : Math.min(1, 0.65 + best.score * 0.1)), evidence: best.evidence.slice(0, 10) }; }
   function detectConstruction(contexts) {
     contexts = contexts.map((context) => ({ ...context, lower: context.lower.replaceAll("\n", " ") }));
     const methods = bestRule(contexts, { top_down: ["top down", "top-down", "сверху вниз", "зверху вниз", "od góry", "von oben"], bottom_up: ["bottom up", "bottom-up", "снизу вверх", "знизу вгору", "od dołu", "von unten"], sideways: ["sideways", "поперек", "w poprzek", "quer gestrickt"], modular: ["modular", "модульный", "modułowy"], separate_pieces: ["separate pieces", "worked separately", "отдельными деталями", "окремими деталями", "oddzielnie", "einzelteilen"] }, "construction.method");
-    const featureRules = { raglan: ["raglan", "реглан"], set_in_sleeve: ["set-in sleeve", "втачной рукав", "wszywany rękaw", "eingesetzter ärmel"], drop_shoulder: ["drop shoulder", "спущенное плечо", "opuszczone ramię", "überschnittene schulter"], yoke: ["yoke", "кокетка", "karczek", "passe"], sleeve_body_separation: ["separate body and sleeves", "separation of sleeves and body", "sleeve sts are placed on hold", "рукава отложить", "разделение корпуса и рукавов"], circular_yoke: ["circular yoke", "круглая кокетка", "okrągły karczek", "rundpasse"], saddle_shoulder: ["saddle shoulder", "погон"], contiguous: ["contiguous"], seamed: ["seamed", "sewn together", "со швами", "зі швами", "zszywany", "mit nähten"], flat: ["worked flat", "knit flat", "поворотными рядами", "tam i z powrotem", "in reihen"], in_the_round: ["in the round", "joined in the round", "по кругу", "круговыми рядами", "w okrążeniach", "in runden"] };
+    const featureRules = { raglan: ["raglan", "реглан"], set_in_sleeve: ["shape cap", "set-in sleeve", "втачной рукав", "wszywany rękaw", "eingesetzter ärmel"], drop_shoulder: ["drop shoulder", "спущенное плечо", "opuszczone ramię", "überschnittene schulter"], yoke: ["yoke", "кокетка", "karczek", "passe"], sleeve_body_separation: ["separate body and sleeves", "separation of sleeves and body", "sleeve sts are placed on hold", "рукава отложить", "разделение корпуса и рукавов"], circular_yoke: ["circular yoke", "круглая кокетка", "okrągły karczek", "rundpasse"], saddle_shoulder: ["saddle shoulder", "погон"], contiguous: ["contiguous"], seamed: ["sew shoulder seams", "seamed", "sewn together", "со швами", "зі швами", "zszywany", "mit nähten"], flat: ["straight needles", "worked flat", "knit flat", "поворотными рядами", "tam i z powrotem", "in reihen"], in_the_round: ["in the round", "joined in the round", "по кругу", "круговыми рядами", "w okrążeniach", "in runden"] };
     const features = []; const evidence = [...(methods[0]?.evidence || [])]; for (const [feature, terms] of Object.entries(featureRules)) { const found = collectTermEvidence(contexts, terms, `construction.feature.${feature}`, 5); if (found.length) { features.push(feature); evidence.push(...found); } }
-    let workedInRound = features.includes("in_the_round") ? "yes" : features.includes("flat") ? "no" : "unknown"; if (features.includes("in_the_round") && features.includes("flat")) workedInRound = "mixed"; const seamlessFound = collectTermEvidence(contexts, ["seamless", "без швов", "без швів", "bezszwowy", "nahtlos"], "construction.seamless", 5); evidence.push(...seamlessFound); let seamless = seamlessFound.length ? "yes" : features.includes("seamed") ? "no" : "unknown"; if (seamlessFound.length && features.includes("seamed")) seamless = "mixed"; const method = methods[0]?.value || "unknown";
+    let workedInRound = features.includes("in_the_round") ? "yes" : features.includes("flat") ? "no" : "unknown"; if (features.includes("in_the_round") && features.includes("flat")) workedInRound = "mixed"; const seamlessFound = collectTermEvidence(contexts, ["seamless", "без швов", "без швів", "bezszwowy", "nahtlos"], "construction.seamless", 5); evidence.push(...seamlessFound); let seamless = seamlessFound.length ? "yes" : features.includes("seamed") ? "no" : "unknown"; if (seamlessFound.length && features.includes("seamed")) seamless = "mixed"; const fromHem = features.includes("seamed") && contexts.some(context => {
+      const start = context.lower.indexOf("back with");
+      if (start < 0) return false;
+      const back = context.lower.slice(start, start + 900);
+      const castOn = back.indexOf("cast on"), rib = back.indexOf("ribbing"), armhole = back.indexOf("shape armholes");
+      return castOn >= 0 && rib > castOn && armhole > rib;
+    });
+    const method = methods[0]?.value || (fromHem ? "bottom_up" : "unknown");
     return { method, direction: ["top_down", "bottom_up", "sideways"].includes(method) ? method : "unknown", workedInRound, seamless, features: features.sort(), sequence: constructionSequence(contexts), confidence: round(Math.min(1, (methods[0]?.score || 0) * 0.25 + features.length * 0.12)), evidence: evidence.sort(byEvidence).slice(0, 30) };
   }
 
@@ -121,6 +155,8 @@
     const values = []; for (const context of contexts) { let section = null; for (const line of contextLines(context)) { const heading = sectionHeading(line); if (heading) section = heading.type; values.push({ ...line, section, heading }); } } return values;
   }
   function constructionSequence(contexts) {
+    const assembly = sectionedLines(contexts).filter(line => ["back", "front", "sleeves", "finishing"].includes(line.heading?.type));
+    if (assembly.some(line => line.heading.type === "back") && assembly.some(line => line.heading.type === "front")) return preserveUnique(assembly.map(line => line.heading.type));
     const present = new Set(); const mapped = { neckline: "neckline", yoke: "yoke", separation: "sleeve_body_separation", body: "body", sleeves: "sleeves", finishing: "finishing" }; for (const line of sectionedLines(contexts)) { const value = mapped[line.heading?.type]; if (value) present.add(value); } return ["neckline", "yoke", "sleeve_body_separation", "body", "sleeves", "finishing"].filter((value) => present.has(value));
   }
   function trimBounds(text) { let start = 0; let end = text.length; while (start < end && isSpace(text[start])) start += 1; while (end > start && isSpace(text[end - 1])) end -= 1; return { start, end, text: text.slice(start, end) }; }
@@ -144,6 +180,20 @@
       if (!collecting) continue;
       let source = line.heading ? line.text.slice(line.heading.contentStart) : line.text; const stop = source.toLowerCase().indexOf("sizes listed"); if (stop >= 0) source = source.slice(0, stop);
       const evidence = lineEvidence(line, "sizing.explicit_size_list"); for (const label of sizeLabelsFromText(source, labels.length === 0)) { if (labels.includes(label)) continue; labels.push(label); labelFacts.push({ label, rawValue: label, canonicalValue: label, unit: "size", status: "confirmed", recognitionReason: "explicit_sizes_section", evidence }); }
+    }
+    if (!labels.length) {
+      for (const context of contexts) {
+        const chestSizes = finishedChestSizes(context.normalized.text);
+        if (!chestSizes.length) continue;
+        const line = contextLines(context).find(item => ["chest", "bust"].includes(wordAfter(item.lower.trim(), 0).value));
+        if (!line) continue;
+        const evidence = lineEvidence(line, "sizing.finished_chest_series");
+        for (const label of chestSizes) {
+          labels.push(label);
+          labelFacts.push({ label, rawValue: label, canonicalValue: label, unit: "size", status: "confirmed", recognitionReason: "finished_chest_series", evidence });
+        }
+        break;
+      }
     }
     const measurements = []; const kinds = [["bust", ["chest", "bust", "обхват груди", "обхват грудей", "brustumfang"]], ["width", ["width", "ширина", "szerokość", "breite"]], ["sleeve_length", ["sleeve length", "длина рукава", "довжина рукава", "rękaw", "ärmellänge"]], ["armhole_depth", ["armhole", "глубина проймы", "глибина пройми"]], ["head_circumference", ["head circumference", "окружность головы", "обхват голови"]], ["foot_length", ["foot length", "длина стопы", "довжина стопи"]], ["ease", ["ease", "свобода облегания", "припуск"]], ["length", ["length", "длина изделия", "довжина", "długość", "länge"]]];
     for (const line of sizingLines.filter((item) => item.section === "sizes")) for (const [kind, terms] of kinds) { const position = termPosition(line.lower, terms); if (position.start < 0) continue; const numbers = numberSpans(line.text); const number = numberAfter(numbers, position.end); if (!number) continue; const next = numbers.find((item) => item.start > number.end); const separator = next ? line.text.slice(number.end, next.start).trim() : ""; const ranged = next && ["-", "–", "—"].includes(separator); const unit = parsedUnitAfter(line.text, ranged ? next.end : number.end); if (!unit) continue; const evidence = lineEvidence(line, "sizing.measurement"); measurements.push({ kind, value: ranged ? `${number.value}-${next.value}` : number.value, rawValue: line.text.slice(number.start, ranged ? next.end : number.end), canonicalValue: ranged ? `${number.value}-${next.value}` : Number(number.value), unit, sizeLabel: null, rawText: line.text.trim(), status: "confirmed", recognitionReason: "measurement_label_and_unit", evidence }); break; }
@@ -187,6 +237,16 @@
       const lower = line.lower; if (lower.includes("worsted/aran") || lower.includes("worsted / aran")) { const itemEvidence = lineEvidence(line, "yarn.weight"); weights.push("worsted/aran"); evidence.push(itemEvidence); } else for (const term of weightTerms) if (termPosition(lower, [term]).start >= 0) { const itemEvidence = lineEvidence(line, "yarn.weight"); weights.push(term); evidence.push(itemEvidence); }
       const numbers = numberSpans(line.text); for (const number of numbers) { const unitWord = wordAfter(line.text, number.end); if (amountUnits.has(unitWord.value.toLowerCase())) { const itemEvidence = lineEvidence(line, "yarn.amount", number.start, unitWord.end); amounts.push({ value: number.value, unit: unitWord.value, rawText: line.text.slice(number.start, unitWord.end), evidence: itemEvidence }); evidence.push(itemEvidence); } if (line.text.slice(number.end).trimStart().startsWith("%") && fibers.some((term) => line.lower.includes(term))) { const itemEvidence = lineEvidence(line, "yarn.fiber"); fiberContent.push({ value: line.text.trim(), evidence: itemEvidence }); evidence.push(itemEvidence); } }
       for (const marker of ["color", "colour", "цвет", "колір", "kolor", "farbe"]) { const at = line.lower.indexOf(marker); if (at >= 0) { const value = valueAfterSeparator(line.text, at + marker.length, 40); if (value) { const itemEvidence = lineEvidence(line, "yarn.color", at, Math.min(line.text.length, at + marker.length + value.length + 6)); colors.push({ value, rawText: line.text.trim(), evidence: itemEvidence }); evidence.push(itemEvidence); } break; } }
+      const open = line.text.indexOf("(");
+      const close = line.text.indexOf(")", open + 1);
+      const weight = line.lower.slice(open + 1, close).trim().split(" ").filter(Boolean);
+      const named = line.section === "yarn" && open > 0 && close > open && ["", ":"].includes(line.text.slice(close + 1).trim()) &&
+        weight.length === 2 && allDigits(weight[0]) && ["g", "grs", "grams"].includes(weight[1]);
+      if (named) {
+        const itemEvidence = lineEvidence(line, "yarn.name");
+        names.push({ name: line.text.slice(0, open).trim(), manufacturer: null, rawText: line.text.trim(), evidence: itemEvidence, status: "confirmed", recognitionReason: "yarn_heading_with_ball_weight" });
+        evidence.push(itemEvidence);
+      }
       const from = lower.indexOf(" from ");
       const manufacturer = from > 0 ? line.text.slice(from + 6).split("(")[0].trim() : "";
       if (line.section === "yarn" && manufacturer && !line.heading && lower.includes("(belongs to yarn group ")) {
@@ -249,7 +309,15 @@
     const rawSources = contexts.map((context) => ({ sourceFileId: context.segment.sourceFileId, sourceFileName: context.segment.sourceFileName, evidenceDomain: EVIDENCE_DOMAINS.USER_ADAPTATION_PROFILE, rawText: context.segment.text, evidence: evidenceFor(context.segment, context.normalized, 0, context.normalized.text.length, "user_adaptation_profile.raw") }));
     return { rawSources, selectedSize: selectedProfileSize(contexts), measurements: profileMeasurements(contexts), gauge: extractGauge(contexts, { requireSection: false }), yarn: extractYarn(contexts, { requireSection: false }), tools: extractTools(contexts, { requireSection: false }) };
   }
-  function selectedProfileSize(contexts) { for (const line of allLines(contexts)) { const position = termPosition(line.lower, ["selected size", "size", "размер", "розмір", "rozmiar", "größe"]); if (position.start < 0) continue; const words = wordsAfter(line.text, position.end, 4); for (const word of words) { const value = word.toUpperCase(); if (alphaSizeLabel(value) || ageRangeToken(value)) return { value, status: "confirmed", recognitionReason: "user_profile_explicit_size", evidence: lineEvidence(line, "user_adaptation_profile.size") }; } } return null; }
+  function selectedProfileSize(contexts) { for (const line of allLines(contexts)) {
+    const colon = line.lower.indexOf(":");
+    if (["selected size", "выбранный размер", "размер"].includes(line.lower.slice(0, colon).trim())) {
+      const sized = line.lower.slice(colon + 1).trim();
+      const [n] = numberSpans(sized);
+      const unit = n && sized.slice(n.end).trim();
+      if (n?.start === 0 && ["in", "cm", '"', "″"].includes(unit)) return { value: n.value + (unit === "cm" ? " cm" : " in"), status: "confirmed", recognitionReason: "user_profile_explicit_size", evidence: lineEvidence(line, "user_adaptation_profile.size") };
+    }
+    const position = termPosition(line.lower, ["selected size", "size", "размер", "розмір", "rozmiar", "größe"]); if (position.start < 0) continue; const words = wordsAfter(line.text, position.end, 4); for (const word of words) { const value = word.toUpperCase(); if (alphaSizeLabel(value) || ageRangeToken(value)) return { value, status: "confirmed", recognitionReason: "user_profile_explicit_size", evidence: lineEvidence(line, "user_adaptation_profile.size") }; } } return null; }
   function wordsAfter(value, index, limit) { const result = []; let cursor = index; while (cursor < value.length && result.length < limit) { const word = wordAfter(value, cursor); if (!word.value) { cursor += 1; continue; } result.push(word.value.replaceAll(".", "")); cursor = word.end; } return result; }
   function profileMeasurements(contexts) { const values = []; const kinds = [["chest", ["chest", "bust", "грудь", "обхват груди"]], ["waist", ["waist", "талия", "обхват талии"]], ["hips", ["hips", "бедра", "бёдра"]], ["ease", ["ease", "прибавка", "свобода облегания"]], ["total_length", ["total length", "общая длина", "длина изделия"]], ["sleeve_length", ["sleeve length", "длина рукава"]], ["upper_arm", ["upper arm", "обхват плеча", "верхняя часть руки"]]]; for (const line of allLines(contexts)) for (const [kind, terms] of kinds) { const position = termPosition(line.lower, terms); if (position.start < 0) continue; const number = numberAfter(numberSpans(line.text), position.end); if (!number) continue; const unit = parsedUnitAfter(line.text, number.end); if (!unit) continue; values.push({ kind, value: Number(number.value), unit, rawValue: number.raw, status: "confirmed", recognitionReason: "user_profile_labeled_measurement", evidence: lineEvidence(line, "user_adaptation_profile.measurement") }); } return values; }
   function evidenceDomainSummary(contexts) { const sources = []; for (const context of contexts) if (!sources.some((item) => item.sourceFileId === context.segment.sourceFileId)) sources.push({ sourceFileId: context.segment.sourceFileId, sourceFileName: context.segment.sourceFileName, evidenceDomain: context.segment.evidenceDomain }); return { sources, sourcePatternFileIds: sources.filter((item) => item.evidenceDomain === EVIDENCE_DOMAINS.SOURCE_PATTERN_EVIDENCE).map((item) => item.sourceFileId), userAdaptationProfileFileIds: sources.filter((item) => item.evidenceDomain === EVIDENCE_DOMAINS.USER_ADAPTATION_PROFILE).map((item) => item.sourceFileId) }; }
@@ -275,6 +343,9 @@
     const imageOnly = result.sourceSummary.imageFilesCount > 0 && !combined.trim(); if (!combined.trim()) result.diagnostics.push(diagnostic("SEMANTIC_NO_TEXT", "error", "В extraction нет доступного текста для анализа.")); if (imageOnly) { result.diagnostics.push(diagnostic("SEMANTIC_IMAGE_ONLY_SOURCE", "warning", "Источник содержит только изображения; OCR не выполнялся.")); result.unsupportedContent.push(unsupported("image_only_source", "Содержимое изображений не распознаётся на Stage 18.")); } else for (const file of files.filter((item) => ["metadata_only", "no_text_layer", "failed", "unsupported"].includes(item.extractionStatus))) result.unsupportedContent.push(unsupported(file.error?.code || file.extractionStatus, `Файл ${file.name} не дал текста для семантического анализа.`, "warning", file.sourceFileId));
     if (result.language.primary === "unknown") result.diagnostics.push(diagnostic("SEMANTIC_LANGUAGE_UNKNOWN", "warning", "Язык источника не определён.")); if (result.documentType.value === "unknown") result.diagnostics.push(diagnostic("SEMANTIC_DOCUMENT_TYPE_UNKNOWN", "warning", "Тип документа не определён.")); if (result.craft.value === "unknown") result.diagnostics.push(diagnostic("SEMANTIC_CRAFT_UNKNOWN", "warning", "Способ вязания не определён."));
     if (["crochet", "mixed"].includes(result.craft.value)) { result.diagnostics.push(diagnostic("SEMANTIC_CROCHET_UNSUPPORTED", "warning", "Обнаружены инструкции крючком; технология не поддерживается YarnAI.")); result.unsupportedContent.push(unsupported("crochet_instructions", "Инструкции крючком зафиксированы без преобразования в технологию.")); } if (result.craft.value === "machine_knitting") { result.diagnostics.push(diagnostic("SEMANTIC_MACHINE_KNITTING_UNSUPPORTED", "warning", "Обнаружено машинное вязание; технология не поддерживается.")); result.unsupportedContent.push(unsupported("machine_knitting_instructions", "Инструкции машинного вязания зафиксированы без интерпретации.")); }
+    if (result.sizing.labelFacts.some(fact => fact.recognitionReason === "finished_chest_series") && result.construction.sequence.includes("back")) {
+      result.unsupportedContent.push(unsupported("piece_calculation", "Полный расчёт отдельных деталей по этой инструкции пока не поддерживается."));
+    }
     const chartMentioned = result.sections.some((item) => item.type === "chart") || ["chart", "схема", "schemat", "strickschrift"].some((term) => sourceLower.includes(term)); const legendMentioned = result.sections.some((item) => item.type === "legend") || ["legend", "условные обозначения", "legenda", "zeichenerklärung"].some((term) => sourceLower.includes(term)); if (chartMentioned && !legendMentioned) { result.diagnostics.push(diagnostic("SEMANTIC_CHART_WITHOUT_LEGEND", "warning", "Обнаружена схема без текстовой легенды.")); result.unsupportedContent.push(unsupported("chart_without_textual_legend", "Схема без текстовой легенды не интерпретируется.")); } if (chartMentioned && (sourceLower.includes("http://") || sourceLower.includes("https://"))) result.unsupportedContent.push(unsupported("external_chart_reference", "Источник ссылается на внешнюю схему, которой нет в материалах."));
     if (normalizedText.includes("\u0000") || countCharacters(normalizedText, "�") > Math.max(4, normalizedText.length / 100)) { result.diagnostics.push(diagnostic("SEMANTIC_INTERNAL_ERROR", "error", "Исходный текст повреждён или содержит бинарные данные.")); result.unsupportedContent.push(unsupported("binary_or_corrupted_text", "Повреждённый или бинарный фрагмент не анализировался.", "error")); }
     if (result.garment.type === "unknown") result.diagnostics.push(diagnostic("SEMANTIC_GARMENT_NOT_FOUND", "info", "Тип изделия не найден.")); if (!result.sizing.labels.length && !result.sizing.measurements.length) result.diagnostics.push(diagnostic("SEMANTIC_SIZE_NOT_FOUND", "info", "Размеры и измерения не найдены.")); if (!result.gauge.stitches.length && !result.gauge.rows.length) result.diagnostics.push(diagnostic("SEMANTIC_GAUGE_NOT_FOUND", "info", "Плотность не найдена."));
@@ -292,6 +363,6 @@
   function averageNonZero(values) { const present = values.filter((value) => value > 0); return present.length ? present.reduce((sum, value) => sum + value, 0) / present.length : 0; }
   function lexical(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
 
-  const api = { SCHEMA_VERSION, MAX_EVIDENCE_TEXT, DIAGNOSTIC_CODES, EVIDENCE_DOMAINS, emptyResult, deepFreeze, normalizeTextWithOffsets, fingerprintExtraction, detectLanguage, createSourceSegments, detectCraft, detectGarment, detectConstruction, extractSizing, extractGauge, extractYarn, extractTools, extractAbbreviations, extractSections, extractStitchPatterns, extractRows, extractRepeats, extractCounts, extractUserAdaptationProfile, buildParameterLedger, analyzeExtraction, determineStatus };
+  const api = { finishedChestSizes, SCHEMA_VERSION, MAX_EVIDENCE_TEXT, DIAGNOSTIC_CODES, EVIDENCE_DOMAINS, emptyResult, deepFreeze, normalizeTextWithOffsets, fingerprintExtraction, detectLanguage, createSourceSegments, detectCraft, detectGarment, detectConstruction, extractSizing, extractGauge, extractYarn, extractTools, extractAbbreviations, extractSections, extractStitchPatterns, extractRows, extractRepeats, extractCounts, extractUserAdaptationProfile, buildParameterLedger, analyzeExtraction, determineStatus };
   globalObject.YarnAIPatternSemanticRules = Object.freeze(api); if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
