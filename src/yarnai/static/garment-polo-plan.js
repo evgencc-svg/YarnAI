@@ -62,6 +62,17 @@
         fail("PLAN_SHOULDER_GROUP", "Число петель и число рядов группы должны быть целыми и положительными.");
       }
       for (let i = 0; i < group.rows; i++) {
+        // A single front shoulder is bound off at its outer edge only.
+        // Work back to that edge between successive closures.
+        if (source.returnRows === true && rows.length) {
+          const row = rows.length + 1;
+          const side = source.firstSide === "RS" ? "WS" : "RS";
+          const event = commands === undefined ? { row, side, kind: "plain" } : commands[row - 1];
+          if (event?.row !== row || event.kind !== "plain" || event.side !== side || live === 0) {
+            fail("PLAN_SHOULDER_ROW", "Между закрытиями нужен обратный ряд на живых петлях.");
+          }
+          rows.push({ row, side, edge: null, count: 0, beforeStitches: live, afterStitches: live });
+        }
         const row = rows.length + 1;
         const isRS = (row % 2 === 1) === (source.firstSide === "RS");
         const side = isRS ? "RS" : "WS";
@@ -301,7 +312,7 @@
     if(step.seamFit?.some(s=>![s.frontEaseCm,s.backEaseCm].every(ease=>Number.isFinite(ease) && ease >= -1e-9) || s.easeCm > inspected.geometry.design.capEaseCm+0.5+1e-9))fail("PLAN_SEAM_MISMATCH","Реальные края оката и проймы не согласованы. Вшивание заблокировано; перепроверь измерения и детали. Припуск нельзя убрать растяжением проймы.");
     return input;
   }
-  const api={VERSION,fingerprint,fmt,even,fail,transitionText,ribRows,bodyRows,sleeveRows,replayShoulderSection,bandForLength,bandRows,build,validateCompletion};
+  const api={VERSION,fingerprint,fmt,even,fail,transitionText,ribRows,bodyRows,sleeveRows,singleSection,replayShoulderSection,bandForLength,bandRows,build,validateCompletion};
   root.YarnAIGarmentPoloPlan=api;
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
 })(typeof window!=="undefined"?window:globalThis);

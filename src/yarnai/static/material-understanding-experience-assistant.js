@@ -84,9 +84,17 @@
     const intake = aggregate.project?.draft_input?.material_intake || {};
     const intent = calculation?.request?.project_intent || calculation?.request?.projectIntent || aggregate.project?.draft_input?.project_intent || null;
     const readiness = intent && readinessApi?.evaluateProjectReadiness ? readinessApi.evaluateProjectReadiness(intent) : null;
+    const extraction = one("PATTERN_CONTENT_EXTRACTION")?.state;
+    const digests = new Map();
+    for (const file of extraction?.result?.files || []) {
+      if (file.mediaType === "application/pdf" && /work as for front/i.test(file.text) && globalObject.crypto?.subtle) {
+        const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(file.text));
+        digests.set(file.sourceFileId, Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, "0")).join(""));
+      }
+    }
     context = {
       aggregate, project: aggregate.project, calculation, intent, readiness,
-      extraction: one("PATTERN_CONTENT_EXTRACTION")?.state,
+      extraction, digests,
       semantic: semanticInspection.analysis, review: reviewProgress?.state || null,
       importState: importProgress?.state || null, purposes: intake.purposes || {},
       saved: aggregate.project?.draft_input?.material_understanding || null,
@@ -184,6 +192,7 @@
   }
 
   function renderGradedSource() {
+    get("#graded-front-neck").hidden = true;
     get("#graded-fit").hidden = true;
     const panel = get("#graded-source");
     panel.hidden = true;
@@ -222,6 +231,7 @@
       ].join(" ");
       get("#graded-source-steps").replaceChildren();
       renderBackShoulders(reading);
+      renderFrontNeck(reading, context.digests.get(source.sourceFileId));
       get("#graded-gauge-trial").hidden = true;
       panel.hidden = false;
       return;
@@ -256,6 +266,65 @@
     add(`Корпус: в кругах ${c.bodyDecreaseRows.join(", ")} после разделения убавь по ${f.bodyLoss} п., останется ${c.plain}. Остальные круги вяжи прямо, всего ${c.bodyRows} кругов до резинки. На меньших спицах прибавь ${c.hem - c.plain} п. равномерно в первом круге резинки до ${c.hem} п., вяжи ${f.hemCm} см и закрой. Ориентир длины от плеча ${f.shoulderLength} см.`);
     add(`Рукав: ${c.held} + ${c.underarm} = ${c.arm} п. Первые ${c.fast} убавок выполняются через круг, ещё ${c.slow} — с промежутками около ${f.slowCm} см. Все круги убавок: ${c.sleeveDecreaseRows.join(", ")}. Каждый раз убавляй по 2 п. В остальных кругах вяжи прямо до ${c.sleeveRows}-го включительно. На ${c.beforeCuff} п. перейди к манжете, прибавь ${c.cuff - c.beforeCuff} п. равномерно до ${c.cuff}. Резинка 1 × 1 — ${f.cuffCm} см, затем закрой. Длина от подреза ${f.sleeveLength} см.`);
     add("Резинки рассчитаны при допущении, что их горизонтальная плотность меняется в той же пропорции, что и у глади. Для точной ширины и числа кругов резинки нужен отдельный образец. На изделии длины проверяют сантиметром.");
+  }
+
+  function renderFrontNeck(reading, digest) {
+    if (!reading.sections.some(s => s.heading === "FRONT" && /Shape Neck:/i.test(s.projected))) return;
+    const area = get("#graded-front-neck");
+    area.replaceChildren();
+    area.hidden = false;
+    function add(parent, tag, text) {
+      const node = document.createElement(tag);
+      node.textContent = text;
+      parent.append(node);
+      return node;
+    }
+    add(area, "h3", "Перед · круглая горловина");
+    const front = globalObject.YarnAIFrontNeck;
+    let s, events;
+    try {
+      s = front.read(reading, digest);
+      const back = globalObject.YarnAIPatternSourceInstructionEvidence.readBackShoulderSection(reading);
+      if (!back || back.startStitches !== s.start) throw new Error("Начальный остаток переда требует сверки со спинкой.");
+      events = front.replay(s);
+    } catch (error) {
+      add(area, "p", "Расчёт переда остановлен. " + error.message);
+      return;
+    }
+    if (s.corrected) {
+      const note = add(area, "p", "В PDF перед ссылается на себя. Начало переда выполнено по спинке согласно поправке издателя. ");
+      const link = add(note, "a", "Поправка Berroco от 19.11.2020");
+      link.href = front.correction.url;
+    }
+    add(area, "p", `План по схеме. При глубине проймы ${s.splitDepth} закончи изнаночным рядом. На спицах ${s.start} п. Отметь ${s.center} п. центра. Ряд 1 — первый лицевой ряд горловины.`);
+    const split = events[1];
+    add(area, "p", `Ряд 1. Провяжи первые ${events[0].count} п., сними их на держатель левой стороны переда. Закрой ${s.center} центральных п., довяжи правую сторону. В работе ${split.right} п., на держателе ${split.held} п.`);
+    for (const part of ["right", "left"]) {
+      const details = document.createElement("details");
+      details.open = true;
+      area.append(details);
+      add(details, "summary", part === "right" ? "Правая сторона · выполняется первой" : "Левая сторона · возврат с держателя");
+      const list = document.createElement("ul");
+      details.append(list);
+      for (const e of events.filter(e => e.part === part && e.kind !== "hold")) {
+        const side = e.side === "RS" ? "лицевой" : "изнаночный";
+        let line;
+        if (e.kind === "resume") line = `Изнаночной стороной к себе верни ${e.count} п. с держателя левой стороны на основные спицы. Держатель пуст. Присоедини рабочую нить для этой стороны.`;
+        if (e.kind === "measure") line = `Измерь пройму. Если до ${e.depth} ещё не хватает длины, вяжи прямо парами рядов на ${e.count} п. Закончи ${e.endSide === "RS" ? "лицевым" : "изнаночным"} рядом. Число дополнительных рядов зависит от замера. Далее ряды считаются от начала плеча.`;
+        if (e.kind === "finish") line = `Закрепи нить. Сторона завершена, в работе 0 п. На держателе переда ${e.held} п.`;
+        if (e.kind === "plain" || e.kind === "bind_off" || e.kind === "decrease") {
+          let action = e.side === "RS" ? "провяжи лицевыми" : "провяжи изнаночными";
+          if (e.kind === "bind_off") action = `от внешнего края плеча закрой ${e.count} п. в начале ряда`;
+          if (e.kind === "decrease") action = e.technique === "k2tog"
+            ? "у горловины в начале ряда провяжи 1 лицевую, 2 вместе лицевой с наклоном вправо, далее лицевыми"
+            : "вяжи до последних 3 п., 2 вместе лицевой с наклоном влево (SSK), 1 лицевая";
+          line = `${e.phase === "neck" ? "Горловина" : "Плечо"}, ряд ${e.row}, ${side} — ${action}. Остаётся ${e[part]} п.`;
+        }
+        add(list, "li", line);
+      }
+    }
+    const last = events.at(-1);
+    add(area, "p", `Итог переда. Центр ${s.center} + убавки горловины ${s.right.decreases} и ${s.left.decreases} + плечи ${s.right.remaining} и ${s.left.remaining} = ${last.closed} п. В работе ${last.right + last.left} п., на временном держателе ${last.held} п. Фактическое выполнение вязальщицей не отмечалось.`);
   }
 
   function renderBackShoulders(reading) {
