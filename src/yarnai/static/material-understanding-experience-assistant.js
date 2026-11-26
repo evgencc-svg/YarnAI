@@ -192,6 +192,8 @@
   }
 
   function renderGradedSource() {
+    get("#graded-back-body").hidden = true;
+    get("#graded-front-body").hidden = true;
     get("#graded-front-neck").hidden = true;
     get("#graded-fit").hidden = true;
     const panel = get("#graded-source");
@@ -230,8 +232,30 @@
         ...reading.specifications, ...reading.warnings,
       ].join(" ");
       get("#graded-source-steps").replaceChildren();
-      renderBackShoulders(reading);
-      renderFrontNeck(reading, context.digests.get(source.sourceFileId));
+      const digest = context.digests.get(source.sourceFileId);
+      let panels;
+      try {
+        const api = globalObject.YarnAIBodyPanels;
+        const spec = api.read(reading, source.text, digest);
+        panels = {spec,back:api.replay(spec,"back"),front:api.replay(spec,"front")};
+      } catch (error) {
+        if (!error.userMessage) throw error;
+        get("#graded-source-check").append(" Непрерывный план остановлен. " + error.userMessage + " Ниже доступны отдельно распознанные участки.");
+      }
+      if (panels) {
+        const status = get("#graded-source-check");
+        status.textContent = "Спинка и перед по выбранному размеру. Условия по высоте проверяй на своём полотне. Чертёж требует визуальной сверки. ";
+        if (panels.spec.front.corrected) {
+          const link = document.createElement("a");
+          link.href = "https://cdn11.bigcommerce.com/s-x11gxbo1oj/content/berroco/patterns/Berroco_Anthony.pdf";
+          link.textContent = "Оригинал Berroco";
+          status.append(link);
+        }
+        renderPanelBody(panels.spec,panels.back);
+        renderPanelBody(panels.spec,panels.front);
+      }
+      renderBackShoulders(reading,panels);
+      renderFrontNeck(reading,digest,panels);
       get("#graded-gauge-trial").hidden = true;
       panel.hidden = false;
       return;
@@ -268,7 +292,43 @@
     add("Резинки рассчитаны при допущении, что их горизонтальная плотность меняется в той же пропорции, что и у глади. Для точной ширины и числа кругов резинки нужен отдельный образец. На изделии длины проверяют сантиметром.");
   }
 
-  function renderFrontNeck(reading, digest) {
+  function renderPanelBody(spec, panel) {
+    const back = panel.piece === "back";
+    const area = get(back ? "#graded-back-body" : "#graded-front-body");
+    area.replaceChildren();
+    area.hidden = false;
+    function append(parent, tag, text) {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      parent.append(el);
+      return el;
+    }
+    const num = n => n.toLocaleString("ru-RU",{maximumFractionDigits:3});
+    const length = n => num(n) + "″ (" + num(n * 2.54) + " см)";
+    const {gauge} = spec;
+    append(area,"h3",back ? "Спинка · от набора до держателя" : "Перед · от набора до обоих плеч");
+    append(area,"p",`Плотность глади по PDF — ${gauge.stitches} п. и ${gauge.rows} рядов на ${length(gauge.span)}. Точное число рядов резинки неизвестно.`);
+    const list = append(area,"ul","");
+    for (const e of panel.events) {
+      let action;
+      if (e.section === "cast") action = `Набери ${e.count} п. на прямые спицы ${num(e.needle)} мм. Способ набора автор не уточняет. Все петли края уже входят в набор.`;
+      else if (e.section === "rib") action = `Резинка 1 × 1 на ${e.active} п. В лицевом ряду начни с одной лицевой, чередуй изнаночную и лицевую до конца. В изнаночном начни с одной изнаночной, чередуй лицевую и изнаночную. Повторяй эти два ряда до ${length(e.inch)} от набора, закончи изнаночным рядом.`;
+      else if (e.section === "body") action = `Перейди на спицы ${num(e.needle)} мм. На всех ${e.active} п. вяжи гладью прямо, лицевой ряд лицевыми, изнаночный изнаночными. Измерь ${length(e.inch)} от наборного края, включая резинку. Закончи изнаночным рядом. Следующий ряд — первый ряд проймы.`;
+      else if (e.section === "armhole") {
+        const side = e.side === "RS" ? "лицевой" : "изнаночный";
+        let instruction = "провяжи изнаночными без убавок";
+        if (e.kind === "bind_off") instruction = `закрой ${e.count} п. в начале с ${e.edge === "right" ? "правого" : "левого"} края (вид с лица), довяжи ряд гладью`;
+        if (e.kind === "paired_decrease") instruction = "1 лицевая, 2 вместе лицевой с наклоном вправо, лицевые до последних 3 п., 2 вместе лицевой с наклоном влево, 1 лицевая";
+        action = `Пройма, ряд ${e.row}, ${side}. На спице ${e.before} п. — ${instruction}. Осталось ${e.active} п.`;
+      } else if (e.section === "straight") {
+        action = `Вяжи прямо на ${e.active} п., начав с изнаночного ряда. Измерь ${length(e.inch)} от начала проймы, закончи изнаночным рядом. Дальше — ${back ? "плечи спинки" : "разделение горловины переда"}. Число прямых рядов зависит от замера.`;
+      } else break;
+      append(list,"li",action);
+    }
+    if (back) append(area,"h4",`Плечи спинки · ${panel.upperStart} п. после пройм`);
+  }
+
+  function renderFrontNeck(reading, digest, panels) {
     if (!reading.sections.some(s => s.heading === "FRONT" && /Shape Neck:/i.test(s.projected))) return;
     const area = get("#graded-front-neck");
     area.replaceChildren();
@@ -283,10 +343,10 @@
     const front = globalObject.YarnAIFrontNeck;
     let s, events;
     try {
-      s = front.read(reading, digest);
-      const back = globalObject.YarnAIPatternSourceInstructionEvidence.readBackShoulderSection(reading);
+      s = panels?.spec.front || front.read(reading, digest);
+      const back = panels?.spec.back || globalObject.YarnAIPatternSourceInstructionEvidence.readBackShoulderSection(reading);
       if (!back || back.startStitches !== s.start) throw new Error("Начальный остаток переда требует сверки со спинкой.");
-      events = front.replay(s);
+      events = panels?.front.upper || front.replay(s);
     } catch (error) {
       add(area, "p", "Расчёт переда остановлен. " + error.message);
       return;
@@ -325,10 +385,14 @@
     }
     const last = events.at(-1);
     add(area, "p", `Итог переда. Центр ${s.center} + убавки горловины ${s.right.decreases} и ${s.left.decreases} + плечи ${s.right.remaining} и ${s.left.remaining} = ${last.closed} п. В работе ${last.right + last.left} п., на временном держателе ${last.held} п. Фактическое выполнение вязальщицей не отмечалось.`);
+    if (panels) {
+      const end = panels.front.events.at(-1);
+      add(area,"p",`Перед от набора. Из ${panels.spec.cast} п. закрыто ${end.closed}, убавлено ${end.decreased}. На временном держателе переда ${end.temporary}. Для сборки отдельно сохранены ${panels.back.upper.holder.count} п. горловины спинки.`);
+    }
   }
 
-  function renderBackShoulders(reading) {
-    const source = globalObject.YarnAIPatternSourceInstructionEvidence.readBackShoulderSection(reading);
+  function renderBackShoulders(reading, panels) {
+    const source = panels?.spec.back || globalObject.YarnAIPatternSourceInstructionEvidence.readBackShoulderSection(reading);
     const status = get("#graded-source-check");
     if (!source) {
       if (reading.sections.some(section => section.heading === "BACK" && /\bShape Shoulders:/i.test(section.projected))) {
@@ -338,13 +402,18 @@
     }
     let replay;
     try {
-      replay = globalObject.YarnAIGarmentPoloPlan.replayShoulderSection(source);
+      replay = panels?.back.upper || globalObject.YarnAIGarmentPoloPlan.replayShoulderSection(source);
     } catch (error) {
       if (!error.userMessage) throw error;
       status.append(" Проверка плеч спинки остановлена. " + error.userMessage);
       return;
     }
-    status.append(` Плечи спинки отсчитаны от начала скоса при глубине проймы ${source.armholeDepth}. Перед первым рядом на спице ${source.startStitches} п. Края указаны при взгляде на лицевую сторону спинки.`);
+    const shoulderNote = `Плечи спинки отсчитаны от начала скоса при глубине проймы ${source.armholeDepth}. Перед первым рядом на спице ${source.startStitches} п. Края указаны при взгляде на лицевую сторону спинки.`;
+    if (panels) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = shoulderNote;
+      get("#graded-back-body").append(paragraph);
+    } else status.append(" " + shoulderNote);
     const list = get("#graded-source-steps");
     for (const step of replay.rows) {
       const item = document.createElement("li");
