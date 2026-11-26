@@ -34,7 +34,7 @@
     const dec = consume(bind.rest, /^Dec Row \(RS\): K1, k2tog, knit to last 3 sts, SSK, k1—2 sts dec['’]d\. Rep Dec Row every RS row (\d+) times more—(\d+) sts\. /i, "Парные убавки пройм");
     const straight = consume(dec.rest, /^Work even until armholes measure ([\d.¼½¾]+")\s*, end on WS\. /i, "Прямой участок пройм");
     check(/^Shape Shoulders:/.test(straight.rest), "Между проймой и плечом осталась непрочитанная команда.");
-    return { cast:Number(cast.values[0]), rib:inches(rib.values[0]), body:inches(body.values[0]),
+    return { selectedSize:reading.selectedSize, cast:Number(cast.values[0]), rib:inches(rib.values[0]), body:inches(body.values[0]),
       small:Number(needles[0][1]), large:Number(needles[0][2]), gauge:{stitches:+gauges[0][1], rows:+gauges[0][2], span:+gauges[0][3]},
       bind:Number(bind.values[0]), afterBind:Number(bind.values[1]), pairs:1 + Number(dec.values[0]), afterArm:Number(dec.values[1]),
       backDepth:inches(straight.values[0]), back, front };
@@ -115,9 +115,9 @@
     }
     check(active === 0 && temporary === 0 && saved === (front ? 0 : s.back.hold.count)
       && (recorded === undefined || recorded.length === events.length), "Деталь не завершена или обнаружено лишнее действие.");
-    return {piece,events,upper,upperStart};
+    return {piece,selectedSize:s.selectedSize,events,upper,upperStart};
   }
-  const api = {read,replay};
+  const api = {read,replay,inches};
   root.YarnAIBodyPanels = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

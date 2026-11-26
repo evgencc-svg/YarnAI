@@ -6,6 +6,7 @@
   // The erratum changes only the reference to the back; it supplies no counts.
   const correction = Object.freeze({
     textHash: "061619c1d7116656307f2f766657ad6f8ea1960900b30a4a613e894e16c0ebcb",
+    originalUrl: "https://cdn11.bigcommerce.com/s-x11gxbo1oj/content/berroco/patterns/Berroco_Anthony.pdf",
     url: "https://berroco.com/patterns/anthony/", date: "2020-11-19",
   });
   function check(ok, message) {

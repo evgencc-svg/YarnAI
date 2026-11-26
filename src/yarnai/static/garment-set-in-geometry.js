@@ -57,6 +57,10 @@
     for (let i = 0; i < indent - initial; i++) events.push(rowEvent(4 + 2 * i, "both", 1, "decrease", "armhole"));
     return events;
   }
+  function edgeLengthCm(stitches, rows, gauge, underarmStep = false) {
+    const width = stitches / gauge.stitchesPerCm, height = rows / gauge.rowsPerCm;
+    return underarmStep ? width + height : Math.hypot(width, height);
+  }
   function sleeveCap(upper, initial, top, gauge, armhole, design) {
     if (top < 2) fail("CAP_TOP_TOO_NARROW", "При этой плотности на верхнем крае оката не остаётся петель для закрытия. Увеличь ширину верха оката или проверь плотность.");
     const topStep = Math.max(1, Math.round(top / 6));
@@ -81,9 +85,7 @@
             { stitches: upperDecreases, rows: upperDecreases },
             { stitches: topStep, rows: 2 },
           ];
-          const lengths = zones.map(zone => zone.kind === "underarm_step"
-            ? zone.stitches / gauge.stitchesPerCm + zone.rows / gauge.rowsPerCm
-            : Math.hypot(zone.stitches / gauge.stitchesPerCm, zone.rows / gauge.rowsPerCm));
+          const lengths = zones.map(zone => edgeLengthCm(zone.stitches, zone.rows, gauge, zone.kind === "underarm_step"));
           const perimeterCm = 2 * lengths.reduce((a, b) => a + b, 0) + top / gauge.stitchesPerCm;
           const easeCm = perimeterCm - armhole.perimeterCm;
           // A knitted edge is not a rigid polyline. These are geometric estimates;
@@ -213,7 +215,7 @@
     output.fingerprint = fingerprint(output);
     return freeze(output);
   }
-  const api = Object.freeze({ VERSION, POLICY, SOURCES, normalizeDesign, proposals, spread, sleeveCap, build, fingerprint });
+  const api = Object.freeze({ VERSION, POLICY, SOURCES, normalizeDesign, proposals, spread, sleeveCap, edgeLengthCm, build, fingerprint });
   root.YarnAIGarmentSetInGeometry = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

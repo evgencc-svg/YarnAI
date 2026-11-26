@@ -192,6 +192,7 @@
   }
 
   function renderGradedSource() {
+    get("#graded-sleeves").hidden = true;
     get("#graded-back-body").hidden = true;
     get("#graded-front-body").hidden = true;
     get("#graded-front-neck").hidden = true;
@@ -247,13 +248,14 @@
         status.textContent = "Спинка и перед по выбранному размеру. Условия по высоте проверяй на своём полотне. Чертёж требует визуальной сверки. ";
         if (panels.spec.front.corrected) {
           const link = document.createElement("a");
-          link.href = "https://cdn11.bigcommerce.com/s-x11gxbo1oj/content/berroco/patterns/Berroco_Anthony.pdf";
+          link.href = globalObject.YarnAIFrontNeck.correction.originalUrl;
           link.textContent = "Оригинал Berroco";
           status.append(link);
         }
         renderPanelBody(panels.spec,panels.back);
         renderPanelBody(panels.spec,panels.front);
       }
+      renderSleeves(reading,panels);
       renderBackShoulders(reading,panels);
       renderFrontNeck(reading,digest,panels);
       get("#graded-gauge-trial").hidden = true;
@@ -266,6 +268,65 @@
     showFit(replay, gauge.length === 1 ? gauge[0] : null, { ...credit, size: selectedSize });
     renderGaugeTrial(replay, gauge.length === 1 ? gauge[0] : null);
     panel.hidden = false;
+  }
+
+  function renderSleeves(reading, panels) {
+    const area = get("#graded-sleeves");
+    area.replaceChildren();
+    area.hidden = false;
+    function add(parent, tag, text) {
+      const el = document.createElement(tag);
+      el.textContent = text;
+      parent.append(el);
+      return el;
+    }
+    const num = n => n.toLocaleString("ru-RU",{maximumFractionDigits:2});
+    const cm = inches => num(inches * 2.54) + " см от набора";
+    const side = e => e.side === "RS" ? "лицевой" : "изнаночный";
+    function instruction(e) {
+      if (e.kind === "cast_on") return "Набери " + e.active + " п. на прямые спицы " + num(e.needle) + " мм.";
+      if (e.section === "cuff") return "Резинка 1 × 1 до " + cm(e.inch) + ". С лица чередуй лицевую и изнаночную, закончи лицевой петлёй. С изнанки вяжи по рисунку. Закончи изнаночным рядом.";
+      if (e.section === "stockinette") return "Перейди на спицы " + num(e.needle) + " мм. Сохрани " + e.active + " п. Вяжи лицевой гладью до " + cm(e.inch) + ", закончи изнаночным рядом. Затем начни отсчёт рядов прибавок с 1.";
+      if (e.section === "upper") return "Начиная с изнаночного ряда, вяжи прямо на " + e.active + " п. до " + cm(e.inch) + ". Закончи изнаночным рядом. Первый ряд оката считается заново.";
+      const prefix = (e.section === "cap" ? "Окат" : "Расширение") + ", ряд " + e.row + ", " + side(e) + ". ";
+      let action;
+      if (e.kind === "plain") action = e.side === "RS" ? "Все петли лицевыми." : "Все петли изнаночными.";
+      if (e.kind === "increase") action = "1 лицевая, M1R (прибавь из протяжки с наклоном вправо), лицевые до последней петли, M1L (из протяжки с наклоном влево), 1 лицевая.";
+      if (e.kind === "decrease") action = "1 лицевая, k2tog (2 вместе лицевой с наклоном вправо), лицевые до последних 3 п., SSK (сними по одной 2 петли как лицевые и провяжи их вместе за задние стенки с наклоном влево), 1 лицевая.";
+      if (e.kind === "bind_off") action = e.active === 0 ? "Закрой оставшиеся " + e.count + " п. и закрепи нить."
+        : "В начале с " + (e.edge === "right" ? "правого" : "левого") + " края при взгляде с лица закрой " + e.count + " п., довяжи ряд гладью.";
+      return prefix + action + " Было " + e.before + " п., осталось " + e.active + " п.";
+    }
+    add(area,"h3","Рукава и окаты");
+    if (!panels) {
+      add(area,"p","Полный расчёт рукавов остановлен. Проверь исходные команды корпуса и ссылку манжеты на резинку спинки.");
+      return;
+    }
+    const api = globalObject.YarnAIGradedSleeves;
+    try {
+      const spec = api.read(reading,panels.spec);
+      const sleeves = ["left","right"].map(piece => api.replay(spec,piece));
+      for (const sleeve of sleeves) {
+        const detail = add(area,"details","");
+        add(detail,"summary",sleeve.piece === "left" ? "Левый рукав" : "Правый рукав");
+        add(detail,"p","M1R — подними протяжку сзади наперёд и провяжи за переднюю стенку. M1L — подними спереди назад и провяжи за заднюю стенку.");
+        const list = add(detail,"ol","");
+        for (const e of sleeve.events) add(list,"li",instruction(e));
+        try {
+          const fit = api.compare(sleeve,panels);
+          add(detail,"h4","Сравнение с проймой");
+          add(detail,"p","Расчёт по плотности издателя. Высота оката " + num(fit.capHeight) + " см. Число рядов до закрытия верха — " + fit.capRows + ". Длина половины контура с половиной верхнего края " + num(fit.capHalf) + " см.");
+          for (const s of fit.sides) add(detail,"p",(s.panel === "back" ? "Спинка" : "Перед") + ", " + (s.edge === "right" ? "правый" : "левый") + " край при взгляде с лица. Глубина " + num(s.depth) + " см, длина края " + num(s.armhole) + " см.");
+          add(detail,"p","Разность длин (окат минус пройма) " + num(fit.delta) + " см. " + (fit.delta < 0 ? "По модели окат короче проймы. " : "По модели есть припосадка оката. ") + "Авторский допуск неизвестен. Перед втачиванием измерь оба края каждой обработанной детали от подмышки до плеча и от подмышки до середины оката.");
+        } catch (error) {
+          if (!error.userMessage) throw error;
+          add(detail,"p","Сопряжение требует проверки. " + error.userMessage);
+        }
+      }
+    } catch (error) {
+      if (!error.userMessage) throw error;
+      add(area,"p","Полный расчёт рукавов остановлен. " + error.userMessage);
+    }
   }
 
   function renderGaugeTrial(replay, gauge) {

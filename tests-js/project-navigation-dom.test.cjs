@@ -189,6 +189,17 @@ function completedStage69Aggregate() {
   return source.aggregate;
 }
 
+function descendants(element) {
+  return element.children.flatMap(child => [child, ...descendants(child)]);
+}
+
+function continuation(card) {
+  const links = descendants(card).filter(el => el.className === "saved-project-continue");
+  assert.equal(links.length, 1);
+  assert.equal(links[0].tagName, "A");
+  return links[0];
+}
+
 function descendantText(element) {
   return [element?.textContent || "", ...(element?.children || []).flatMap(descendantText)].join(" ");
 }
@@ -208,7 +219,7 @@ test("the real /saved-projects DOM handler renders the Stage 64 destination", as
 
   const list = page.document.elements.get("#saved-projects-list");
   const card = list.children[0];
-  const link = card.children.at(-1);
+  const link = continuation(card);
   assert.deepEqual(seen, [PROJECT_ID]);
   assert.equal(link.href, `/project-calculation-entry?project=${PROJECT_ID}`);
   assert.equal(link.href.includes("/calculator"), false);
@@ -220,7 +231,7 @@ test("the real /saved-projects DOM handler renders the Stage 65 destination", as
   const page = executeAssistant("/saved-projects", repository);
   await nextTurn(); await nextTurn();
   const card = page.document.elements.get("#saved-projects-list").children[0];
-  const link = card.children.at(-1);
+  const link = continuation(card);
   assert.equal(link.href, `/project-execution-plan?project=${PROJECT_ID}`);
   assert.equal(link.href.includes("/calculator"), false);
   assert.equal(card.children[0].children[0].textContent, "Проект: свитер");
@@ -235,7 +246,7 @@ test("the real /saved-projects handler uses the Stage 65 recovery decision", asy
   const page = executeAssistant("/saved-projects", repository);
   await nextTurn(); await nextTurn();
   const card = page.document.elements.get("#saved-projects-list").children[0];
-  const link = card.children.at(-1);
+  const link = continuation(card);
   assert.equal(link.href, `/project-calculation-entry?project=${PROJECT_ID}`);
   assert.equal(link.textContent, "Проверить начальный расчёт");
   assert.equal(card.children[0].children[1].textContent.includes("Нужно проверить исходные данные плана"), true);
@@ -264,7 +275,7 @@ test("the real /saved-projects handler opens Stage 67 for a started project", as
   });
   await nextTurn(); await nextTurn();
   const card = page.document.elements.get("#saved-projects-list").children[0];
-  const link = card.children.at(-1);
+  const link = continuation(card);
   assert.equal(link.href, `/project-execution-first-step?project=${PROJECT_ID}`);
   assert.equal(link.href.includes("/pattern-execution-session"), false);
 });
@@ -275,7 +286,7 @@ test("the real /saved-projects handler offers clarification before confirmation"
   const page = executeAssistant("/saved-projects", repository, stage69Overrides());
   await nextTurn(); await nextTurn();
   const listCard = page.document.elements.get("#saved-projects-list").children[0];
-  const link = listCard.children.at(-1);
+  const link = continuation(listCard);
   assert.equal(link.tagName, "A");
   assert.equal(link.textContent, "Уточнить следующий шаг");
   assert.equal(link.href, `/project-execution-next-step-clarification?project=${PROJECT_ID}`);
@@ -294,8 +305,8 @@ test("completed clarification renders both cards terminal without a focusable CT
     ];
     assert.equal(cards.length, 2);
     for (const card of cards) {
-      assert.equal(card.children.length, 1);
-      assert.equal(card.children.some((child) => child.tagName === "A"), false);
+      assert.equal(descendants(card).filter(el => el.dataset.fullProjectBackup === PROJECT_ID).length, 1);
+      assert.equal(descendants(card).some(child => child.tagName === "A"), false);
       assert.match(descendantText(card), /Следующий шаг подготовлен/);
       assert.match(descendantText(card), /Связать резинку высотой 5 см/);
       assert.doesNotMatch(descendantText(card), /Уточнить следующий шаг/);
