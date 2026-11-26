@@ -221,6 +221,7 @@
         ...reading.specifications, ...reading.warnings,
       ].join(" ");
       get("#graded-source-steps").replaceChildren();
+      renderBackShoulders(reading);
       get("#graded-gauge-trial").hidden = true;
       panel.hidden = false;
       return;
@@ -255,6 +256,39 @@
     add(`Корпус: в кругах ${c.bodyDecreaseRows.join(", ")} после разделения убавь по ${f.bodyLoss} п., останется ${c.plain}. Остальные круги вяжи прямо, всего ${c.bodyRows} кругов до резинки. На меньших спицах прибавь ${c.hem - c.plain} п. равномерно в первом круге резинки до ${c.hem} п., вяжи ${f.hemCm} см и закрой. Ориентир длины от плеча ${f.shoulderLength} см.`);
     add(`Рукав: ${c.held} + ${c.underarm} = ${c.arm} п. Первые ${c.fast} убавок выполняются через круг, ещё ${c.slow} — с промежутками около ${f.slowCm} см. Все круги убавок: ${c.sleeveDecreaseRows.join(", ")}. Каждый раз убавляй по 2 п. В остальных кругах вяжи прямо до ${c.sleeveRows}-го включительно. На ${c.beforeCuff} п. перейди к манжете, прибавь ${c.cuff - c.beforeCuff} п. равномерно до ${c.cuff}. Резинка 1 × 1 — ${f.cuffCm} см, затем закрой. Длина от подреза ${f.sleeveLength} см.`);
     add("Резинки рассчитаны при допущении, что их горизонтальная плотность меняется в той же пропорции, что и у глади. Для точной ширины и числа кругов резинки нужен отдельный образец. На изделии длины проверяют сантиметром.");
+  }
+
+  function renderBackShoulders(reading) {
+    const source = globalObject.YarnAIPatternSourceInstructionEvidence.readBackShoulderSection(reading);
+    const status = get("#graded-source-check");
+    if (!source) {
+      if (reading.sections.some(section => section.heading === "BACK" && /\bShape Shoulders:/i.test(section.projected))) {
+        status.append(" Для проверки плеч спинки нужны однозначные исходный остаток, сторона первого ряда, порядок закрытий и команда переноса на держатель.");
+      }
+      return;
+    }
+    let replay;
+    try {
+      replay = globalObject.YarnAIGarmentPoloPlan.replayShoulderSection(source);
+    } catch (error) {
+      if (!error.userMessage) throw error;
+      status.append(" Проверка плеч спинки остановлена. " + error.userMessage);
+      return;
+    }
+    status.append(` Плечи спинки отсчитаны от начала скоса при глубине проймы ${source.armholeDepth}. Перед первым рядом на спице ${source.startStitches} п. Края указаны при взгляде на лицевую сторону спинки.`);
+    const list = get("#graded-source-steps");
+    for (const step of replay.rows) {
+      const item = document.createElement("li");
+      item.className = "shoulder-operation";
+      const side = step.side === "RS" ? "лицевой" : "изнаночный";
+      const edge = step.edge === "right" ? "правого" : "левого";
+      item.textContent = `Ряд ${step.row}, ${side}. В начале с ${edge} края закрой ${step.count} п. Было ${step.beforeStitches}, осталось ${step.afterStitches}.`;
+      list.append(item);
+    }
+    const transfer = document.createElement("li");
+    transfer.className = "shoulder-operation";
+    transfer.textContent = `После ряда ${replay.holder.afterRow} сними оставшиеся петли на держатель для горловины спинки. На держателе ${replay.holder.count} п., на рабочих спицах ${replay.workingStitches} п. Дополнительного ряда нет.`;
+    list.append(transfer);
   }
 
   function renderSourceReplay(replay, gauge) {

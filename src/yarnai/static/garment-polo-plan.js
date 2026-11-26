@@ -46,6 +46,59 @@
     }else parts.push(`${bo?"Остальные петли":"Все петли"} вяжи ${work}, последнюю кромочную — лицевой${bo?"":", первую кромочную тоже лицевой"}`);
     return{after,text:`${parts.join("; ")}. Останется ${after} п.`};
   }
+  // Author-specified flat shoulder rows. A supplied execution log is checked
+  // against the source groups in order, even when another order has the same sum.
+  function replayShoulderSection(source, commands) {
+    const positive = n => Number.isSafeInteger(n) && n > 0;
+    if (!positive(source?.startStitches) || !["RS", "WS"].includes(source.firstSide)
+        || !Array.isArray(source.groups) || !source.groups.length
+        || (commands !== undefined && !Array.isArray(commands))) {
+      fail("PLAN_SHOULDER_SOURCE", "Нужны исходное число петель, сторона первого ряда и группы плечевых закрытий.");
+    }
+    let live = source.startStitches;
+    const rows = [];
+    for (const group of source.groups) {
+      if (!positive(group?.count) || !positive(group.rows)) {
+        fail("PLAN_SHOULDER_GROUP", "Число петель и число рядов группы должны быть целыми и положительными.");
+      }
+      for (let i = 0; i < group.rows; i++) {
+        const row = rows.length + 1;
+        const isRS = (row % 2 === 1) === (source.firstSide === "RS");
+        const side = isRS ? "RS" : "WS";
+        const edge = isRS ? "right" : "left";
+        const expected = { kind: "bind_off", row, edge, count: group.count };
+        const event = commands === undefined ? expected : commands[row - 1];
+        if (event?.kind !== "bind_off" || event.row !== row) {
+          fail("PLAN_SHOULDER_ROW", "Пропущен или переставлен ряд плечевого закрытия.");
+        }
+        if (event.count !== group.count) fail("PLAN_SHOULDER_ORDER", "Число петель в этом ряду расходится с авторским порядком закрытий.");
+        if (event.side !== undefined && event.side !== side) fail("PLAN_SHOULDER_SIDE", "Сторона полотна расходится с очередностью лицевых и изнаночных рядов.");
+        const result = singleSection(live, [event], edge, isRS ? 1 : 2);
+        rows.push({ row, side, edge, count: event.count, beforeStitches: live, afterStitches: result.after });
+        live = result.after;
+      }
+    }
+    let holder = null;
+    if (source.hold != null) {
+      const { count, destination } = source.hold;
+      if (!positive(count) || count !== live || typeof destination !== "string" || !destination.trim()) {
+        fail("PLAN_HOLDER_BALANCE", "Для переноса нужны назначение держателя и точное число оставшихся живых петель.");
+      }
+      const transfer = commands === undefined ? { kind: "hold", afterRow: rows.length, count, destination } : commands[rows.length];
+      if (!transfer) fail("PLAN_BODY_OPEN", "После плеч остались петли без выполненной команды переноса на держатель.");
+      if (transfer.kind !== "hold" || transfer.afterRow !== rows.length || transfer.count !== count || transfer.destination !== destination) {
+        fail("PLAN_HOLDER_TRANSFER", "Перенос на держатель расходится со схемой по месту, числу петель или назначению.");
+      }
+      holder = { afterRow: rows.length, count: live, destination };
+      live = 0;
+    }
+    if (live !== 0) fail("PLAN_BODY_OPEN", "После плеч остались петли без команды переноса на держатель.");
+    if (commands && commands.length !== rows.length + Number(holder !== null)) {
+      fail("PLAN_SECTION_FINISHED", "Участок завершён. На рабочих спицах нет петель для следующей операции.");
+    }
+    return { status: holder ? "held" : "closed", rows, workingStitches: live, holder };
+  }
+
   function bodyRows(g,f,front){
     const b=g.body,offset=f.body.geometryRowOffset,total=f.body.mainRows;
     const neck=front?b.frontNeck:b.backNeck;
@@ -248,7 +301,7 @@
     if(step.seamFit?.some(s=>![s.frontEaseCm,s.backEaseCm].every(ease=>Number.isFinite(ease) && ease >= -1e-9) || s.easeCm > inspected.geometry.design.capEaseCm+0.5+1e-9))fail("PLAN_SEAM_MISMATCH","Реальные края оката и проймы не согласованы. Вшивание заблокировано; перепроверь измерения и детали. Припуск нельзя убрать растяжением проймы.");
     return input;
   }
-  const api={VERSION,fingerprint,fmt,even,fail,transitionText,ribRows,bodyRows,sleeveRows,bandForLength,bandRows,build,validateCompletion};
+  const api={VERSION,fingerprint,fmt,even,fail,transitionText,ribRows,bodyRows,sleeveRows,replayShoulderSection,bandForLength,bandRows,build,validateCompletion};
   root.YarnAIGarmentPoloPlan=api;
   if(typeof module!=="undefined"&&module.exports)module.exports=api;
 })(typeof window!=="undefined"?window:globalThis);

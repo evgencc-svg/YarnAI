@@ -258,6 +258,31 @@
   }
 
   // Read the two distinct raglan runs and their declared results before using any counts.
+  function readBackShoulderSection(reading) {
+    const backs = reading?.sections?.filter(section => section.heading === "BACK");
+    if (!reading?.measuredPieces || backs?.length !== 1
+        || backs[0].vectors.some(vector => vector.selectionStatus !== "selected")) return null;
+    const text = normalizeText(backs[0].projected);
+    const parts = text.split(/\bShape Shoulders:\s*/i);
+    if (parts.length !== 2) return null;
+    // The count and the last row side must refer to the straight section
+    // immediately before the shoulders. Never derive either from the holder.
+    const entry = /[—–-]\s*(\d{1,4}) sts\.\s*Work even until armholes measure (\d{1,3}(?:[¼½¾]|\.\d+)?\s*["″”])\s*,\s*end on (WS|RS)\.\s*$/i.exec(parts[0]);
+    const finish = /^(.*?)\.\s*Slip remaining (\d{1,4}) sts to holder for back neck\.\s*$/i.exec(parts[1]);
+    if (!entry || !finish) return null;
+    const groups = [];
+    const instructions = finish[1].split(/,\s*then\s+/i);
+    for (const [index, instruction] of instructions.entries()) {
+      const clause = index === 0 ? instruction.replace(/^Bind off\s+/i, "") : instruction;
+      if (index === 0 && clause === instruction) return null;
+      const group = /^(\d{1,4}) sts at beginning of the next (\d{1,4}) rows$/i.exec(clause);
+      if (!group) return null;
+      groups.push({ count: Number(group[1]), rows: Number(group[2]) });
+    }
+    return { startStitches: Number(entry[1]), firstSide: entry[3].toUpperCase() === "WS" ? "RS" : "WS",
+      armholeDepth: entry[2].trim(), groups, hold: { count: Number(finish[2]), destination: "back_neck" } };
+  }
+
   function readTwoPhaseRaglan(reading) {
     if (!reading || reading.sections.some((s) => s.vectors.some((v) => v.selectionStatus !== "selected"))) return null;
     const parts = new Map(reading.sections.map((s) => [s.heading, normalizeText(s.projected)]));
@@ -874,7 +899,7 @@
     SourceInstructionEvidenceError, canonicalize, fingerprint, parseCanonicalSizeOrder, representationTree, parseMultiSizeVector, conditionalSizeScope, vectorCandidates,
     sourceChunks, blockSpans, classifyInstruction, createEvidenceUnits, createReviewQuestions, coverageFor, blockerResolutionMap, buildProjection, readGradedSource,
     buildEvidenceResult, resultFingerprint, createInitialState, beginExtraction, completeExtraction, setReviewDecision, unresolvedIssues, canConfirm,
-    readTwoPhaseRaglan, confirmEvidence, rebuildFromSource, markStale, currentBindingFromAggregate, inspectAggregate, ensureForProject, buildForProject, decideForProject,
+    readBackShoulderSection, readTwoPhaseRaglan, confirmEvidence, rebuildFromSource, markStale, currentBindingFromAggregate, inspectAggregate, ensureForProject, buildForProject, decideForProject,
     confirmForProject, validateConfirmedEvidence,
   };
   globalObject.YarnAIPatternSourceInstructionEvidence = Object.freeze(api);

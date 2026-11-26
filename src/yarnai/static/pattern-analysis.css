@@ -48,6 +48,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .understanding-content { margin-top: clamp(30px, 5vw, 48px); display: grid; gap: 20px; }
 .summary-card li, #graded-source summary { margin-block: .55rem; line-height: 1.5; }
 #graded-source summary { cursor: pointer; }
+.shoulder-operation { list-style-type: none; }
 #graded-fit-form { display: grid; gap: 1rem; }
 #graded-fit-form fieldset { display: grid; grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); gap: .75rem; border: 1px solid #c8d1cc; border-radius: .5rem; }
 #graded-fit-form label { display: grid; gap: .3rem; }
