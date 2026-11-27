@@ -200,6 +200,8 @@
   }
 
   function renderGradedSource() {
+    ui.content.classList.remove("anthony-personal-mode");
+    get("#anthony-mode").hidden = true;
     get("#graded-assembly").hidden = true;
     get("#graded-sleeves").hidden = true;
     get("#graded-back-body").hidden = true;
@@ -210,12 +212,28 @@
     panel.hidden = true;
     const analysis = context?.semantic?.result;
     const selectedSize = analysis?.sizing?.selectedSize;
-    if (!selectedSize || !["completed", "partial"].includes(context.analysisState)) return;
+    if (!["completed", "partial"].includes(context.analysisState)) return;
     const extraction = extractionApi.inspectAggregate(context.aggregate).extraction;
     const sourceIds = analysis.evidenceDomains?.sourcePatternFileIds || [];
     const sources = (extraction?.result?.files || []).filter((file) => sourceIds.includes(file.sourceFileId) && file.extractionStatus === "extracted" && file.text);
     if (sources.length !== 1) return;
     const source = sources[0];
+    const hash = context.pdfDigests.get(source.sourceFileId);
+    if (hash && hash === globalObject.YarnAIFrontNeck.correction.pdfHash) {
+      const key = [projectId,source.sourceFileId,hash].join("/");
+      const sizes = globalObject.YarnAIPatternSemanticRules.finishedChestSizes(source.text);
+      const revision = context.project.revision;
+      const saved = context.project.draft_input?.anthony_personal_fit;
+      globalObject.YarnAIAnthonyFitView.mount(get("#anthony-mode"), {
+        key,sizes,saved,hasAuthor:!!selectedSize && sizes.includes(selectedSize),authorPanel:panel,
+        async save(record) {
+          await repository.updateProject(projectId,{draft_input:{...context.project.draft_input,anthony_personal_fit:record}},{baseRevision:revision});
+          await loadContext();
+          renderCurrent();
+        }
+      });
+    }
+    if (!selectedSize) return;
     const reading = globalObject.YarnAIPatternSourceInstructionEvidence.readGradedSource(source.text, selectedSize);
     if (!reading) return;
     const labels = { BACK: "Спинка", FRONT: "Перед", FINISHING: "Сборка и отделка", "NECK EDGE": "Горловина", YOKE: "Кокетка и реглан", "DIVIDING FOR BODY AND SLEEVES": "Разделение корпуса и рукавов", BODY: "Корпус и нижняя резинка", SLEEVES: "Рукава и манжеты" };
@@ -269,7 +287,7 @@
       renderBackShoulders(reading,panels);
       renderFrontNeck(reading,digest,panels);
       get("#graded-gauge-trial").hidden = true;
-      panel.hidden = false;
+      panel.hidden = !get("#anthony-mode").hidden && get("#anthony-mode select[name=mode]").value === "personal";
       return;
     }
     const replay = globalObject.YarnAIPatternSourceInstructionEvidence.readTwoPhaseRaglan(reading);
@@ -927,7 +945,7 @@
 
   async function saveUnderstanding(saved) {
     const draft = context.project?.draft_input && typeof context.project.draft_input === "object" ? context.project.draft_input : {};
-    await repository.updateProject(projectId, { draft_input: { ...draft, material_understanding: saved } });
+    await repository.updateProject(projectId, { draft_input: { ...draft, material_understanding: saved } }, {baseRevision:context.project.revision});
   }
 
   async function confirmAndContinue() {

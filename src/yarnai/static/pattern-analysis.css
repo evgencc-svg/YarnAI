@@ -50,6 +50,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 #graded-source summary { cursor: pointer; }
 .shoulder-operation { list-style-type: none; }
 #graded-fit-form { display: grid; gap: 1rem; }
+#anthony-mode { min-width: 0; }
+.anthony-personal-mode > :not(#anthony-mode) { display: none; }
+#anthony-mode label { display: grid; gap: .3rem; align-content: start; }
+#anthony-mode fieldset { margin: 1rem 0; display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,190px),1fr)); gap: 1rem; border: 1px solid var(--u-border); border-radius: .5rem; }
+#anthony-mode input, #anthony-mode select { padding: .5rem; width: 100%; min-width: 0; }
+#anthony-fit-result { overflow-x: auto; }
+#anthony-fit-result table { border-collapse: collapse; margin-block: 1rem; }
+#anthony-fit-result th, #anthony-fit-result td { padding: .4rem; text-align: left; border-bottom: 1px solid var(--u-border); }
 #graded-fit-form fieldset { display: grid; grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); gap: .75rem; border: 1px solid #c8d1cc; border-radius: .5rem; }
 #graded-fit-form label { display: grid; gap: .3rem; }
 #graded-fit-form input, #graded-fit-form textarea { min-width: 0; padding: .55rem; font: inherit; }

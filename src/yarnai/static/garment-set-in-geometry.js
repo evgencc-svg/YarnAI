@@ -70,6 +70,7 @@
     const targetHeight = armhole.outerHeightCm - top / gauge.stitchesPerCm / 2;
     if (targetHeight <= 0) fail("CAP_HEIGHT_INCOMPATIBLE", "Пройма слишком мелкая для выбранной ширины верха оката.");
     let best = null;
+    let bestRank = Infinity;
     for (const middleRate of [2, 3, 4]) {
       for (let lower = 1; lower <= decreases - 2; lower++) {
         for (let upperDecreases = 1; upperDecreases <= decreases - lower - 1; upperDecreases++) {
@@ -90,13 +91,23 @@
           const easeCm = perimeterCm - armhole.perimeterCm;
           // A knitted edge is not a rigid polyline. These are geometric estimates;
           // the actual blocked pieces must still be measured before sewing.
-          if (easeCm < -1e-9 || Math.abs(easeCm - design.capEaseCm) > 0.5 || heightCm >= armhole.outerHeightCm) continue;
+          // For a neutral target, resolve each half-edge to one row of the
+          // knitting grid. This is a search resolution, not a sewing tolerance.
+          const outsideTarget = design.neutralContour
+            ? Math.abs(easeCm) > 2 / gauge.rowsPerCm
+            : easeCm < -1e-9 || Math.abs(easeCm - design.capEaseCm) > 0.5;
+          if (outsideTarget || heightCm >= armhole.outerHeightCm) continue;
           const inflectionError = lengths[0] + lengths[1] - armhole.lowerCurveCm;
           const score = Math.abs(perimeterCm - targetLength) + 0.4 * Math.abs(heightCm - targetHeight) + 0.15 * Math.abs(inflectionError);
-          if (!best || score < best.score) best = { lower, middle, middleRate, upper: upperDecreases, topStep, top, rows, heightCm, perimeterCm, easeCm, zones, score, targetHeightCm: targetHeight };
+          const rank = design.neutralContour ? Math.abs(easeCm) : score;
+          if (!best || rank < bestRank) {
+            bestRank = rank;
+            best = { lower, middle, middleRate, upper: upperDecreases, topStep, top, rows, heightCm, perimeterCm, easeCm, zones, score, targetHeightCm: targetHeight };
+          }
         }
       }
     }
+    if (!best && design.neutralContour) fail("CAP_SOLUTION_UNAVAILABLE", "Для этой проймы и ширины руки не найден трёхзонный окат с равным контуром в пределах шага расчётной сетки. Проверь мерки или измени конструкцию.");
     if (!best) fail("CAP_SOLUTION_UNAVAILABLE", "Не найден окат, который согласуется с этой проймой и допустимой посадкой. Проверь мерки проймы, плеч и верхней части рукава. Случайно менять числа ради прохождения проверки не нужно.");
     const events = [rowEvent(1, "right", initial, "bind_off", "cap"), rowEvent(2, "left", initial, "bind_off", "cap")];
     let row = 2;
