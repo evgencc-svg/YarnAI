@@ -86,7 +86,15 @@
     const readiness = intent && readinessApi?.evaluateProjectReadiness ? readinessApi.evaluateProjectReadiness(intent) : null;
     const extraction = one("PATTERN_CONTENT_EXTRACTION")?.state;
     const digests = new Map();
+    const pdfDigests = new Map();
     for (const file of extraction?.result?.files || []) {
+      if (file.mediaType === "application/pdf" && /^\s*FINISHING\s*$/im.test(file.text) && /Sew shoulder seams\./i.test(file.text) && globalObject.crypto?.subtle) {
+        const stored = await repository.getPatternFile(projectId,file.sourceFileId);
+        if (stored?.blob) {
+          const hash = await crypto.subtle.digest("SHA-256",await stored.blob.arrayBuffer());
+          pdfDigests.set(file.sourceFileId,Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,"0")).join(""));
+        }
+      }
       if (file.mediaType === "application/pdf" && /work as for front/i.test(file.text) && globalObject.crypto?.subtle) {
         const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(file.text));
         digests.set(file.sourceFileId, Array.from(new Uint8Array(hash), b => b.toString(16).padStart(2, "0")).join(""));
@@ -94,7 +102,7 @@
     }
     context = {
       aggregate, project: aggregate.project, calculation, intent, readiness,
-      extraction, digests,
+      extraction, digests, pdfDigests,
       semantic: semanticInspection.analysis, review: reviewProgress?.state || null,
       importState: importProgress?.state || null, purposes: intake.purposes || {},
       saved: aggregate.project?.draft_input?.material_understanding || null,
@@ -192,6 +200,7 @@
   }
 
   function renderGradedSource() {
+    get("#graded-assembly").hidden = true;
     get("#graded-sleeves").hidden = true;
     get("#graded-back-body").hidden = true;
     get("#graded-front-body").hidden = true;
@@ -255,7 +264,8 @@
         renderPanelBody(panels.spec,panels.back);
         renderPanelBody(panels.spec,panels.front);
       }
-      renderSleeves(reading,panels);
+      const sleeves = renderSleeves(reading,panels);
+      renderAssembly(reading,source,panels,sleeves);
       renderBackShoulders(reading,panels);
       renderFrontNeck(reading,digest,panels);
       get("#graded-gauge-trial").hidden = true;
@@ -321,11 +331,132 @@
         } catch (error) {
           if (!error.userMessage) throw error;
           add(detail,"p","Сопряжение требует проверки. " + error.userMessage);
+          sleeve.geometryUnresolved = true;
         }
       }
+      return sleeves;
     } catch (error) {
       if (!error.userMessage) throw error;
       add(area,"p","Полный расчёт рукавов остановлен. " + error.userMessage);
+    }
+  }
+
+  function renderAssembly(reading,source,panels,sleeves) {
+    const area=get("#graded-assembly");
+    area.replaceChildren();
+    area.hidden=false;
+    function add(parent,tag,text) {
+      const node=document.createElement(tag);
+      if (text) node.textContent=text;
+      parent.append(node);
+      return node;
+    }
+    add(area,"h3","Отделка горловины и сборка");
+    const api=globalObject.YarnAIGradedAssembly;
+    try {
+      const digest=context.pdfDigests.get(source.sourceFileId);
+      if (!panels || !sleeves || sleeves.some(s=>s.geometryUnresolved) || !digest) {
+        add(area,"p","План сборки остановлен. Нужны исходный PDF, четыре полных детали одного размера и согласованные края.");
+        return;
+      }
+      const anthony=reading.attribution?.title?.trim().toLowerCase()==="anthony";
+      if ((anthony || panels.spec.front.corrected) && digest!==globalObject.YarnAIFrontNeck.correction.pdfHash) {
+        add(area,"p","Файл отличается от версии Berroco с проверенной поправкой. Проверь оригинал перед сборкой.");
+        return;
+      }
+      const spec=api.read(reading,source.text);
+      const model=api.build(spec,panels,sleeves);
+      const key=[projectId,source.sourceFileId,digest,spec.size,globalObject.YarnAIGarmentPoloPlan.fingerprint(model)].join("/");
+      const saved=context.project.draft_input?.graded_assembly;
+      const photos=context.aggregate.photos;
+      const state=api.inspect(model,key,saved,photos);
+      const step=state.next;
+
+      add(area,"p","Оба плеча соедини до набора горловины. Для парных швов показан один порядок сторон. Автор разрешает обработку готового изделия по желанию.");
+      const list=add(area,"ol");
+      for (const [i,item] of model.steps.entries()) {
+        const row=add(list,"li");
+        add(row,"strong",item.title+". ");
+        add(row,"span",item.guide);
+        if (i<state.records.length) {
+          const record=state.records[i];
+          add(row,"p","Отмечено вручную. "+item.fields.map(f=>f.label+" — "+record.values[f.id]).join(", "));
+          for (const id of record.photos) showPhoto(row,photos.find(p=>p.photo_id===id));
+        }
+      }
+      add(area,"p","Сопряжение оката с проймой требует реальных измерений. Точный счёт неразличимых петель по фотографии невозможен.");
+      add(area,"p","По журналу сборки отмечено "+state.records.length+" из "+model.steps.length+". Расчётный остаток на держателе "+state.held+" п., на спицах отделки "+state.active+" п.");
+      if (!step) { add(area,"p","Выполнение отмечено пользователем. Физическая посадка отдельно не проверена."); return; }
+      add(area,"h4","Контрольная точка · "+step.title);
+      if (saved?.waiting===step.id) add(area,"p","Ожидается замер или более информативный снимок.");
+      add(area,"p",step.guide+" Для сверки сними этот участок сверху. Для длины покажи начало, конец и деления ленты в плоскости детали. При нечётких петлях пересчитай их вручную.");
+      const form=add(area,"form");
+      const fields={};
+      for (const f of step.fields) {
+        const label=add(form,"label",f.label+" ");
+        const input=add(label,"input");
+        input.name=f.id; input.type="number"; input.step=f.expected!==null && !["height","needle"].includes(f.id)?"1":"any";
+        input.min="0"; input.required=true;
+        if (saved?.draft?.[f.id]!==undefined) input.value=saved.draft[f.id];
+        fields[f.id]=input;
+      }
+      if (step.id.startsWith("place-")) {
+        const comparison=add(form,"p","Введи четыре замера, чтобы сравнить половины шва.");
+        form.addEventListener("input",()=>{
+          const v=Object.fromEntries(Object.entries(fields).map(([k,input])=>[k,input.valueAsNumber]));
+          if (Object.values(v).every(n=>Number.isFinite(n)&&n>0)) comparison.textContent="Избыток оката спереди "+
+            (v.capFront-v.armFront).toLocaleString("ru")+" см, сзади "+(v.capBack-v.armBack).toLocaleString("ru")+" см. Допуск автора неизвестен. Проверь распределение на намётке.";
+        });
+      }
+      const purpose=api.purpose(key,step.id);
+      const present=photos.filter(p=>p.purpose===purpose && !p.deleted_at);
+      for (const photo of present) showPhoto(form,photo);
+      const label=add(form,"label","Фото для ручной сверки ");
+      const upload=add(label,"input"); upload.type="file";upload.accept="image/jpeg,image/png,image/webp";upload.multiple=true;
+      const confirmLabel=add(form,"label");
+      const confirm=add(confirmLabel,"input"); confirm.type="checkbox";confirm.required=true;
+      confirmLabel.append(" Я проверил(а) указанные детали, замеры и совмещение краёв на изделии.");
+      add(form,"button","Отметить выполнение").type="submit";
+      const wait=add(form,"button","Сохранить точку до замера");wait.type="button";
+      const msg=add(form,"p");msg.setAttribute("role","status");
+      const revision=context.project.revision;
+      async function save(complete) {
+        if (busy) return;
+        busy=true;
+        try {
+          const record={id:step.id,operation:globalObject.YarnAIGarmentPoloPlan.fingerprint(step),confirmed:confirm.checked,
+            values:Object.fromEntries(Object.entries(fields).map(([k,input])=>[k,input.valueAsNumber])),photos:present.map(p=>p.photo_id)};
+          const records=complete?[...state.records,record]:state.records;
+          const draft=Object.fromEntries(Object.entries(record.values).filter(([,v])=>Number.isFinite(v)));
+          const payload=complete?{key,records}:{key,records,waiting:step.id,draft};
+          api.inspect(model,key,api.journal(payload),photos);
+          for (const file of upload.files) {
+            const bitmap=await createImageBitmap(file);
+            bitmap.close();
+            const photo=await repository.addPhoto(projectId,file,{purpose,display_name:file.name});
+            if (complete && !record.photos.includes(photo.photo_id)) record.photos.push(photo.photo_id);
+          }
+          await repository.updateProject(projectId,{draft_input:{...context.project.draft_input,graded_assembly:api.journal(payload)}},{baseRevision:revision});
+          await loadContext();renderCurrent();
+        } catch(error) { msg.textContent=error.userMessage || error.message; }
+        finally { busy=false; }
+      }
+      form.addEventListener("submit",event=>{event.preventDefault();save(true);});
+      wait.addEventListener("click",()=>save(false));
+    } catch(error) { add(area,"p","Сборка остановлена. "+(error.userMessage || error.message)); }
+
+    function showPhoto(parent,photo) {
+      const button=add(parent,"button","Открыть снимок · "+photo.display_name);button.type="button";
+      button.addEventListener("click",async()=>{
+        try {
+          const stored=await repository.getPhoto(projectId,photo.photo_id);
+          if (!stored?.blob) throw new Error("Файл снимка недоступен. Добавь его снова.");
+          const img=add(parent,"img");img.alt=photo.display_name;img.width=320;
+          const url=URL.createObjectURL(stored.blob);
+          img.onload=img.onerror=()=>URL.revokeObjectURL(url);
+          img.src=url;button.hidden=true;
+        } catch(error) { add(parent,"p",error.message); }
+      });
     }
   }
 
